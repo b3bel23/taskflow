@@ -25,3 +25,21 @@ describe('camadas: só src/storage/ toca localStorage (AD-8)', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+// AD-9: "ThemeContext só faz uma coisa no DOM: setar
+// `document.documentElement.dataset.theme`" — nenhum outro módulo (incluindo
+// futuros, ex. Epic 2+) pode tocar essa API diretamente. Mesmo raciocínio do
+// bloco AD-8 acima: um `grep`/leitura manual pega uma violação hoje, mas não
+// uma regressão futura.
+describe('camadas: só src/state/ThemeContext.tsx escreve dataset.theme (AD-9)', () => {
+  it('nenhum arquivo-fonte fora de ThemeContext.tsx (excluindo testes) contém "dataset.theme" ou "documentElement.dataset"', () => {
+    const offenders = Object.entries(sourceFiles)
+      .filter(([path]) => path !== '/src/state/ThemeContext.tsx' && !/\.test\.tsx?$/.test(path))
+      .filter(
+        ([, content]) => content.includes('dataset.theme') || content.includes('documentElement.dataset'),
+      )
+      .map(([path]) => path);
+
+    expect(offenders).toEqual([]);
+  });
+});

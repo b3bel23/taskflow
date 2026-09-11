@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>TaskFlow — Visão Semanal (Key Screens)</title>
+<style>
+/*
+  RASTREABILIDADE COM A SPINE (bmad-ux)
+  Este mock ilustra:
+  - Information Architecture: superfície única do app (a visão semanal é a única tela real; não há navegação entre "páginas").
+  - Component Patterns: card de tarefa (nome + indicador circular de estado + tag/barra de prioridade discreta),
+    coluna de dia, botão "+ Adicionar tarefa" por coluna.
+  - State Patterns: coluna de dia vazia ("Nenhuma tarefa"), tarefa concluída (riscada + opaca, sem sumir do lugar),
+    tarefa sem prioridade definida.
+  - Interaction Primitives: drag-and-drop entre colunas de dia (muda Dia da Semana) e entre faixas de prioridade
+    dentro do mesmo dia (muda Prioridade) — ver Seção C.
+  - Destaque do dia atual (Quarta-feira) usando a cor de destaque "hoje".
+
+  DECISÕES DE LAYOUT NÃO ESPECIFICADAS (registradas aqui, não perguntadas):
+  - Dentro de cada coluna, os cards são ordenados por prioridade (Alta > Média > Baixa > Nenhuma). Isso cria
+    implicitamente as "faixas de prioridade" mencionadas no fluxo de arrastar. Em uso normal (Seções A/B) essa
+    ordenação é apenas silenciosa (sem divisores visuais, para não sobrecarregar a tela). Na Seção C (estado de
+    interação de drag), divisores sutis com rótulo são exibidos apenas nas duas colunas envolvidas, só para
+    tornar o mecanismo visível neste mock — não é um padrão de layout permanente da tela normal.
+  - O botão de alternância de tema é um toggle simples com os dois ícones (☀/☾); o lado correspondente ao tema
+    ativo fica destacado. Escolhida por ser a opção mais simples e direta.
+  - Dia vazio escolhido: Domingo (faz sentido narrativo para uma ferramenta de tarefas pessoais).
+  - "/* transição curta aqui " marca pontos onde uma transição de ~150-200ms ocorreria em produção.
+*/
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 32px 24px 64px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #EFEFEC;
+  color: #2B2B28;
+}
+
+h1.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6B6B66;
+  margin: 0 0 12px 4px;
+}
+
+.section-wrap {
+  margin-bottom: 56px;
+}
+
+.caption {
+  font-size: 13px;
+  color: #6B6B66;
+  margin: 10px 4px 0;
+  line-height: 1.5;
+  max-width: 900px;
+}
+
+/* ---------- App shell (light) ---------- */
+.app-light {
+  background: #F7F7F5;
+  border: 1px solid #E5E4E0;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.app-dark {
+  background: #1C1C1A;
+  border: 1px solid #38382F;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 0 4px;
+}
+
+.app-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.app-light .app-title { color: #2B2B28; }
+.app-dark .app-title { color: #EDEDEA; }
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+.app-light .theme-toggle { background: #FFFFFF; border: 1px solid #E5E4E0; }
+.app-dark .theme-toggle { background: #262624; border: 1px solid #38382F; }
+
+.theme-toggle .opt {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  /* transição curta aqui: background-color 150ms ease */
+}
+.app-light .opt.sun { background: #6C7A89; color: #FFFFFF; }
+.app-light .opt.moon { color: #6B6B66; }
+.app-dark .opt.moon { background: #8FA3B3; color: #1C1C1A; }
+.app-dark .opt.sun { color: #A3A39C; }
+
+/* ---------- Week grid ---------- */
+.week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(150px, 1fr));
+  gap: 14px;
+  overflow-x: auto;
+}
+
+.day-col {
+  border-radius: 14px;
+  padding: 14px 12px 12px;
+  min-height: 340px;
+  display: flex;
+  flex-direction: column;
+}
+.app-light .day-col { background: #F1F1EE; }
+.app-dark .day-col { background: #201F1D; }
+
+.app-light .day-col.today { background: #E8ECEE; box-shadow: inset 0 0 0 1.5px #6C7A89; }
+.app-dark .day-col.today { background: #23282B; box-shadow: inset 0 0 0 1.5px #8FA3B3; }
+
+.day-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding: 0 2px;
+}
+.day-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.app-light .day-name { color: #2B2B28; }
+.app-dark .day-name { color: #EDEDEA; }
+.day-col.today .day-name { color: #6C7A89; }
+.app-dark .day-col.today .day-name { color: #8FA3B3; }
+
+.day-date { font-size: 11px; }
+.app-light .day-date { color: #6B6B66; }
+.app-dark .day-date { color: #A3A39C; }
+
+.today-pill {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #FFFFFF;
+  background: #6C7A89;
+  padding: 2px 7px;
+  border-radius: 999px;
+  margin-left: 6px;
+}
+.app-dark .today-pill { background: #8FA3B3; color: #1C1C1A; }
+
+.cards { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+
+/* ---------- Task card ---------- */
+.card {
+  border-radius: 10px;
+  padding: 10px 10px 9px 11px;
+  border-left: 3px solid transparent;
+  position: relative;
+  /* transição curta aqui: box-shadow/transform 150ms ease no hover/drag */
+}
+.app-light .card { background: #FFFFFF; box-shadow: 0 1px 2px rgba(43,43,40,0.06); }
+.app-dark .card { background: #262624; box-shadow: 0 1px 2px rgba(0,0,0,0.25); }
+
+.card.pri-alta { border-left-color: #D64545; }
+.card.pri-media { border-left-color: #E8A33D; }
+.card.pri-baixa { border-left-color: #4F9D69; }
+.app-dark .card.pri-alta { border-left-color: #E5716B; }
+.app-dark .card.pri-media { border-left-color: #F0BB6B; }
+.app-dark .card.pri-baixa { border-left-color: #6FBF8B; }
+
+.card.done { opacity: 0.5; }
+
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.card-name {
+  font-size: 13.5px;
+  line-height: 1.35;
+  font-weight: 500;
+}
+.app-light .card-name { color: #2B2B28; }
+.app-dark .card-name { color: #EDEDEA; }
+.card.done .card-name { text-decoration: line-through; }
+
+.status-dot {
+  flex: none;
+  font-size: 12px;
+  line-height: 1;
+  margin-top: 1px;
+}
+.app-light .status-dot { color: #6B6B66; }
+.app-dark .status-dot { color: #A3A39C; }
+.status-dot.progress { color: #6C7A89; }
+.app-dark .status-dot.progress { color: #8FA3B3; }
+.status-dot.done { color: #4F9D69; }
+.app-dark .status-dot.done { color: #6FBF8B; }
+
+.pri-tag {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+.app-light .pri-tag.alta { color: #D64545; background: rgba(214,69,69,0.10); }
+.app-light .pri-tag.media { color: #E8A33D; background: rgba(232,163,61,0.14); }
+.app-light .pri-tag.baixa { color: #4F9D69; background: rgba(79,157,105,0.12); }
+.app-dark .pri-tag.alta { color: #E5716B; background: rgba(229,113,107,0.14); }
+.app-dark .pri-tag.media { color: #F0BB6B; background: rgba(240,187,107,0.16); }
+.app-dark .pri-tag.baixa { color: #6FBF8B; background: rgba(111,191,139,0.14); }
+
+/* ---------- Empty state ---------- */
+.empty-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  text-align: center;
+  border: 1.5px dashed #E5E4E0;
+  border-radius: 10px;
+  padding: 18px 8px;
+}
+.app-light .empty-state { color: #6B6B66; }
+.app-dark .empty-state { color: #A3A39C; border-color: #38382F; }
+
+.day-col.empty-highlight { box-shadow: inset 0 0 0 1.5px #6C7A89; }
+
+/* ---------- Add button ---------- */
+.add-btn {
+  margin-top: 10px;
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  cursor: default;
+  /* transição curta aqui: background-color 150ms ease no hover */
+}
+.app-light .add-btn { color: #6B6B66; background: transparent; }
+.app-light .add-btn:hover, .app-light .add-btn.emphasized { background: #E8ECEE; color: #6C7A89; }
+.app-dark .add-btn { color: #A3A39C; background: transparent; }
+.app-dark .add-btn.emphasized { background: #23282B; color: #8FA3B3; }
+
+/* ---------- Section C: drag state ---------- */
+.drag-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  max-width: 620px;
+}
+
+.band-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #6B6B66;
+  margin: 10px 0 4px;
+  padding-top: 8px;
+  border-top: 1px dashed #E5E4E0;
+}
+.band-label:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+
+.dragging-card {
+  transform: rotate(-3deg);
+  box-shadow: 0 10px 20px rgba(43,43,40,0.18);
+  position: relative;
+  z-index: 2;
+}
+
+.drop-placeholder {
+  border: 1.5px dashed #6C7A89;
+  background: rgba(108,122,137,0.07);
+  border-radius: 10px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #6C7A89;
+}
+
+.origin-gap {
+  border: 1.5px dashed #E5E4E0;
+  border-radius: 10px;
+  height: 46px;
+}
+</style>
+</head>
+<body>
+
+<!-- ================= SEÇÃO A — Estático, tema claro ================= -->
+<div class="section-wrap">
+  <h1 class="section-title">Seção A — Visão semanal, estado estático, tema claro</h1>
+  <div class="app-light">
+    <div class="app-header">
+      <p class="app-title">TaskFlow</p>
+      <div class="theme-toggle">
+        <span class="opt sun">☀</span>
+        <span class="opt moon">☾</span>
+      </div>
+    </div>
+
+    <div class="week-grid">
+      <!-- Segunda -->
+      <div class="day-col">
+        <div class="day-head"><span class="day-name">Segunda-feira</span></div>
+        <div class="cards">
+          <div class="card pri-alta">
+            <div class="card-top"><span class="card-name">Reunião de equipe</span><span class="status-dot progress">◐</span></div>
+            <span class="pri-tag alta">Alta</span>
+          </div>
+          <div class="card pri-baixa">
+            <div class="card-top"><span class="card-name">Responder e-mails</span><span class="status-dot">○</span></div>
+            <span class="pri-tag baixa">Baixa</span>
+          </div>
+        </div>
+        <button class="add-btn">+ Adicionar tarefa</button>
+      </div>
+
+      <!-- Terça -->
+      <div class="day-col">
+        <div class="day-head"><span class="day-name">Terça-feira</span></div>
+        <div class="cards">
+          <div class="card">
+            <div class="card-top"><span class="card-name">Academia</span><span class="status-dot">○</span></div>
+          </div>
+          <div class="card pri-baixa done">
+            <div class="card-top"><span class="card-name">Lavar roupa</span><span class="status-dot done">✓</span></div>
+            <span class="pri-tag baixa">Baixa</span>
+          </div>
+        </div>
+        <button class="add-btn">+ Adicionar tarefa</button>
+      </div>
+
+      <!-- Quarta - HOJE -->
+      <div class="day-col today">
+        <div class="day-head">
+          <span class="day-name">Quarta-feira <span class="today-pill">Hoje</span></span>
+        </div>
+        <div class="cards">
+          <div class="card pri-alta">
+            <div class="card-top"><span class="card-name">Revisar PRD</span><span class="status-dot progress">◐</span></div>
+            <span class="pri-tag alta">Alta</span>
+          </div>
+          <div class="card pri-media">
+            <div class="card-top"><span class="card-name">Organizar mesa</span><span class="status-dot">○</span></div>
+            <span class="pri-tag media">Média</span>
+          </div>
+          <div class="card done">
+            <div class="card-top"><span class="card-name">Responder e-mails</span><span class="status-dot done">✓</span></div>
+          </div>
+        </div>
+        <button class="add-btn">+ Adicionar tarefa</button>
+      </div>
+
+      <!-- Quinta -->
+      <div class="day-col">
+        <div class="day-head"><span class="day-name">Quinta-feira</span></div>
+        <div class="cards">
+          <div class="card pri-alta">
+            <div class="card-top"><span class="card-name">Estudar para prova</span><span class="status-dot">○</span></div>
+            <span class="pri-tag alta">Alta</span>
+          </div>
+          <div class="card pri-media">
+            <div class="card-top"><span class="card-name">Reunião de equipe</span><span class="status-dot">○</span></div>
+            <span class="pri-tag media">Média</span>
+          </div>
+          <div class="card pri-baixa">
+            <div class="card-top"><span class="card-name">Academia</span><span class="status-dot">○</span></div>
+            <span class="pri-tag baixa">Baixa</span>
+          </div>
+        </div>
+        <button class="add-btn">+ Adicionar tarefa</button>
+      </div>
+
+      <!-- Sexta -->
+      <div class="day-col">
+        <div class="day-head"><span class="day-name">Sexta-feira</span></div>
+        <div class="cards">
+          <div class="card pri-media">
+            <div class="card-top"><span class="card-name">Organizar mesa</span><span class="status-dot progress">◐</span></div>
+            <span class="pri-tag media">Média</span>
+          </div>
+          <div class="card">
+            <div class="card-top"><span class="card-name">Lavar roupa</span><span class="status-dot">○</span></div>
+          </div>
+        </div>
+        <button class="add-btn">+ Adicionar tarefa</button>
+      </div>
+
+      <!-- Sábado -->
+      <div class="day-col">
+        <div class="day-head"><span class="day-name">Sábado</span></div>
+        <div class="cards">
+          <div class="card pri-baixa">
+            <div class="card-top"><span class="card-name">Estudar para prova</span><span class="status-dot">○</span></div>
+            <span class="pri-tag baixa">Baixa</span>
+          </div>
+          <div class="card pri-media done">
+            <div class="card-top"><span class="card-name">Academia</span><span class="status-dot done">✓</span></div>
+            <span class="pri-tag media">Média</span>
+          </div>
+        </div>
+        <button class="add-btn">+ Adicionar tarefa</button>
+      </div>
+
+      <!-- Domingo - VAZIO -->
+      <div class="day-col empty-highlight">
+        <div class="day-head"><span class="day-name">Domingo</span></div>
+        <div class="empty-state">Nenhuma tarefa</div>
+        <button class="add-btn emphasized">+ Adicionar tarefa</button>
+      </div>
+    </div>
+  </div>
+  <p class="caption">Cabeçalho fora da grade (título + alternância de tema). Quarta-feira destacada como "hoje" com a cor de destaque #6C7A89. Domingo ilustra o dia vazio, com o botão "+ Adicionar tarefa" enfatizado.</p>
+</div>
+
+<!-- ================= SEÇÃO B — Estático, tema escuro ================= -->
+<div class="section-wrap">
+  <h1 class="section-title">Seção B — Mesmo layout, tema escuro</h1>
+  <div class="app-dark">
+    <div class="app-header">
+      <p class="app-title">TaskFlow</p>
+      <div class="theme-toggle">
+        <span class="opt sun">☀</span>
+        <span class="opt moon">☾</span>
+      </div>
+    </div>
+
+    <div class="week-grid">
+      <div class="day-col">
+        <div class="day-head"><span class="day-name">Segunda-feira</span></div>
+        <div class="cards">
+          <div class="card pri-alta">
+            <div class="card-top"><span class="card-name">Reunião de equipe</span><span class="status-dot progress">◐</span></div>
+            <span class="pri-tag alta">Alta</span>
+          </div>
+          <div class="card pri-baixa">
+            <div class="card-top"><span class="card-name">Responder e-mails</span><span class="status-dot">○</span></div>
+            <span class="pri-tag baixa">Baixa</span>
+          </div>
+        </div>
+        <button class="add-btn">+ Adicionar tarefa</button>
+      </div>
+
+      <div class="day-col">
+        <div class="day-head"><span class="day-name">Terça-feira</span></div>
+        <div class="cards">
+          <div class="card">
+            <div class="card-top"><span class="card-name">Academia</span><span class="status-dot">○</span></div>
+          </div>
+          <div class="card pri-baixa done">
+            <div class="card-top"><span class="card-name">Lavar roupa</span><span class="status-dot done">✓</span></div>
+            <span class="pri-tag baixa">Baixa</span>
+          </div>
+        </div>
+        <button class="add-btn">+ Adicionar tarefa</button>
+      </div>
+
+      <div class="day-col today">
+        <div class="day-head">
+          <span class="day-name">Quarta-feira <span class="today-pill">Hoje</span></span>
+        </div>
+        <div class="cards">
+          <div class="card pri-alta">
+            <div class="card-top"><span class="card-name">Revisar PRD</span><span class="status-dot progress">◐</span></div>
+            <span class="pri-tag alta">Alta</span>
+          </div>
+          <div class="card pri-media">
+            <div class="card-top"><span class="card-name">Organizar mesa</span><span class="status-dot">○</span></div>
+            <span class="pri-tag media">Média</span>
+          </div>
+          <div class="card done">
+            <div class="card-top"><span class="card-name">Responder e-mails</span><span class="status-dot done">✓</span></div>
+          </div>
+        </div>
+        <button class="add-btn">+ Adicionar tarefa</button>
+      </div>
+
+      <div class="day-col">
+        <div class="day-head"><span class="day-name">Quinta-feira</span></div>
+        <div class="cards">
+          <div class="card pri-alta">
+            <div class="card-top"><span class="card-name">Estudar para prova</span><span class="status-dot">○</span></div>
+            <span class="pri-tag alta">Alta</span>
+          </div>
+          <div class="card pri-media">
+            <div class="card-top"><span class="card-name">Reunião de equipe</span><span class="status-dot">○</span></div>
+            <span class="pri-tag media">Média</span>
+          </div>
+          <div class="card pri-baixa">
+            <div class="card-top"><span class="card-name">Academia</span><span class="status-dot">○</span></div>
+            <span class="pri-tag baixa">Baixa</span>
+          </div>
+        </div>
+        <button class="add-btn">+ Adicionar tarefa</button>
+      </div>
+
+      <div class="day-col">
+        <div class="day-head"><span class="day-name">Sexta-feira</span></div>
+        <div class="cards">
+          <div class="card pri-media">
+            <div class="card-top"><span class="card-name">Organizar mesa</span><span class="status-dot progress">◐</span></div>
+            <span class="pri-tag media">Média</span>
+          </div>
+          <div class="card">
+            <div class="card-top"><span class="card-name">Lavar roupa</span><span class="status-dot">○</span></div>
+          </div>
+        </div>
+        <button class="add-btn">+ Adicionar tarefa</button>
+      </div>
+
+      <div class="day-col">
+        <div class="day-head"><span class="day-name">Sábado</span></div>
+        <div class="cards">
+          <div class="card pri-baixa">
+            <div class="card-top"><span class="card-name">Estudar para prova</span><span class="status-dot">○</span></div>
+            <span class="pri-tag baixa">Baixa</span>
+          </div>
+          <div class="card pri-media done">
+            <div class="card-top"><span class="card-name">Academia</span><span class="status-dot done">✓</span></div>
+            <span class="pri-tag media">Média</span>
+          </div>
+        </div>
+        <button class="add-btn">+ Adicionar tarefa</button>
+      </div>
+
+      <div class="day-col empty-highlight">
+        <div class="day-head"><span class="day-name">Domingo</span></div>
+        <div class="empty-state">Nenhuma tarefa</div>
+        <button class="add-btn emphasized">+ Adicionar tarefa</button>
+      </div>
+    </div>
+  </div>
+  <p class="caption">Mesma estrutura e conteúdo da Seção A, com a paleta escura decidida (fundo #1C1C1A, cards #262624, destaque "hoje" #8FA3B3).</p>
+</div>
+
+<!-- ================= SEÇÃO C — Interação: arrastando um card ================= -->
+<div class="section-wrap">
+  <h1 class="section-title">Seção C — Estado de interação: arrastando um card de Quarta para Quinta</h1>
+  <div class="app-light">
+    <div class="app-header">
+      <p class="app-title">TaskFlow</p>
+      <div class="theme-toggle">
+        <span class="opt sun">☀</span>
+        <span class="opt moon">☾</span>
+      </div>
+    </div>
+
+    <div class="drag-grid">
+      <!-- Quarta: card sendo levantado -->
+      <div class="day-col today">
+        <div class="day-head"><span class="day-name">Quarta-feira <span class="today-pill">Hoje</span></span></div>
+        <div class="cards">
+          <div class="band-label">Alta</div>
+          <div class="card pri-alta dragging-card">
+            <div class="card-top"><span class="card-name">Revisar PRD</span><span class="status-dot progress">◐</span></div>
+            <span class="pri-tag alta">Alta</span>
+          </div>
+          <div class="origin-gap"></div>
+          <div class="band-label">Média</div>
+          <div class="card pri-media">
+            <div class="card-top"><span class="card-name">Organizar mesa</span><span class="status-dot">○</span></div>
+            <span class="pri-tag media">Média</span>
+          </div>
+        </div>
+        <button class="add-btn">+ Adicionar tarefa</button>
+      </div>
+
+      <!-- Quinta: placeholder recebendo o card -->
+      <div class="day-col">
+        <div class="day-head"><span class="day-name">Quinta-feira</span></div>
+        <div class="cards">
+          <div class="band-label">Alta</div>
+          <div class="card pri-alta">
+            <div class="card-top"><span class="card-name">Estudar para prova</span><span class="status-dot">○</span></div>
+            <span class="pri-tag alta">Alta</span>
+          </div>
+          <div class="drop-placeholder">solta aqui — Revisar PRD</div>
+          <div class="band-label">Média</div>
+          <div class="card pri-media">
+            <div class="card-top"><span class="card-name">Reunião de equipe</span><span class="status-dot">○</span></div>
+            <span class="pri-tag media">Média</span>
+          </div>
+        </div>
+        <button class="add-btn">+ Adicionar tarefa</button>
+      </div>
+    </div>
+  </div>
+  <p class="caption">
+    O card "Revisar PRD" é levantado (leve rotação + sombra) da coluna de Quarta e solto na faixa "Alta" da coluna de
+    Quinta — o contorno tracejado mostra o encaixe. Regra geral: arrastar entre colunas muda o <strong>Dia da Semana</strong>;
+    arrastar para uma faixa de prioridade diferente dentro do mesmo dia muda a <strong>Prioridade</strong>. As faixas
+    (Alta/Média/Baixa/Nenhuma) e seus rótulos são exibidos aqui apenas para ilustrar o mecanismo de arrastar — na
+    visão estática (Seções A/B) essa ordenação existe, mas sem divisores visuais.
+  </p>
+</div>
+
+</body>
+</html>

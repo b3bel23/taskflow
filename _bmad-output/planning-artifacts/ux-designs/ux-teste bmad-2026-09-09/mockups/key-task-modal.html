@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>TaskFlow — Modal de Tarefa (Key Screens)</title>
+<style>
+/*
+  RASTREABILIDADE COM A SPINE (bmad-ux)
+  Este mock ilustra:
+  - Component Patterns: o modal de tarefa (única forma de criar/editar/excluir) — campo de nome, seletor de
+    prioridade, seletor de estado, seletor de dia da semana, ação destrutiva discreta ("Excluir tarefa").
+  - State Patterns: modo criação (campos vazios/neutros), modo edição (campos preenchidos), diálogo de
+    confirmação de exclusão.
+  - Key Flow: excluir tarefa com confirmação obrigatória antes da ação destrutiva.
+
+  DECISÕES DE LAYOUT NÃO ESPECIFICADAS (registradas aqui, não perguntadas):
+  - No modo criação (Seção A), o dia da semana é mostrado como um rótulo estático (não editável), já que o
+    modal foi aberto a partir do botão "+" da coluna de Quinta-feira — opção mais simples, conforme permitido
+    pela instrução. No modo edição (Seção B) o dia passa a ser um seletor editável com os 7 dias, pois editar
+    uma tarefa existente pode incluir mudar o dia.
+  - Prioridade é representada como um grupo de 4 pílulas (Alta/Média/Baixa/Nenhuma), consistente com a tag de
+    prioridade discreta usada nos cards da visão semanal.
+  - Estado é representado como um seletor de 3 opções com os mesmos indicadores circulares usados nos cards
+    (○ Pendente / ◐ Em andamento / ✓ Concluída), para reforçar consistência visual com a tela principal.
+  - O fundo esmaecido atrás do modal é uma versão simplificada da visão semanal (menos detalhe), suficiente
+    para comunicar contexto sem duplicar o mock da Seção A/B do outro arquivo.
+*/
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 32px 24px 64px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #EFEFEC;
+  color: #2B2B28;
+}
+
+h1.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6B6B66;
+  margin: 0 0 12px 4px;
+}
+.section-wrap { margin-bottom: 56px; }
+.caption {
+  font-size: 13px;
+  color: #6B6B66;
+  margin: 10px 4px 0;
+  line-height: 1.5;
+  max-width: 780px;
+}
+
+/* ---------- Backdrop: simplified weekly view (light), dimmed ---------- */
+.stage {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  min-height: 460px;
+  background: #F7F7F5;
+  border: 1px solid #E5E4E0;
+}
+
+.bg-week {
+  padding: 24px;
+  filter: blur(0.3px);
+}
+.bg-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.bg-title { font-size: 20px; font-weight: 700; color: #2B2B28; margin: 0; }
+.bg-toggle { width: 44px; height: 22px; border-radius: 999px; background: #FFFFFF; border: 1px solid #E5E4E0; }
+
+.bg-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 12px;
+}
+.bg-col {
+  background: #F1F1EE;
+  border-radius: 12px;
+  padding: 10px 8px;
+  min-height: 300px;
+}
+.bg-col-name { font-size: 11px; font-weight: 600; color: #2B2B28; margin-bottom: 8px; }
+.bg-card {
+  background: #FFFFFF;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 11px;
+  color: #2B2B28;
+  margin-bottom: 6px;
+  border-left: 3px solid #E5E4E0;
+  box-shadow: 0 1px 2px rgba(43,43,40,0.05);
+}
+.bg-card.alta { border-left-color: #D64545; }
+.bg-add {
+  margin-top: 6px;
+  font-size: 10.5px;
+  color: #6B6B66;
+  text-align: center;
+}
+.bg-col.active-source { box-shadow: inset 0 0 0 1.5px #6C7A89; }
+
+/* Dim overlay */
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(43,43,40,0.38);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* ---------- Modal ---------- */
+.modal {
+  background: #FFFFFF;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 380px;
+  padding: 22px 22px 18px;
+  box-shadow: 0 20px 40px rgba(43,43,40,0.25);
+  /* transição curta aqui: opacity + translateY 150ms ease na abertura */
+}
+
+.modal-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #2B2B28;
+  margin: 0 0 4px;
+}
+.modal-subtitle {
+  font-size: 12px;
+  color: #6B6B66;
+  margin: 0 0 18px;
+}
+
+.field-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #6B6B66;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 0 0 6px;
+  display: block;
+}
+
+.text-input {
+  width: 100%;
+  border: 1px solid #E5E4E0;
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 13.5px;
+  color: #2B2B28;
+  background: #FFFFFF;
+  margin-bottom: 16px;
+}
+.text-input.placeholder { color: #6B6B66; }
+.text-input.filled { color: #2B2B28; }
+
+.day-static {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #6C7A89;
+  background: #E8ECEE;
+  padding: 5px 10px;
+  border-radius: 999px;
+  margin-bottom: 16px;
+}
+
+.day-select {
+  width: 100%;
+  border: 1px solid #E5E4E0;
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 13.5px;
+  color: #2B2B28;
+  background: #FFFFFF;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.day-select .chev { color: #6B6B66; font-size: 11px; }
+
+.pill-group { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.pill {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #E5E4E0;
+  color: #6B6B66;
+  background: #FFFFFF;
+}
+.pill.sel-alta { background: rgba(214,69,69,0.10); border-color: #D64545; color: #D64545; }
+.pill.sel-media { background: rgba(232,163,61,0.14); border-color: #E8A33D; color: #E8A33D; }
+.pill.sel-baixa { background: rgba(79,157,105,0.12); border-color: #4F9D69; color: #4F9D69; }
+.pill.sel-nenhuma { background: #F1F1EE; border-color: #6B6B66; color: #2B2B28; }
+
+.status-group { display: flex; gap: 6px; margin-bottom: 20px; }
+.status-opt {
+  flex: 1;
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 7px 6px;
+  border-radius: 8px;
+  border: 1px solid #E5E4E0;
+  color: #6B6B66;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.status-opt.selected { background: #E8ECEE; border-color: #6C7A89; color: #6C7A89; font-weight: 700; }
+
+.priority-none-row { margin-bottom: 4px; }
+
+.delete-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: #D64545;
+  margin: 2px 0 18px;
+  display: inline-block;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.btn {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+.btn-secondary { background: #FFFFFF; border-color: #E5E4E0; color: #2B2B28; }
+.btn-primary { background: #6C7A89; color: #FFFFFF; }
+.btn-danger { background: #D64545; color: #FFFFFF; }
+
+/* Confirm dialog */
+.confirm-box {
+  background: #FFFFFF;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 340px;
+  padding: 22px;
+  box-shadow: 0 20px 40px rgba(43,43,40,0.25);
+  text-align: left;
+}
+.confirm-title { font-size: 14.5px; font-weight: 700; color: #2B2B28; margin: 0 0 8px; }
+.confirm-body { font-size: 13px; color: #6B6B66; line-height: 1.5; margin: 0 0 20px; }
+</style>
+</head>
+<body>
+
+<!-- ================= SEÇÃO A — Modo criação ================= -->
+<div class="section-wrap">
+  <h1 class="section-title">Seção A — Modal de tarefa, modo criação (aberto pelo "+" de Quinta-feira)</h1>
+  <div class="stage">
+    <div class="bg-week">
+      <div class="bg-header">
+        <p class="bg-title">TaskFlow</p>
+        <div class="bg-toggle"></div>
+      </div>
+      <div class="bg-grid">
+        <div class="bg-col"><div class="bg-col-name">Segunda</div><div class="bg-card">Reunião de equipe</div></div>
+        <div class="bg-col"><div class="bg-col-name">Terça</div><div class="bg-card">Academia</div></div>
+        <div class="bg-col"><div class="bg-col-name">Quarta</div><div class="bg-card alta">Revisar PRD</div></div>
+        <div class="bg-col active-source"><div class="bg-col-name">Quinta</div><div class="bg-card">Estudar para prova</div><div class="bg-add">+ Adicionar tarefa</div></div>
+        <div class="bg-col"><div class="bg-col-name">Sexta</div><div class="bg-card">Organizar mesa</div></div>
+        <div class="bg-col"><div class="bg-col-name">Sábado</div><div class="bg-card">Academia</div></div>
+        <div class="bg-col"><div class="bg-col-name">Domingo</div><div class="bg-add">Nenhuma tarefa</div></div>
+      </div>
+    </div>
+    <div class="overlay">
+      <div class="modal">
+        <p class="modal-title">Nova tarefa</p>
+        <p class="modal-subtitle">Criar uma tarefa para este dia.</p>
+
+        <span class="field-label">Dia</span>
+        <span class="day-static">Quinta-feira</span>
+
+        <span class="field-label">Nome da tarefa</span>
+        <div class="text-input placeholder">Ex.: Revisar relatório</div>
+
+        <span class="field-label">Prioridade <span style="text-transform:none; font-weight:400;">(opcional)</span></span>
+        <div class="pill-group">
+          <span class="pill">Alta</span>
+          <span class="pill">Média</span>
+          <span class="pill">Baixa</span>
+          <span class="pill sel-nenhuma">Nenhuma</span>
+        </div>
+
+        <div class="modal-actions">
+          <span class="btn btn-secondary">Cancelar</span>
+          <span class="btn btn-primary">Adicionar tarefa</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="caption">Campo de nome vazio com placeholder neutro (obrigatório). Nenhuma prioridade selecionada por padrão — "Nenhuma" aparece apenas destacada para indicar o estado inicial, não uma seleção ativa do usuário. Dia mostrado como rótulo fixo, pois o modal foi aberto a partir da coluna de Quinta-feira.</p>
+</div>
+
+<!-- ================= SEÇÃO B — Modo edição ================= -->
+<div class="section-wrap">
+  <h1 class="section-title">Seção B — Modal de tarefa, modo edição ("Revisar PRD")</h1>
+  <div class="stage">
+    <div class="bg-week">
+      <div class="bg-header">
+        <p class="bg-title">TaskFlow</p>
+        <div class="bg-toggle"></div>
+      </div>
+      <div class="bg-grid">
+        <div class="bg-col"><div class="bg-col-name">Segunda</div><div class="bg-card">Reunião de equipe</div></div>
+        <div class="bg-col"><div class="bg-col-name">Terça</div><div class="bg-card">Academia</div></div>
+        <div class="bg-col"><div class="bg-col-name">Quarta</div><div class="bg-card alta">Revisar PRD</div></div>
+        <div class="bg-col active-source"><div class="bg-col-name">Quinta</div><div class="bg-card">Estudar para prova</div><div class="bg-add">+ Adicionar tarefa</div></div>
+        <div class="bg-col"><div class="bg-col-name">Sexta</div><div class="bg-card">Organizar mesa</div></div>
+        <div class="bg-col"><div class="bg-col-name">Sábado</div><div class="bg-card">Academia</div></div>
+        <div class="bg-col"><div class="bg-col-name">Domingo</div><div class="bg-add">Nenhuma tarefa</div></div>
+      </div>
+    </div>
+    <div class="overlay">
+      <div class="modal">
+        <p class="modal-title">Editar tarefa</p>
+        <p class="modal-subtitle">Altere os campos e salve as mudanças.</p>
+
+        <span class="field-label">Nome da tarefa</span>
+        <div class="text-input filled">Revisar PRD</div>
+
+        <span class="field-label">Prioridade</span>
+        <div class="pill-group">
+          <span class="pill sel-alta">Alta</span>
+          <span class="pill">Média</span>
+          <span class="pill">Baixa</span>
+          <span class="pill">Nenhuma</span>
+        </div>
+
+        <span class="field-label">Estado</span>
+        <div class="status-group">
+          <span class="status-opt">○ Pendente</span>
+          <span class="status-opt selected">◐ Em andamento</span>
+          <span class="status-opt">✓ Concluída</span>
+        </div>
+
+        <span class="field-label">Dia da semana</span>
+        <div class="day-select"><span>Quinta-feira</span><span class="chev">▾</span></div>
+
+        <span class="delete-link">Excluir tarefa</span>
+
+        <div class="modal-actions">
+          <span class="btn btn-secondary">Cancelar</span>
+          <span class="btn btn-primary">Salvar alterações</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="caption">Mesmo modal, agora preenchido: nome, prioridade Alta, estado "Em andamento" e dia "Quinta-feira" já selecionados. O seletor de dia é um dropdown editável com os 7 dias. "Excluir tarefa" aparece como link discreto em vermelho, separado das ações principais.</p>
+</div>
+
+<!-- ================= SEÇÃO C — Confirmação de exclusão ================= -->
+<div class="section-wrap">
+  <h1 class="section-title">Seção C — Confirmação de exclusão (após clicar em "Excluir tarefa")</h1>
+  <div class="stage">
+    <div class="bg-week">
+      <div class="bg-header">
+        <p class="bg-title">TaskFlow</p>
+        <div class="bg-toggle"></div>
+      </div>
+      <div class="bg-grid">
+        <div class="bg-col"><div class="bg-col-name">Segunda</div><div class="bg-card">Reunião de equipe</div></div>
+        <div class="bg-col"><div class="bg-col-name">Terça</div><div class="bg-card">Academia</div></div>
+        <div class="bg-col"><div class="bg-col-name">Quarta</div><div class="bg-card alta">Revisar PRD</div></div>
+        <div class="bg-col active-source"><div class="bg-col-name">Quinta</div><div class="bg-card">Estudar para prova</div><div class="bg-add">+ Adicionar tarefa</div></div>
+        <div class="bg-col"><div class="bg-col-name">Sexta</div><div class="bg-card">Organizar mesa</div></div>
+        <div class="bg-col"><div class="bg-col-name">Sábado</div><div class="bg-card">Academia</div></div>
+        <div class="bg-col"><div class="bg-col-name">Domingo</div><div class="bg-add">Nenhuma tarefa</div></div>
+      </div>
+    </div>
+    <div class="overlay">
+      <div class="confirm-box">
+        <p class="confirm-title">Excluir esta tarefa?</p>
+        <p class="confirm-body">Essa ação não pode ser desfeita.</p>
+        <div class="modal-actions">
+          <span class="btn btn-secondary">Cancelar</span>
+          <span class="btn btn-danger">Excluir</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="caption">Diálogo simples e direto sobreposto ao modal de edição (que fica atrás, omitido aqui por clareza). Ação destrutiva usa a cor de prioridade Alta (#D64545) de forma comedida, apenas no botão "Excluir".</p>
+</div>
+
+</body>
+</html>

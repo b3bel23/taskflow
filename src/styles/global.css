@@ -1,0 +1,28 @@
+/* Reset mínimo. Nenhuma regra de tema/breakpoint aqui — só o essencial
+   para o texto e o fundo usarem os tokens em vez dos padrões do browser. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
+  color: var(--color-ink-primary);
+  background-color: var(--color-surface-base);
+}
+
+button {
+  font-family: inherit;
+}

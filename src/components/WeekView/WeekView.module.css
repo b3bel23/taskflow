@@ -1,0 +1,7 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--column-gap);
+  padding: var(--spacing-5);
+  background-color: var(--color-surface-base);
+}

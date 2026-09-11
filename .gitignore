@@ -1,0 +1,41 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+dist-ssr
+*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test/coverage
+coverage
+*.tsbuildinfo
+
+# BMAD Method tooling/installation (framework engine, skill definitions,
+# workflow render cache) — not TaskFlow app code or SDD artifacts.
+# `_bmad-output/` (specs, epics, planning docs) IS versioned — see above.
+/.agents/
+/.claude/
+/.github/
+/_bmad/
+
+# Spec de outro projeto (não-TaskFlow), fora do escopo deste repositório.
+/_bmad-output/specs/spec-controle-chamados-ti/

@@ -1,0 +1,28 @@
+/* DESIGN.md `priority-tag`: elemento pequeno e discreto (pílula compacta),
+   cor = nível de prioridade. Nunca ocupa mais do que uma fração pequena do
+   card — texto sempre em `fontWeight: 600` (mesma mitigação de contraste dos
+   botões, DESIGN.md Colors). */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 2px var(--spacing-2);
+  border-radius: var(--radius-full);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-meta);
+  font-weight: 600;
+  color: var(--color-surface-raised);
+}
+
+.high {
+  background-color: var(--color-priority-high);
+}
+
+.medium {
+  background-color: var(--color-priority-medium);
+}
+
+.low {
+  background-color: var(--color-priority-low);
+}

@@ -1,10 +1,10 @@
 import { createContext, useContext, useReducer, type Dispatch, type ReactNode } from 'react';
 import { loadTasks } from '../storage/tasksStorage';
-import { tasksReducer, type TaskStoreState } from './tasksReducer';
+import { tasksReducer, type TaskAction, type TaskStoreState } from './tasksReducer';
 
 export interface TaskContextValue {
   state: TaskStoreState;
-  dispatch: Dispatch<unknown>;
+  dispatch: Dispatch<TaskAction>;
 }
 
 const TaskContext = createContext<TaskContextValue | undefined>(undefined);

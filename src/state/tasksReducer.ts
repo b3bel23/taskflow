@@ -11,11 +11,19 @@ export interface TaskStoreState {
   loadError: boolean;
 }
 
-// Passthrough (AD-5, fundação para o Epic 2): nenhuma ação de mutação existe
-// ainda — criar/editar/excluir Tarefa é escopo do Epic 2, que introduz os
-// action types reais e passa a tratá-los aqui. Por ora o reducer só permite
-// que `TaskContext` use `useReducer` desde já, sem nenhuma mutação de
-// estado.
-export function tasksReducer(state: TaskStoreState, _action: unknown): TaskStoreState {
-  return state;
+// Primeira action real (Epic 2, Story 2.1) — substitui o passthrough da
+// Story 1.2. `useTaskActions.createTask` é a única chamadora: ela já
+// persistiu a tarefa com sucesso (guard AD-4) antes de despachar `create`
+// aqui, então este reducer nunca decide sozinho `id`/`order`/`state` iniciais
+// nem tenta persistir nada — só aplica a mutação já validada ao estado em
+// memória.
+export type TaskAction = { type: 'create'; task: Task };
+
+export function tasksReducer(state: TaskStoreState, action: TaskAction): TaskStoreState {
+  switch (action.type) {
+    case 'create':
+      return { ...state, tasks: [...state.tasks, action.task] };
+    default:
+      return state;
+  }
 }

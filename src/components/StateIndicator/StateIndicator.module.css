@@ -1,0 +1,27 @@
+/* DESIGN.md `state-indicator`: círculo pequeno (rounded.full, 18px).
+   Pendente: contorno ink-secondary, preenchimento vazio. Em andamento:
+   metade preenchida com accent. Concluída: preenchida com ink-secondary
+   (nunca cor de prioridade nem accent sólido, para não competir com esses
+   dois sinais). */
+
+.indicator {
+  display: inline-block;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-ink-secondary);
+}
+
+.pending {
+  background-color: transparent;
+}
+
+.inProgress {
+  background: linear-gradient(90deg, var(--color-accent) 50%, transparent 50%);
+}
+
+.done {
+  background-color: var(--color-ink-secondary);
+}

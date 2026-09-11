@@ -1,18 +1,31 @@
-import type { DayOfWeek } from '../../types';
+import { useCallback, useRef, useState } from 'react';
+import type { DayOfWeek, Task } from '../../types';
 import { DAY_LABELS } from '../../constants/days';
+import { TaskCard } from '../TaskCard/TaskCard';
+import { TaskModal } from '../TaskModal/TaskModal';
 import styles from './DayColumn.module.css';
 
 export interface DayColumnProps {
   day: DayOfWeek;
   isToday: boolean;
+  tasks: Task[];
 }
 
-// Estado vazio da Coluna do Dia. Sem dado real de tarefa e sem modal
-// funcional ainda (Epic 2) — "+ Adicionar tarefa" é visível mas inerte.
-export function DayColumn({ day, isToday }: DayColumnProps) {
+// Coluna do Dia: renderiza as tarefas reais (já filtradas+ordenadas por
+// `WeekView` via `sortTasksInDay`) ou "Nenhuma tarefa" quando vazia. "+
+// Adicionar tarefa" abre o `TaskModal` (só criação nesta história); `Esc`/
+// sucesso na criação fecham o modal e devolvem o foco a este mesmo botão.
+export function DayColumn({ day, isToday, tasks }: DayColumnProps) {
   const columnClassName = isToday ? `${styles.column} ${styles.today}` : styles.column;
-
   const labelId = `day-label-${day}`;
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const addButtonRef = useRef<HTMLButtonElement>(null);
+
+  const closeModal = useCallback(() => {
+    setIsModalOpen(false);
+    addButtonRef.current?.focus();
+  }, []);
 
   return (
     <section
@@ -24,12 +37,26 @@ export function DayColumn({ day, isToday }: DayColumnProps) {
       <h2 id={labelId} className={styles.dayLabel}>
         {DAY_LABELS[day]}
       </h2>
-      <p className={styles.emptyState}>Nenhuma tarefa</p>
-      {/* Intencionalmente não-funcional: o Modal de Tarefa (Epic 2) é
-          quem liga este botão a uma ação real. */}
-      <button type="button" className={styles.addTaskButton}>
+      {tasks.length === 0 ? (
+        <p className={styles.emptyState}>Nenhuma tarefa</p>
+      ) : (
+        <ul className={styles.taskList}>
+          {tasks.map((task) => (
+            <li key={task.id}>
+              <TaskCard task={task} />
+            </li>
+          ))}
+        </ul>
+      )}
+      <button
+        type="button"
+        ref={addButtonRef}
+        className={styles.addTaskButton}
+        onClick={() => setIsModalOpen(true)}
+      >
         + Adicionar tarefa
       </button>
+      {isModalOpen && <TaskModal day={day} onClose={closeModal} />}
     </section>
   );
 }

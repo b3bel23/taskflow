@@ -29,3 +29,15 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3-alternar-entre-tema-claro-e-escuro.md`
   summary: AC5 (foco visível no `ThemeToggle`) não tem cobertura automatizada — `vite.config.ts` não habilita `test.css`, então o Vitest/jsdom não injeta os CSS Modules reais, e um assert via `getComputedStyle` não enxergaria a regra `:focus-visible` de `ThemeToggle.module.css`.
   evidence: Achado do verification-gap da Story 1.3; a regra CSS existe e foi verificada por leitura de código, mas só teste manual confirma o comportamento real no navegador até que `test.css` seja avaliado para o projeto.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-criar-tarefa.md`
+  summary: `getNextOrderInGroup` calcula o próximo `order` por contagem (`tasks.filter(...).length`), não por `max(order)+1`. Depois que a Story 2.3 (excluir tarefa) existir, apagar uma tarefa do meio de um grupo `(day,priority)` e depois criar uma nova nesse mesmo grupo pode colidir com o `order` de uma tarefa já existente.
+  evidence: Achado do blind-hunter da Story 2.1; inofensivo hoje (nenhum caminho de exclusão existe ainda), mas quem implementar a Story 2.3 precisa garantir que a exclusão reindexe o grupo (ou trocar `getNextOrderInGroup` por `max+1`) antes disso virar um bug real.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-criar-tarefa.md`
+  summary: Sem proteção contra duplo-clique rápido em "Adicionar tarefa" — duas chamadas de `createTask` antes do re-render poderiam ler o mesmo `state.tasks` (closure) e calcular o mesmo `order`.
+  evidence: Achado do blind-hunter/edge-case-hunter da Story 2.1; risco real baixo (clique físico de mouse único, sem AC exigindo debounce), mas uma melhoria de robustez futura (desabilitar o botão durante o salvamento) se algum dia se mostrar necessário.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-criar-tarefa.md`
+  summary: `DayColumn` mantém seu próprio estado `isModalOpen` independente por coluna — nada garante centralmente que só um `TaskModal` pode estar aberto por vez entre as 7 colunas (hoje isso já é impedido na prática pelo overlay em tela cheia + focus trap, mas não há uma fonte única de verdade).
+  evidence: Achado do blind-hunter da Story 2.1; não é um bug alcançável por interação normal do usuário, mas vale revisitar se um gerenciador de modal global for introduzido nas próximas histórias (2.2/2.3 reusam o mesmo `TaskModal`).

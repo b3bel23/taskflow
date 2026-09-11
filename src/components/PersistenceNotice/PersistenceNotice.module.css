@@ -1,0 +1,29 @@
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  padding: var(--spacing-2) var(--spacing-5);
+  background-color: var(--color-surface-base);
+  border-bottom: 1px solid var(--color-border-hairline);
+}
+
+.staticNotice {
+  margin: 0;
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-meta);
+  font-weight: var(--font-weight-meta);
+  color: var(--color-ink-secondary);
+}
+
+.errorNotice {
+  margin: 0;
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-meta);
+  font-weight: var(--font-weight-meta);
+  /* `--color-priority-high` é reservada à Tag de Prioridade (DESIGN.md),
+     com a única exceção documentada sendo o botão de Confirmação de
+     Exclusão — este aviso usa ink-primary, mais enfático que o aviso
+     estático (ink-secondary), sem tomar emprestada a semântica de
+     prioridade/perigo. */
+  color: var(--color-ink-primary);
+}

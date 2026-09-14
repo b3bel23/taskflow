@@ -164,22 +164,6 @@ Valide o build:
 npm run build
 ```
 
-## 📊 Progresso atual
-
-* [x] Product Brief
-* [x] PRD
-* [x] UX Design
-* [x] Arquitetura
-* [x] SPEC
-* [x] Épicos e Histórias de Usuário
-* [x] Sprint Planning / Readiness Gate
-* [x] Story 1.1 — Visualizar a Semana Vazia
-* [ ] Story 1.2 — Persistência das Tarefas
-* [ ] Story 1.3 — Tema Claro/Escuro
-* [ ] Epic 2 — Gerenciamento de Tarefas
-* [ ] Epic 3 — Progresso do Dia
-* [ ] Epic 4 — Drag and Drop
-
 ## 🎯 Objetivos do projeto
 
 O TaskFlow possui dois objetivos principais.

@@ -101,3 +101,192 @@ describe('useTaskActions', () => {
     expect(window.localStorage.getItem(TASKS_STORAGE_KEY)).toBeNull();
   });
 });
+
+describe('updateTask', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('só muda o Nome: salva antes de despachar, Dia/Prioridade/Estado ficam intactos', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Original', day: 'mon', priority: 'high' });
+    });
+    const [created] = result.current.state.tasks;
+
+    let actionResult: TaskActionResult | undefined;
+    act(() => {
+      actionResult = result.current.updateTask({
+        id: created.id,
+        title: 'Renomeada',
+        day: created.day,
+        priority: created.priority,
+        state: created.state,
+      });
+    });
+
+    expect(actionResult?.ok).toBe(true);
+    expect(result.current.state.tasks).toHaveLength(1);
+    expect(result.current.state.tasks[0]).toMatchObject({
+      id: created.id,
+      title: 'Renomeada',
+      day: 'mon',
+      priority: 'high',
+      state: 'pending',
+      order: 0,
+    });
+
+    const saved = JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}');
+    expect(saved.tasks).toEqual(result.current.state.tasks);
+  });
+
+  it('muda o Dia: sai da coluna antiga (fecha o buraco), entra no fim do grupo novo, Estado não muda', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Fica em mon', day: 'mon', priority: 'high' });
+    });
+    act(() => {
+      result.current.createTask({ title: 'Muda de dia', day: 'mon', priority: 'high' });
+    });
+    act(() => {
+      result.current.createTask({ title: 'Já em tue', day: 'tue', priority: 'high' });
+    });
+    const moving = result.current.state.tasks[1];
+
+    act(() => {
+      result.current.updateTask({
+        id: moving.id,
+        title: moving.title,
+        day: 'tue',
+        priority: moving.priority,
+        state: moving.state,
+      });
+    });
+
+    const tasks = result.current.state.tasks;
+    const stayed = tasks.find((t) => t.title === 'Fica em mon')!;
+    const moved = tasks.find((t) => t.id === moving.id)!;
+    const alreadyThere = tasks.find((t) => t.title === 'Já em tue')!;
+
+    expect(stayed).toMatchObject({ day: 'mon', order: 0 });
+    expect(moved).toMatchObject({ day: 'tue', priority: 'high', state: 'pending', order: 1 });
+    expect(alreadyThere).toMatchObject({ day: 'tue', order: 0 });
+  });
+
+  it('muda a Prioridade (mesmo dia): reposicionada no grupo novo, grupo antigo sem buraco', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Alta 1', day: 'wed', priority: 'high' });
+    });
+    act(() => {
+      result.current.createTask({ title: 'Alta 2 (vai virar baixa)', day: 'wed', priority: 'high' });
+    });
+    const changing = result.current.state.tasks[1];
+
+    act(() => {
+      result.current.updateTask({
+        id: changing.id,
+        title: changing.title,
+        day: 'wed',
+        priority: 'low',
+        state: changing.state,
+      });
+    });
+
+    const tasks = result.current.state.tasks;
+    expect(tasks.find((t) => t.title === 'Alta 1')).toMatchObject({ priority: 'high', order: 0 });
+    expect(tasks.find((t) => t.id === changing.id)).toMatchObject({ priority: 'low', order: 0, day: 'wed' });
+  });
+
+  it('muda o Estado: novo Estado persistido, Dia/Prioridade/Nome inalterados', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Tarefa', day: 'thu', priority: null });
+    });
+    const [created] = result.current.state.tasks;
+
+    act(() => {
+      result.current.updateTask({
+        id: created.id,
+        title: created.title,
+        day: created.day,
+        priority: created.priority,
+        state: 'in_progress',
+      });
+    });
+
+    expect(result.current.state.tasks[0]).toMatchObject({
+      title: 'Tarefa',
+      day: 'thu',
+      priority: null,
+      state: 'in_progress',
+    });
+  });
+
+  it('escrita falha: retorna {ok:false,error}, nunca lança, tarefa mantém os valores antigos até sucesso', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Original', day: 'fri', priority: 'medium' });
+    });
+    const [created] = result.current.state.tasks;
+
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota exceeded');
+    });
+
+    let actionResult: TaskActionResult | undefined;
+    expect(() => {
+      act(() => {
+        actionResult = result.current.updateTask({
+          id: created.id,
+          title: 'Não deveria salvar',
+          day: 'sat',
+          priority: 'low',
+          state: 'done',
+        });
+      });
+    }).not.toThrow();
+
+    expect(actionResult).toEqual({ ok: false, error: { message: 'quota exceeded' } });
+    expect(result.current.state.tasks[0]).toEqual(created);
+  });
+
+  it('id inexistente: retorna {ok:false,error}, nunca lança, nada é persistido/despachado', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Existente', day: 'mon', priority: null });
+    });
+
+    let actionResult: TaskActionResult | undefined;
+    expect(() => {
+      act(() => {
+        actionResult = result.current.updateTask({
+          id: 'id-que-nao-existe',
+          title: 'Não deveria salvar',
+          day: 'tue',
+          priority: 'high',
+          state: 'done',
+        });
+      });
+    }).not.toThrow();
+
+    expect(actionResult).toEqual({ ok: false, error: { message: 'Tarefa não encontrada.' } });
+    expect(result.current.state.tasks).toHaveLength(1);
+    expect(result.current.state.tasks[0].title).toBe('Existente');
+    // Nada além da 1ª tarefa (já persistida pelo createTask acima) foi salvo —
+    // o id inexistente nunca chega a tentar escrever em localStorage.
+    const saved = JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}');
+    expect(saved.tasks).toHaveLength(1);
+    expect(saved.tasks[0].title).toBe('Existente');
+  });
+});

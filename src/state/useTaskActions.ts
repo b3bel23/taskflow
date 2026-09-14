@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import { saveTasks } from '../storage/tasksStorage';
-import { getNextOrderInGroup } from './selectors';
+import { getNextOrderInGroup, reorderWithinGroup } from './selectors';
 import { useTaskContext } from './TaskContext';
-import type { DayOfWeek, Priority, Task } from '../types';
+import type { DayOfWeek, Priority, Task, TaskState } from '../types';
 
 export type TaskActionResult = { ok: true; task: Task } | { ok: false; error: { message: string } };
 
@@ -12,8 +12,17 @@ export interface CreateTaskInput {
   priority: Priority | null;
 }
 
+export interface UpdateTaskInput {
+  id: string;
+  title: string;
+  day: DayOfWeek;
+  priority: Priority | null;
+  state: TaskState;
+}
+
 export interface TaskActions {
   createTask: (input: CreateTaskInput) => TaskActionResult;
+  updateTask: (input: UpdateTaskInput) => TaskActionResult;
 }
 
 // Guard de persistência atômica (AD-4, mesmo padrão de `useThemeActions`):
@@ -49,5 +58,36 @@ export function useTaskActions(): TaskActions {
     [state.tasks, dispatch],
   );
 
-  return { createTask };
+  // Guard de persistência atômica (AD-4), mesmo padrão de `createTask`:
+  // aplica título/Estado direto na tarefa alvo, depois `reorderWithinGroup`
+  // (AD-7) decide se Dia/Prioridade mudou — se não mudou, é no-op (o array
+  // com título/Estado já atualizados volta como está); se mudou, reindexa o
+  // grupo antigo e reposiciona a tarefa no fim do grupo novo. Tenta salvar o
+  // array resultante *antes* de despachar `update`; falha não muda o estado
+  // em memória (tarefa mantém valores antigos até sucesso) e retorna
+  // `{ ok: false, error }` — nunca lança. Única chamadora do reducer para
+  // `update`, igual a `createTask` para `create`.
+  const updateTask = useCallback(
+    ({ id, title, day, priority, state: nextState }: UpdateTaskInput): TaskActionResult => {
+      const exists = state.tasks.some((t) => t.id === id);
+      if (!exists) {
+        return { ok: false, error: { message: 'Tarefa não encontrada.' } };
+      }
+
+      const withEdits = state.tasks.map((t) => (t.id === id ? { ...t, title, state: nextState } : t));
+      const reordered = reorderWithinGroup(withEdits, id, day, priority);
+
+      const result = saveTasks(reordered);
+      if (!result.ok) {
+        return result;
+      }
+
+      dispatch({ type: 'update', tasks: reordered });
+      const task = reordered.find((t) => t.id === id) as Task;
+      return { ok: true, task };
+    },
+    [state.tasks, dispatch],
+  );
+
+  return { createTask, updateTask };
 }

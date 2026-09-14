@@ -12,19 +12,37 @@ export interface DayColumnProps {
 }
 
 // Coluna do Dia: renderiza as tarefas reais (já filtradas+ordenadas por
-// `WeekView` via `sortTasksInDay`) ou "Nenhuma tarefa" quando vazia. "+
-// Adicionar tarefa" abre o `TaskModal` (só criação nesta história); `Esc`/
-// sucesso na criação fecham o modal e devolvem o foco a este mesmo botão.
+// `WeekView` via `sortTasksInDay`) ou "Nenhuma tarefa" quando vazia.
+// "+ Adicionar tarefa" abre o `TaskModal` em criação; clicar num `TaskCard`
+// (Story 2.2) abre o mesmo `TaskModal` em edição, pré-preenchido. Em ambos
+// os casos, `Esc`/sucesso fecham o modal e devolvem o foco ao controle que
+// abriu (o botão "+ Adicionar tarefa" ou o próprio Card clicado).
 export function DayColumn({ day, isToday, tasks }: DayColumnProps) {
   const columnClassName = isToday ? `${styles.column} ${styles.today}` : styles.column;
   const labelId = `day-label-${day}`;
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
+  const lastFocusedCardRef = useRef<HTMLButtonElement | null>(null);
 
-  const closeModal = useCallback(() => {
-    setIsModalOpen(false);
+  const closeAddModal = useCallback(() => {
+    setIsAddModalOpen(false);
     addButtonRef.current?.focus();
+  }, []);
+
+  const closeEditModal = useCallback(() => {
+    setEditingTask(null);
+    // Se a edição mudou o Dia da tarefa, o Card sai da lista `tasks` desta
+    // coluna e o React desmonta o `<button>` — focar um nó desmontado não
+    // quebra nada, mas o foco simplesmente some. `.isConnected` detecta esse
+    // caso e usa o botão "+ Adicionar tarefa" (sempre presente nesta coluna)
+    // como fallback seguro.
+    if (lastFocusedCardRef.current?.isConnected) {
+      lastFocusedCardRef.current.focus();
+    } else {
+      addButtonRef.current?.focus();
+    }
   }, []);
 
   return (
@@ -43,7 +61,13 @@ export function DayColumn({ day, isToday, tasks }: DayColumnProps) {
         <ul className={styles.taskList}>
           {tasks.map((task) => (
             <li key={task.id}>
-              <TaskCard task={task} />
+              <TaskCard
+                task={task}
+                onClick={(event) => {
+                  lastFocusedCardRef.current = event.currentTarget;
+                  setEditingTask(task);
+                }}
+              />
             </li>
           ))}
         </ul>
@@ -52,11 +76,12 @@ export function DayColumn({ day, isToday, tasks }: DayColumnProps) {
         type="button"
         ref={addButtonRef}
         className={styles.addTaskButton}
-        onClick={() => setIsModalOpen(true)}
+        onClick={() => setIsAddModalOpen(true)}
       >
         + Adicionar tarefa
       </button>
-      {isModalOpen && <TaskModal day={day} onClose={closeModal} />}
+      {isAddModalOpen && <TaskModal day={day} onClose={closeAddModal} />}
+      {editingTask && <TaskModal key={editingTask.id} day={day} task={editingTask} onClose={closeEditModal} />}
     </section>
   );
 }

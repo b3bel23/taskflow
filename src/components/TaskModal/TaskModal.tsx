@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react';
-import { DAY_LABELS } from '../../constants/days';
+import { DAY_LABELS, DAYS_OF_WEEK } from '../../constants/days';
 import { useTaskActions } from '../../state/useTaskActions';
-import type { DayOfWeek, Priority } from '../../types';
+import type { DayOfWeek, Priority, Task, TaskState } from '../../types';
 import styles from './TaskModal.module.css';
 
 export interface TaskModalProps {
   day: DayOfWeek;
+  task?: Task;
   onClose: () => void;
 }
 
@@ -18,6 +19,14 @@ const PRIORITY_OPTIONS: { value: PrioritySelectValue; label: string }[] = [
   { value: 'low', label: 'Baixa' },
 ];
 
+// Estado (Story 2.2, só no modo edição): rótulos iguais aos de
+// `StateIndicator`, para o Modal e o Card nunca divergirem no vocabulário.
+const STATE_OPTIONS: { value: TaskState; label: string }[] = [
+  { value: 'pending', label: 'Pendente' },
+  { value: 'in_progress', label: 'Em andamento' },
+  { value: 'done', label: 'Concluída' },
+];
+
 function getFocusable(container: HTMLElement): HTMLElement[] {
   return Array.from(
     container.querySelectorAll<HTMLElement>(
@@ -26,27 +35,34 @@ function getFocusable(container: HTMLElement): HTMLElement[] {
   ).filter((el) => !el.hasAttribute('disabled'));
 }
 
-// Modal de Tarefa — só modo criação nesta história (Story 2.2 adiciona
-// edição/Estado/"Excluir tarefa", nunca antecipados aqui). Nome obrigatório,
-// Dia fixo = coluna de origem (não editável), Prioridade opcional sem
-// seleção padrão. Retém o foco (focus trap simples via Tab/Shift+Tab) e Esc
-// fecha descartando o que não foi salvo — `onClose` (chamado pelo
-// `DayColumn`) é quem devolve o foco ao "+ Adicionar tarefa" que abriu.
-export function TaskModal({ day, onClose }: TaskModalProps) {
-  const { createTask } = useTaskActions();
+// Modal de Tarefa: modo criação (Story 2.1, sem `task`) e modo edição (Story
+// 2.2, `task` presente). Em edição, Nome/Dia/Prioridade/Estado nascem
+// preenchidos com os valores atuais da tarefa; Dia deixa de ser fixo (7
+// opções) e ganha o campo Estado (3 opções) — Prioridade e Nome reaproveitam
+// os mesmos campos da criação. "Excluir tarefa" é Story 2.3, não antecipado
+// aqui. Retém o foco (focus trap simples via Tab/Shift+Tab) e Esc fecha
+// descartando o que não foi salvo — `onClose` (chamado pelo `DayColumn`) é
+// quem devolve o foco ao controle que abriu o modal.
+export function TaskModal({ day, task, onClose }: TaskModalProps) {
+  const { createTask, updateTask } = useTaskActions();
+  const isEditMode = task !== undefined;
 
-  const [title, setTitle] = useState('');
-  const [priority, setPriority] = useState<PrioritySelectValue>('');
+  const [title, setTitle] = useState(task?.title ?? '');
+  const [selectedDay, setSelectedDay] = useState<DayOfWeek>(task?.day ?? day);
+  const [priority, setPriority] = useState<PrioritySelectValue>(task?.priority ?? '');
+  const [state, setState] = useState<TaskState>(task?.state ?? 'pending');
   const [titleError, setTitleError] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
+  const dayId = useId();
   const priorityId = useId();
+  const stateId = useId();
 
-  // Nome vazio e em foco na abertura (AC1) — sem `useEffect` de "loading",
-  // só o foco inicial do próprio modal.
+  // Nome em foco na abertura (AC1), vazio na criação/preenchido na edição —
+  // sem `useEffect` de "loading", só o foco inicial do próprio modal.
   useEffect(() => {
     titleInputRef.current?.focus();
   }, []);
@@ -92,8 +108,8 @@ export function TaskModal({ day, onClose }: TaskModalProps) {
       event.preventDefault();
       const trimmedTitle = title.trim();
 
-      // Nome vazio: modal continua aberto sinalizando o campo, nada criado
-      // — nunca chega a tentar persistir (AC3, I/O "Nome vazio").
+      // Nome vazio: modal continua aberto sinalizando o campo, nada
+      // criado/salvo — nunca chega a tentar persistir (AC, I/O "Nome vazio").
       if (trimmedTitle === '') {
         setTitleError(true);
         titleInputRef.current?.focus();
@@ -103,18 +119,19 @@ export function TaskModal({ day, onClose }: TaskModalProps) {
       setTitleError(false);
       setSaveError(null);
 
-      const result = createTask({
-        title: trimmedTitle,
-        day,
-        priority: priority === '' ? null : priority,
-      });
+      const resolvedPriority = priority === '' ? null : priority;
+
+      const result =
+        isEditMode && task
+          ? updateTask({ id: task.id, title: trimmedTitle, day: selectedDay, priority: resolvedPriority, state })
+          : createTask({ title: trimmedTitle, day, priority: resolvedPriority });
 
       // Escrita falha: modal aberto, erro inline, campos preservados (o
-      // estado local `title`/`priority` não é limpo), nunca retry
-      // automático — só um novo clique explícito tenta de novo (AC4).
-      // Mensagem fixa em português — `result.error.message` vem do
-      // `Error.message` cru do navegador (ex. "quota exceeded" em inglês),
-      // inconsistente com o resto da microcopy do app.
+      // estado local não é limpo), nunca retry automático — só um novo
+      // clique explícito tenta de novo (AC, I/O "Escrita falha"). Mensagem
+      // fixa em português — `result.error.message` vem do `Error.message`
+      // cru do navegador (ex. "quota exceeded" em inglês), inconsistente com
+      // o resto da microcopy do app.
       if (!result.ok) {
         setSaveError('Não foi possível salvar a tarefa. Tente novamente.');
         return;
@@ -122,7 +139,7 @@ export function TaskModal({ day, onClose }: TaskModalProps) {
 
       onClose();
     },
-    [title, priority, day, createTask, onClose],
+    [title, priority, day, selectedDay, state, isEditMode, task, createTask, updateTask, onClose],
   );
 
   const headingId = `${titleId}-heading`;
@@ -131,7 +148,7 @@ export function TaskModal({ day, onClose }: TaskModalProps) {
     <div className={styles.overlay}>
       <div ref={dialogRef} className={styles.modal} role="dialog" aria-modal="true" aria-labelledby={headingId}>
         <h2 id={headingId} className={styles.heading}>
-          Adicionar tarefa
+          {isEditMode ? 'Editar tarefa' : 'Adicionar tarefa'}
         </h2>
         <form onSubmit={handleSubmit} noValidate>
           <div className={styles.field}>
@@ -160,10 +177,30 @@ export function TaskModal({ day, onClose }: TaskModalProps) {
             )}
           </div>
 
-          <p className={styles.fixedField}>
-            <span className={styles.label}>Dia</span>
-            <span>{DAY_LABELS[day]}</span>
-          </p>
+          {isEditMode ? (
+            <div className={styles.field}>
+              <label htmlFor={dayId} className={styles.label}>
+                Dia
+              </label>
+              <select
+                id={dayId}
+                className={styles.select}
+                value={selectedDay}
+                onChange={(event) => setSelectedDay(event.target.value as DayOfWeek)}
+              >
+                {DAYS_OF_WEEK.map((d) => (
+                  <option key={d} value={d}>
+                    {DAY_LABELS[d]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <p className={styles.fixedField}>
+              <span className={styles.label}>Dia</span>
+              <span>{DAY_LABELS[day]}</span>
+            </p>
+          )}
 
           <div className={styles.field}>
             <label htmlFor={priorityId} className={styles.label}>
@@ -183,6 +220,26 @@ export function TaskModal({ day, onClose }: TaskModalProps) {
             </select>
           </div>
 
+          {isEditMode && (
+            <div className={styles.field}>
+              <label htmlFor={stateId} className={styles.label}>
+                Estado
+              </label>
+              <select
+                id={stateId}
+                className={styles.select}
+                value={state}
+                onChange={(event) => setState(event.target.value as TaskState)}
+              >
+                {STATE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {saveError && (
             <p className={styles.saveError} role="alert">
               {saveError}
@@ -190,7 +247,7 @@ export function TaskModal({ day, onClose }: TaskModalProps) {
           )}
 
           <button type="submit" className={styles.submitButton}>
-            Adicionar tarefa
+            {isEditMode ? 'Salvar' : 'Adicionar tarefa'}
           </button>
         </form>
       </div>

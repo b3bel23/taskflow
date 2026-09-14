@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { TaskProvider } from '../../state/TaskContext';
 import { TASKS_STORAGE_KEY } from '../../storage/tasksStorage';
+import type { Task } from '../../types';
 import { TaskModal } from './TaskModal';
 
 function renderModal(onClose = vi.fn()) {
@@ -11,6 +12,36 @@ function renderModal(onClose = vi.fn()) {
     </TaskProvider>,
   );
   return onClose;
+}
+
+function makeTask(overrides: Partial<Task> = {}): Task {
+  return {
+    id: 't1',
+    title: 'Revisar PR',
+    day: 'wed',
+    state: 'pending',
+    priority: null,
+    order: 0,
+    ...overrides,
+  };
+}
+
+// Semeia `localStorage` com a tarefa antes de montar o `TaskProvider` — o
+// init lazy de `TaskContext` (`loadTasks()`) só roda na primeira
+// renderização, então isto garante que `updateTask` encontre a tarefa em
+// `state.tasks` (mesmo caminho real: editar uma tarefa já persistida).
+function renderEditModal(task: Task, onClose = vi.fn()) {
+  window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify({ schemaVersion: 1, tasks: [task] }));
+  render(
+    <TaskProvider>
+      <TaskModal day={task.day} task={task} onClose={onClose} />
+    </TaskProvider>,
+  );
+  return onClose;
+}
+
+function getSavedTasks(): Task[] {
+  return JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}').tasks ?? [];
 }
 
 describe('TaskModal', () => {
@@ -160,5 +191,138 @@ describe('TaskModal', () => {
     fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
 
     expect(document.activeElement).toBe(submitButton);
+  });
+});
+
+describe('TaskModal — modo edição (Story 2.2)', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('abre pré-preenchido com Nome/Dia/Prioridade/Estado atuais, título "Editar tarefa"', () => {
+    const task = makeTask({ title: 'Revisar PR', day: 'wed', priority: 'high', state: 'in_progress' });
+    renderEditModal(task);
+
+    expect(screen.getByText('Editar tarefa')).toBeTruthy();
+    expect((screen.getByLabelText('Nome') as HTMLInputElement).value).toBe('Revisar PR');
+    expect((screen.getByLabelText('Dia') as HTMLSelectElement).value).toBe('wed');
+    expect((screen.getByLabelText('Prioridade') as HTMLSelectElement).value).toBe('high');
+    expect((screen.getByLabelText('Estado') as HTMLSelectElement).value).toBe('in_progress');
+  });
+
+  it('campo Dia tem as 7 opções da semana; campo Estado tem as 3 opções', () => {
+    renderEditModal(makeTask());
+
+    const dayOptions = screen.getByLabelText('Dia') as HTMLSelectElement;
+    expect(dayOptions.options.length).toBe(7);
+
+    const stateOptions = screen.getByLabelText('Estado') as HTMLSelectElement;
+    expect(Array.from(stateOptions.options).map((o) => o.value)).toEqual(['pending', 'in_progress', 'done']);
+  });
+
+  it('sem prioridade: campo Prioridade abre em "Sem prioridade" (valor vazio)', () => {
+    renderEditModal(makeTask({ priority: null }));
+
+    expect((screen.getByLabelText('Prioridade') as HTMLSelectElement).value).toBe('');
+  });
+
+  it('edição feliz (só Nome): Nome atualizado, resto inalterado, modal fecha', () => {
+    const task = makeTask({ title: 'Original', day: 'wed', priority: 'medium', state: 'pending' });
+    const onClose = renderEditModal(task);
+
+    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Renomeada' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    const [saved] = getSavedTasks();
+    expect(saved).toMatchObject({ id: task.id, title: 'Renomeada', day: 'wed', priority: 'medium', state: 'pending' });
+  });
+
+  it('muda o Dia e confirma: tarefa sai da coluna antiga e entra na nova; Estado não muda', () => {
+    const task = makeTask({ day: 'mon', priority: null, state: 'done' });
+    const onClose = renderEditModal(task);
+
+    fireEvent.change(screen.getByLabelText('Dia'), { target: { value: 'fri' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    const [saved] = getSavedTasks();
+    expect(saved).toMatchObject({ day: 'fri', state: 'done' });
+  });
+
+  it('muda a Prioridade e confirma: reposicionada conforme o novo nível', () => {
+    const task = makeTask({ priority: 'low' });
+    const onClose = renderEditModal(task);
+
+    fireEvent.change(screen.getByLabelText('Prioridade'), { target: { value: 'high' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    const [saved] = getSavedTasks();
+    expect(saved).toMatchObject({ priority: 'high' });
+  });
+
+  it('muda o Estado e confirma: novo Estado persistido', () => {
+    const task = makeTask({ state: 'pending' });
+    const onClose = renderEditModal(task);
+
+    fireEvent.change(screen.getByLabelText('Estado'), { target: { value: 'done' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    const [saved] = getSavedTasks();
+    expect(saved).toMatchObject({ state: 'done' });
+  });
+
+  it('muda Título/Dia/Prioridade sem tocar Estado: Estado permanece o mesmo', () => {
+    const task = makeTask({ day: 'mon', priority: null, state: 'in_progress' });
+    const onClose = renderEditModal(task);
+
+    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Novo nome' } });
+    fireEvent.change(screen.getByLabelText('Dia'), { target: { value: 'tue' } });
+    fireEvent.change(screen.getByLabelText('Prioridade'), { target: { value: 'low' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    const [saved] = getSavedTasks();
+    expect(saved).toMatchObject({ title: 'Novo nome', day: 'tue', priority: 'low', state: 'in_progress' });
+  });
+
+  it('confirma com Nome vazio: modal aberto, campo sinalizado, nada persistido (tarefa mantém valores antigos)', () => {
+    const task = makeTask({ title: 'Original' });
+    const onClose = renderEditModal(task);
+
+    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: '   ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Nome').getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByRole('alert').textContent).toBe('Nome é obrigatório.');
+    const [saved] = getSavedTasks();
+    expect(saved).toMatchObject({ title: 'Original' });
+  });
+
+  it('escrita falha: modal aberto, erro inline, valores preservados, tarefa mantém valores antigos até sucesso', () => {
+    const task = makeTask({ title: 'Original', day: 'wed', priority: 'high', state: 'pending' });
+    const onClose = renderEditModal(task);
+
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota exceeded');
+    });
+
+    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Mudou mas não salvou' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText('Não foi possível salvar a tarefa. Tente novamente.')).toBeTruthy();
+    expect((screen.getByLabelText('Nome') as HTMLInputElement).value).toBe('Mudou mas não salvou');
+
+    vi.restoreAllMocks();
+    const [saved] = getSavedTasks();
+    expect(saved).toMatchObject({ title: 'Original', day: 'wed', priority: 'high', state: 'pending' });
   });
 });

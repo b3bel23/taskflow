@@ -17,12 +17,20 @@ export interface TaskStoreState {
 // aqui, então este reducer nunca decide sozinho `id`/`order`/`state` iniciais
 // nem tenta persistir nada — só aplica a mutação já validada ao estado em
 // memória.
-export type TaskAction = { type: 'create'; task: Task };
+//
+// `update` (Story 2.2): `useTaskActions.updateTask` já calculou o array
+// inteiro (título/Estado aplicados + `reorderWithinGroup` se Dia/Prioridade
+// mudou) e já confirmou a persistência antes de despachar — este reducer só
+// substitui o array por inteiro, sem decidir nada sozinho, mesmo padrão de
+// `create`.
+export type TaskAction = { type: 'create'; task: Task } | { type: 'update'; tasks: Task[] };
 
 export function tasksReducer(state: TaskStoreState, action: TaskAction): TaskStoreState {
   switch (action.type) {
     case 'create':
       return { ...state, tasks: [...state.tasks, action.task] };
+    case 'update':
+      return { ...state, tasks: action.tasks };
     default:
       return state;
   }

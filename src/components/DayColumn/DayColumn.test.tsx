@@ -106,4 +106,66 @@ describe('DayColumn', () => {
       expect(document.activeElement).toBe(addButton);
     });
   });
+
+  describe('Edição de tarefa (Story 2.2)', () => {
+    function renderWithTask(task: Task) {
+      window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify({ schemaVersion: 1, tasks: [task] }));
+      return render(
+        <TaskProvider>
+          <DayColumn day={task.day} isToday={false} tasks={[task]} />
+        </TaskProvider>,
+      );
+    }
+
+    it('clicar em qualquer área do Card (exceto o StateIndicator) abre o Modal em edição, pré-preenchido', () => {
+      const task = makeTask({ title: 'Escrever spec', priority: 'high' });
+      renderWithTask(task);
+
+      fireEvent.click(screen.getByText('Escrever spec'));
+
+      expect(screen.getByRole('dialog')).toBeTruthy();
+      expect(screen.getByText('Editar tarefa')).toBeTruthy();
+      expect((screen.getByLabelText('Nome') as HTMLInputElement).value).toBe('Escrever spec');
+    });
+
+    it('clicar no StateIndicator do Card não abre o Modal (stopPropagation, sem ciclo — Epic 3)', () => {
+      const task = makeTask({ title: 'Escrever spec' });
+      renderWithTask(task);
+
+      fireEvent.click(screen.getByRole('img', { name: 'Pendente' }));
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('edição bem-sucedida fecha o modal e devolve o foco ao Card que abriu', () => {
+      const task = makeTask({ title: 'Escrever spec' });
+      renderWithTask(task);
+
+      const card = screen.getByRole('button', { name: /Escrever spec/ });
+      fireEvent.click(card);
+      expect(screen.getByRole('dialog')).toBeTruthy();
+
+      fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Renomeada' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(document.activeElement).toBe(card);
+    });
+
+    it('Esc fecha o modal de edição sem persistir nada e devolve o foco ao Card', () => {
+      const task = makeTask({ title: 'Escrever spec' });
+      renderWithTask(task);
+
+      const card = screen.getByRole('button', { name: /Escrever spec/ });
+      fireEvent.click(card);
+
+      fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Não deveria salvar' } });
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(document.activeElement).toBe(card);
+      const saved = JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}').tasks;
+      expect(saved[0].title).toBe('Escrever spec');
+    });
+  });
 });

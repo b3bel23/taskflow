@@ -36,3 +36,38 @@ export function sortTasksInDay(tasks: Task[], day: DayOfWeek): Task[] {
 export function getNextOrderInGroup(tasks: Task[], day: DayOfWeek, priority: Priority | null): number {
   return tasks.filter((t) => t.day === day && t.priority === priority).length;
 }
+
+// Função pura única de reindexação (AD-7): usada tanto pela edição via Modal
+// (Story 2.2) quanto pelo drag (Epic 4) — nenhum caminho reimplementa esta
+// lógica separadamente. `tasks` deve trazer `id` ainda com o `day`/`priority`
+// *antigos* (título/Estado já podem estar atualizados nele, isso não importa
+// aqui); `day`/`priority` são os valores *novos* desejados.
+//
+// Grupo igual (mesmo `day` e `priority` de antes): no-op, retorna `tasks`
+// sem tocar em nada — quem chamou já aplicou título/Estado direto no array
+// recebido. Grupo diferente: fecha o buraco no grupo antigo (reindexa
+// sequencialmente por `order` crescente) e entra no fim do grupo novo (mesmo
+// cálculo de `getNextOrderInGroup`).
+export function reorderWithinGroup(
+  tasks: Task[],
+  id: string,
+  day: DayOfWeek,
+  priority: Priority | null,
+): Task[] {
+  const target = tasks.find((t) => t.id === id);
+  if (!target || (target.day === day && target.priority === priority)) {
+    return tasks;
+  }
+
+  const oldOrder = new Map(
+    tasks
+      .filter((t) => t.id !== id && t.day === target.day && t.priority === target.priority)
+      .sort((a, b) => a.order - b.order)
+      .map((t, i) => [t.id, i]),
+  );
+  const newOrder = tasks.filter((t) => t.id !== id && t.day === day && t.priority === priority).length;
+
+  return tasks.map((t) =>
+    t.id === id ? { ...t, day, priority, order: newOrder } : oldOrder.has(t.id) ? { ...t, order: oldOrder.get(t.id)! } : t,
+  );
+}

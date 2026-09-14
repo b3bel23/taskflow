@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { StateIndicator } from './StateIndicator';
 import styles from './StateIndicator.module.css';
 
@@ -26,11 +26,27 @@ describe('StateIndicator', () => {
     expect(indicator.classList.contains(styles.done)).toBe(true);
   });
 
-  it('não é interativo: nenhum onClick, não é um botão (o ciclo por clique é Epic 3)', () => {
+  it('não é um botão e não tem efeito próprio ao clicar (o ciclo por clique é Epic 3)', () => {
     render(<StateIndicator state="pending" />);
 
     const indicator = screen.getByRole('img', { name: 'Pendente' });
     expect(indicator.tagName).toBe('SPAN');
-    expect(indicator.onclick).toBeNull();
+
+    fireEvent.click(indicator);
+
+    expect(indicator.classList.contains(styles.pending)).toBe(true);
+  });
+
+  it('clique no indicador não se propaga para um `onClick` do elemento pai (Story 2.2: TaskCard inteiro é clicável)', () => {
+    const onCardClick = vi.fn();
+    render(
+      <button type="button" onClick={onCardClick}>
+        <StateIndicator state="pending" />
+      </button>,
+    );
+
+    fireEvent.click(screen.getByRole('img', { name: 'Pendente' }));
+
+    expect(onCardClick).not.toHaveBeenCalled();
   });
 });

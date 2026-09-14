@@ -36,7 +36,7 @@
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-criar-tarefa.md`
   summary: Sem proteção contra duplo-clique rápido em "Adicionar tarefa"/"Salvar"/"Excluir" — duas chamadas de `createTask`/`updateTask`/`deleteTask` antes do re-render poderiam ler o mesmo `state.tasks` (closure) e calcular o mesmo `order`/reindexar com dado desatualizado.
-  evidence: Achado do blind-hunter/edge-case-hunter das Stories 2.1/2.2, confirmado ainda válido para `deleteTask` na Story 2.3 (mesma closure `state.tasks`); risco real baixo (clique físico de mouse único, sem AC exigindo debounce), mas uma melhoria de robustez futura (desabilitar o botão durante a operação) se algum dia se mostrar necessário.
+  evidence: Achado do blind-hunter/edge-case-hunter das Stories 2.1/2.2, confirmado ainda válido para `deleteTask` na Story 2.3 (mesma closure `state.tasks`) e para `cycleState` na Story 3.1 (mesmo padrão de guard, mesma closure); risco real baixo (clique físico de mouse único, sem AC exigindo debounce), mas uma melhoria de robustez futura (desabilitar o controle durante a operação) se algum dia se mostrar necessário.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-2-editar-tarefa-existente.md`
   summary: Ativação por teclado (Enter/Espaço) do `TaskCard` não é verificável via `fireEvent.keyDown`/`keyUp` — jsdom não sintetiza o `click` nativo que um `<button>` real dispara em resposta a essas teclas (confirmado experimentalmente: 0 chamadas de `onClick` na mesma sequência que um navegador real trata como clique). A garantia atual vem de usar o elemento semântico correto (`<button>`), testado via `tagName === 'BUTTON'`.
@@ -45,3 +45,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-criar-tarefa.md`
   summary: `DayColumn` mantém estado de modal independente por coluna (agora dois: `isAddModalOpen` e, desde a Story 2.2, `editingTask`) — nada garante centralmente que só um `TaskModal` pode estar aberto por vez entre as 7 colunas (hoje isso já é impedido na prática pelo overlay em tela cheia + focus trap, que bloqueia clique/Tab para qualquer Card ou botão por trás, incluindo o "+ Adicionar tarefa" da mesma coluna).
   evidence: Achado do blind-hunter/edge-case-hunter das Stories 2.1 e 2.2; não é um bug alcançável por interação normal do usuário (overlay cobre a viewport inteira), mas vale revisitar se um gerenciador de modal global for introduzido nas próximas histórias (2.3 reusa o mesmo `TaskModal`).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1-alternar-estado-pelo-indicador-de-estado.md`
+  summary: Nenhum teste automatizado confirma que a mudança de `aria-label` do `StateIndicator` (ex. "Pendente" → "Em andamento") é de fato anunciada por um leitor de tela real após o ciclo — o elemento já está em foco quando o rótulo muda, cenário que nem todo leitor de tela anuncia de forma confiável.
+  evidence: Achado do blind-hunter da Story 3.1; mesma classe de limitação já registrada para o `ThemeToggle` (Story 1.3, `test.css` não habilitado) — o texto do `aria-label` está correto e foi verificado por leitura de código/teste de DOM, mas só teste manual com leitor de tela real confirma o comportamento de anúncio.

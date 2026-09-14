@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DayOfWeek, Task } from '../../types';
 import { DAY_LABELS } from '../../constants/days';
+import { useTaskActions } from '../../state/useTaskActions';
 import { TaskCard } from '../TaskCard/TaskCard';
 import { TaskModal } from '../TaskModal/TaskModal';
 import styles from './DayColumn.module.css';
@@ -25,6 +26,7 @@ export function DayColumn({ day, isToday, tasks }: DayColumnProps) {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const lastFocusedCardRef = useRef<HTMLButtonElement | null>(null);
+  const { cycleState } = useTaskActions();
 
   const closeAddModal = useCallback(() => {
     setIsAddModalOpen(false);
@@ -83,6 +85,7 @@ export function DayColumn({ day, isToday, tasks }: DayColumnProps) {
                   lastFocusedCardRef.current = event.currentTarget;
                   setEditingTask(task);
                 }}
+                onCycleState={() => cycleState(task.id)}
               />
             </li>
           ))}

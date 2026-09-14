@@ -1,10 +1,10 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { DayColumn } from './DayColumn';
 import styles from './DayColumn.module.css';
 import { TaskProvider } from '../../state/TaskContext';
 import { TASKS_STORAGE_KEY } from '../../storage/tasksStorage';
-import type { Task } from '../../types';
+import type { DayOfWeek, Task } from '../../types';
 
 function makeTask(overrides: Partial<Task> = {}): Task {
   return {
@@ -22,22 +22,48 @@ describe('DayColumn', () => {
     window.localStorage.clear();
   });
 
+  // Desde a Story 3.1, `DayColumn` chama `useTaskActions()` (para ligar
+  // `cycleState` ao `onCycleState` de cada `TaskCard`) incondicionalmente —
+  // precisa de `TaskProvider` na árvore mesmo nos testes que não mexem com
+  // Estado/persistência. Compartilhado por todos os `describe` abaixo
+  // (revisão da Story 3.1: um único helper em vez de duplicado por escopo).
+  function renderInProvider(day: DayOfWeek = 'mon', isToday = false, tasks: Task[] = []) {
+    return render(
+      <TaskProvider>
+        <DayColumn day={day} isToday={isToday} tasks={tasks} />
+      </TaskProvider>,
+    );
+  }
+
+  // Idem: semeia `localStorage` com uma única tarefa persistida antes de
+  // montar `DayColumn` — usado pelos testes de edição (Story 2.2) e de
+  // ciclo de Estado (Story 3.1), ambos precisando da mesma tarefa já
+  // existente em `TaskContext`.
+  function renderWithTask(task: Task) {
+    window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify({ schemaVersion: 1, tasks: [task] }));
+    return render(
+      <TaskProvider>
+        <DayColumn day={task.day} isToday={false} tasks={[task]} />
+      </TaskProvider>,
+    );
+  }
+
   it('mostra "Nenhuma tarefa" quando não há tarefas, e o controle "+ Adicionar tarefa" sempre visível', () => {
-    render(<DayColumn day="mon" isToday={false} tasks={[]} />);
+    renderInProvider();
 
     expect(screen.getByText('Nenhuma tarefa')).toBeTruthy();
     expect(screen.getByRole('button', { name: '+ Adicionar tarefa' })).toBeTruthy();
   });
 
   it('renderiza um TaskCard por tarefa recebida, em vez de "Nenhuma tarefa"', () => {
-    render(<DayColumn day="mon" isToday={false} tasks={[makeTask({ title: 'Escrever spec' })]} />);
+    renderInProvider('mon', false, [makeTask({ title: 'Escrever spec' })]);
 
     expect(screen.getByText('Escrever spec')).toBeTruthy();
     expect(screen.queryByText('Nenhuma tarefa')).toBeNull();
   });
 
   it('recebe o destaque de hoje quando isToday é true', () => {
-    const { container } = render(<DayColumn day="wed" isToday tasks={[]} />);
+    const { container } = renderInProvider('wed', true);
     const column = container.firstElementChild;
 
     expect(column?.getAttribute('data-today')).toBe('true');
@@ -47,7 +73,7 @@ describe('DayColumn', () => {
   });
 
   it('não recebe o destaque de hoje quando isToday é false', () => {
-    const { container } = render(<DayColumn day="wed" isToday={false} tasks={[]} />);
+    const { container } = renderInProvider('wed', false);
     const column = container.firstElementChild;
 
     expect(column?.getAttribute('data-today')).toBe('false');
@@ -55,20 +81,12 @@ describe('DayColumn', () => {
   });
 
   it('identifica a coluna pelo nome do dia', () => {
-    render(<DayColumn day="sun" isToday={false} tasks={[]} />);
+    renderInProvider('sun');
 
     expect(screen.getByLabelText('Domingo')).toBeTruthy();
   });
 
   describe('Modal de Tarefa', () => {
-    function renderInProvider() {
-      return render(
-        <TaskProvider>
-          <DayColumn day="mon" isToday={false} tasks={[]} />
-        </TaskProvider>,
-      );
-    }
-
     it('clicar em "+ Adicionar tarefa" abre o TaskModal', () => {
       renderInProvider();
 
@@ -108,15 +126,6 @@ describe('DayColumn', () => {
   });
 
   describe('Edição de tarefa (Story 2.2)', () => {
-    function renderWithTask(task: Task) {
-      window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify({ schemaVersion: 1, tasks: [task] }));
-      return render(
-        <TaskProvider>
-          <DayColumn day={task.day} isToday={false} tasks={[task]} />
-        </TaskProvider>,
-      );
-    }
-
     it('clicar em qualquer área do Card (exceto o StateIndicator) abre o Modal em edição, pré-preenchido', () => {
       const task = makeTask({ title: 'Escrever spec', priority: 'high' });
       renderWithTask(task);
@@ -128,13 +137,23 @@ describe('DayColumn', () => {
       expect((screen.getByLabelText('Nome') as HTMLInputElement).value).toBe('Escrever spec');
     });
 
-    it('clicar no StateIndicator do Card não abre o Modal (stopPropagation, sem ciclo — Epic 3)', () => {
-      const task = makeTask({ title: 'Escrever spec' });
+    // `DayColumn` renderiza a lista a partir da prop `tasks` (recebida
+    // pronta de `WeekView`, nunca lida de `TaskContext` por conta própria —
+    // ver comentário do componente), então este teste isolado (prop fixa)
+    // não vê o Indicador mudar de rótulo depois do clique; o que ele prova é
+    // o essencial da Story 3.1 neste nível: não abre o Modal, e a escrita em
+    // `localStorage` reflete o ciclo (Estado real mudou via `cycleState`). A
+    // reflexão imediata na tela, ponta a ponta via `TaskContext`, é coberta
+    // em `WeekView.test.tsx` (onde `tasks` de fato vem do contexto).
+    it('clicar no StateIndicator do Card não abre o Modal (stopPropagation) mas cicla o Estado via cycleState (Story 3.1)', () => {
+      const task = makeTask({ title: 'Escrever spec', state: 'pending' });
       renderWithTask(task);
 
-      fireEvent.click(screen.getByRole('img', { name: 'Pendente' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Pendente' }));
 
       expect(screen.queryByRole('dialog')).toBeNull();
+      const saved = JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}').tasks;
+      expect(saved[0].state).toBe('in_progress');
     });
 
     it('edição bem-sucedida fecha o modal e devolve o foco ao Card que abriu', () => {
@@ -166,6 +185,96 @@ describe('DayColumn', () => {
       expect(document.activeElement).toBe(card);
       const saved = JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}').tasks;
       expect(saved[0].title).toBe('Escrever spec');
+    });
+  });
+
+  // `DayColumn` recebe `tasks` pronta de `WeekView` (nunca lê `TaskContext`
+  // por conta própria para montar a lista — ver comentário do componente),
+  // então um render isolado com prop fixa não reflete no DOM o Estado que
+  // `cycleState` mudou no `TaskContext`. Estes testes verificam o que dá para
+  // verificar neste nível (não abrir o Modal, e o array persistido em
+  // `localStorage`, que é o que `cycleState` de fato escreve/protege via o
+  // guard AD-4). A reflexão imediata na tela, ponta a ponta via
+  // `TaskContext`, é coberta em `WeekView.test.tsx`.
+  describe('Ciclo de Estado pelo Indicador (Story 3.1)', () => {
+    function savedState(): string {
+      return JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}').tasks[0].state;
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('clique no Indicador de tarefa Pendente persiste Em andamento, sem abrir o Modal', () => {
+      const task = makeTask({ state: 'pending' });
+      renderWithTask(task);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Pendente' }));
+
+      expect(savedState()).toBe('in_progress');
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('clique no Indicador de tarefa Em andamento persiste Concluída', () => {
+      const task = makeTask({ state: 'in_progress' });
+      renderWithTask(task);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Em andamento' }));
+
+      expect(savedState()).toBe('done');
+    });
+
+    it('clique no Indicador de tarefa Concluída persiste Pendente (wraparound)', () => {
+      const task = makeTask({ state: 'done' });
+      renderWithTask(task);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Concluída' }));
+
+      expect(savedState()).toBe('pending');
+    });
+
+    it('Indicador em foco: Enter cicla o Estado como o clique', () => {
+      const task = makeTask({ state: 'pending' });
+      renderWithTask(task);
+
+      fireEvent.keyDown(screen.getByRole('button', { name: 'Pendente' }), { key: 'Enter' });
+
+      expect(savedState()).toBe('in_progress');
+    });
+
+    it('Indicador em foco: Espaço cicla o Estado como o clique', () => {
+      const task = makeTask({ state: 'pending' });
+      renderWithTask(task);
+
+      fireEvent.keyDown(screen.getByRole('button', { name: 'Pendente' }), { key: ' ' });
+
+      expect(savedState()).toBe('in_progress');
+    });
+
+    it('escrita em localStorage falha: nada é persistido, sem nova tentativa automática', () => {
+      const task = makeTask({ state: 'pending' });
+      renderWithTask(task);
+
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('quota exceeded');
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Pendente' }));
+
+      // O `setItem` mockado lança em toda escrita, então o `localStorage`
+      // mantém o snapshot de antes do clique (seedado por `renderWithTask`) —
+      // nunca chega a gravar o array com o novo Estado.
+      expect(savedState()).toBe('pending');
+    });
+
+    it('clicar em qualquer outra área do Card continua abrindo o Modal, sem ciclar o Estado', () => {
+      const task = makeTask({ title: 'Escrever spec', state: 'pending' });
+      renderWithTask(task);
+
+      fireEvent.click(screen.getByText('Escrever spec'));
+
+      expect(screen.getByRole('dialog')).toBeTruthy();
+      expect(savedState()).toBe('pending');
     });
   });
 });

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { TASKS_STORAGE_KEY } from '../storage/tasksStorage';
+import type { TaskState } from '../types';
 import { TaskProvider, useTaskContext } from './TaskContext';
 import { useTaskActions, type DeleteTaskResult, type TaskActionResult } from './useTaskActions';
 
@@ -409,5 +410,124 @@ describe('deleteTask', () => {
 
     expect(actionResult).toEqual({ ok: false, error: { message: 'Tarefa não encontrada.' } });
     expect(result.current.state.tasks).toHaveLength(1);
+  });
+});
+
+describe('cycleState', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it.each<[TaskState, TaskState]>([
+    ['pending', 'in_progress'],
+    ['in_progress', 'done'],
+    ['done', 'pending'],
+  ])('ciclo fixo: %s -> %s, salva antes de despachar, Título/Dia/Prioridade/order intactos', (from, to) => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Tarefa', day: 'mon', priority: 'high' });
+    });
+    const [created] = result.current.state.tasks;
+    // Ajusta diretamente o Estado inicial via updateTask (reaproveitado já
+    // testado acima) para exercitar `cycleState` a partir de cada Estado do
+    // ciclo, sem depender de chamadas repetidas.
+    act(() => {
+      result.current.updateTask({
+        id: created.id,
+        title: created.title,
+        day: created.day,
+        priority: created.priority,
+        state: from,
+      });
+    });
+
+    let actionResult: TaskActionResult | undefined;
+    act(() => {
+      actionResult = result.current.cycleState(created.id);
+    });
+
+    expect(actionResult?.ok).toBe(true);
+    expect(result.current.state.tasks[0]).toMatchObject({
+      id: created.id,
+      title: 'Tarefa',
+      day: 'mon',
+      priority: 'high',
+      state: to,
+      order: 0,
+    });
+
+    const saved = JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}');
+    expect(saved.tasks).toEqual(result.current.state.tasks);
+  });
+
+  it('wraparound sem restrição: 3 cliques seguidos voltam ao Estado inicial (pending)', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Tarefa', day: 'mon', priority: null });
+    });
+    const [created] = result.current.state.tasks;
+
+    act(() => {
+      result.current.cycleState(created.id);
+    });
+    expect(result.current.state.tasks[0].state).toBe('in_progress');
+
+    act(() => {
+      result.current.cycleState(created.id);
+    });
+    expect(result.current.state.tasks[0].state).toBe('done');
+
+    act(() => {
+      result.current.cycleState(created.id);
+    });
+    expect(result.current.state.tasks[0].state).toBe('pending');
+  });
+
+  it('escrita falha: retorna {ok:false,error}, nunca lança, Estado exibido não muda, sem nova tentativa automática', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Tarefa', day: 'fri', priority: 'medium' });
+    });
+    const [created] = result.current.state.tasks;
+
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota exceeded');
+    });
+
+    let actionResult: TaskActionResult | undefined;
+    expect(() => {
+      act(() => {
+        actionResult = result.current.cycleState(created.id);
+      });
+    }).not.toThrow();
+
+    expect(actionResult).toEqual({ ok: false, error: { message: 'quota exceeded' } });
+    expect(result.current.state.tasks[0]).toEqual(created);
+  });
+
+  it('id inexistente: retorna {ok:false,error}, nunca lança, nada é persistido/despachado', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Existente', day: 'mon', priority: null });
+    });
+
+    let actionResult: TaskActionResult | undefined;
+    expect(() => {
+      act(() => {
+        actionResult = result.current.cycleState('id-que-nao-existe');
+      });
+    }).not.toThrow();
+
+    expect(actionResult).toEqual({ ok: false, error: { message: 'Tarefa não encontrada.' } });
+    expect(result.current.state.tasks).toHaveLength(1);
+    expect(result.current.state.tasks[0].state).toBe('pending');
   });
 });

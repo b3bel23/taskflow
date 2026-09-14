@@ -89,7 +89,7 @@ describe('WeekView', () => {
     const column = createTask(DAY_LABELS.wed, 'Revisar PR', 'high');
 
     expect(within(column).getByText('Revisar PR')).toBeTruthy();
-    expect(within(column).getByRole('img', { name: 'Pendente' })).toBeTruthy();
+    expect(within(column).getByRole('button', { name: 'Pendente' })).toBeTruthy();
     expect(screen.queryByRole('dialog')).toBeNull();
     // A coluna de origem não tem mais "Nenhuma tarefa" depois da criação.
     expect(within(column).queryByText('Nenhuma tarefa')).toBeNull();
@@ -153,5 +153,80 @@ describe('WeekView', () => {
 
     expect(within(column).queryByText('Tarefa a excluir')).toBeNull();
     expect(document.activeElement).toBe(within(column).getByRole('button', { name: '+ Adicionar tarefa' }));
+  });
+
+  // Story 3.1: só aqui (`WeekView`, com `TaskContext` de verdade) a tela
+  // reflete o Estado ciclado — `DayColumn` sozinho recebe `tasks` já pronta
+  // via prop e não a relê do contexto (ver `DayColumn.test.tsx`).
+  describe('Ciclo de Estado pelo Indicador (Story 3.1)', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('clique no Indicador de tarefa Pendente muda para Em andamento na hora, sem abrir o Modal', () => {
+      renderWeekView();
+      const column = createTask(DAY_LABELS.mon, 'Tarefa');
+
+      fireEvent.click(within(column).getByRole('button', { name: 'Pendente' }));
+
+      expect(within(column).getByRole('button', { name: 'Em andamento' })).toBeTruthy();
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('clique no Indicador de tarefa Em andamento muda para Concluída', () => {
+      renderWeekView();
+      const column = createTask(DAY_LABELS.mon, 'Tarefa');
+
+      fireEvent.click(within(column).getByRole('button', { name: 'Pendente' }));
+      fireEvent.click(within(column).getByRole('button', { name: 'Em andamento' }));
+
+      expect(within(column).getByRole('button', { name: 'Concluída' })).toBeTruthy();
+    });
+
+    it('clique no Indicador de tarefa Concluída volta a Pendente (wraparound), sem restrição', () => {
+      renderWeekView();
+      const column = createTask(DAY_LABELS.mon, 'Tarefa');
+
+      fireEvent.click(within(column).getByRole('button', { name: 'Pendente' }));
+      fireEvent.click(within(column).getByRole('button', { name: 'Em andamento' }));
+      fireEvent.click(within(column).getByRole('button', { name: 'Concluída' }));
+
+      expect(within(column).getByRole('button', { name: 'Pendente' })).toBeTruthy();
+    });
+
+    it('Indicador em foco: Enter e Espaço ciclam o Estado como o clique', () => {
+      renderWeekView();
+      const column = createTask(DAY_LABELS.mon, 'Tarefa');
+
+      fireEvent.keyDown(within(column).getByRole('button', { name: 'Pendente' }), { key: 'Enter' });
+      expect(within(column).getByRole('button', { name: 'Em andamento' })).toBeTruthy();
+
+      fireEvent.keyDown(within(column).getByRole('button', { name: 'Em andamento' }), { key: ' ' });
+      expect(within(column).getByRole('button', { name: 'Concluída' })).toBeTruthy();
+    });
+
+    it('clicar em qualquer outra área do Card continua abrindo o Modal em edição, sem ciclar o Estado', () => {
+      renderWeekView();
+      const column = createTask(DAY_LABELS.mon, 'Tarefa');
+
+      fireEvent.click(within(column).getByText('Tarefa'));
+
+      expect(screen.getByRole('dialog')).toBeTruthy();
+      expect(within(column).getByRole('button', { name: 'Pendente' })).toBeTruthy();
+    });
+
+    it('escrita em localStorage falha: Estado exibido não muda, sem nova tentativa automática', () => {
+      renderWeekView();
+      const column = createTask(DAY_LABELS.mon, 'Tarefa');
+
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('quota exceeded');
+      });
+
+      fireEvent.click(within(column).getByRole('button', { name: 'Pendente' }));
+
+      expect(within(column).getByRole('button', { name: 'Pendente' })).toBeTruthy();
+      expect(within(column).queryByRole('button', { name: 'Em andamento' })).toBeNull();
+    });
   });
 });

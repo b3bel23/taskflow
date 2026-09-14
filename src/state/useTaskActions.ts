@@ -29,7 +29,16 @@ export interface TaskActions {
   createTask: (input: CreateTaskInput) => TaskActionResult;
   updateTask: (input: UpdateTaskInput) => TaskActionResult;
   deleteTask: (id: string) => DeleteTaskResult;
+  cycleState: (id: string) => TaskActionResult;
 }
+
+// Ciclo fixo do Indicador de Estado (Story 3.1, FR-4): Pendente→Em
+// andamento→Concluída→Pendente (wraparound), sem restrição de transição.
+const STATE_CYCLE: Record<TaskState, TaskState> = {
+  pending: 'in_progress',
+  in_progress: 'done',
+  done: 'pending',
+};
 
 // Guard de persistência atômica (AD-4, mesmo padrão de `useThemeActions`):
 // monta a tarefa (Estado inicial sempre `'pending'`, `order` = último do
@@ -125,5 +134,33 @@ export function useTaskActions(): TaskActions {
     [state.tasks, dispatch],
   );
 
-  return { createTask, updateTask, deleteTask };
+  // Guard de persistência atômica (AD-4), mesmo padrão de `createTask`/
+  // `updateTask`/`deleteTask`: aplica só o próximo Estado do ciclo fixo
+  // (`STATE_CYCLE`) à tarefa alvo — sem tocar Título/Dia/Prioridade/`order`,
+  // sem passar por `reorderWithinGroup` (ciclar Estado nunca move a tarefa de
+  // grupo). Tenta salvar o array resultante *antes* de despachar `update`
+  // (mesma action da 2.2, nenhuma nova no reducer); falha não muda o estado
+  // em memória (Estado exibido mantém o valor antigo até sucesso) e retorna
+  // `{ ok: false, error }` — nunca lança, sem nova tentativa automática.
+  const cycleState = useCallback(
+    (id: string): TaskActionResult => {
+      const target = state.tasks.find((t) => t.id === id);
+      if (!target) {
+        return { ok: false, error: { message: 'Tarefa não encontrada.' } };
+      }
+
+      const updated = state.tasks.map((t) => (t.id === id ? { ...t, state: STATE_CYCLE[t.state] } : t));
+
+      const result = saveTasks(updated);
+      if (!result.ok) {
+        return result;
+      }
+
+      dispatch({ type: 'update', tasks: updated });
+      return { ok: true, task: updated.find((t) => t.id === id) as Task };
+    },
+    [state.tasks, dispatch],
+  );
+
+  return { createTask, updateTask, deleteTask, cycleState };
 }

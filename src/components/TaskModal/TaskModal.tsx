@@ -88,8 +88,13 @@ export function TaskModal({ day, task, onClose }: TaskModalProps) {
         if (isConfirmingDelete) {
           // Foco de volta ao link "Excluir tarefa" é tratado pelo efeito
           // logo abaixo, disparado por esta mesma transição de estado.
+          // Retrospectiva Epic 2 (achado 2): também limpa erro de Nome/Salvar
+          // de uma tentativa anterior — "Cancelar"/Esc na Confirmação volta a
+          // uma edição limpa, não a um erro obsoleto que nada disparou agora.
           setIsConfirmingDelete(false);
           setDeleteError(null);
+          setTitleError(false);
+          setSaveError(null);
           return;
         }
         onClose();
@@ -169,11 +174,21 @@ export function TaskModal({ day, task, onClose }: TaskModalProps) {
       // Escrita falha: modal aberto, erro inline, campos preservados (o
       // estado local não é limpo), nunca retry automático — só um novo
       // clique explícito tenta de novo (AC, I/O "Escrita falha"). Mensagem
-      // fixa em português — `result.error.message` vem do `Error.message`
-      // cru do navegador (ex. "quota exceeded" em inglês), inconsistente com
-      // o resto da microcopy do app.
+      // fixa em português — `result.error.message` cru normalmente vem do
+      // `Error.message` do navegador (ex. "quota exceeded" em inglês),
+      // inconsistente com o resto da microcopy do app, por isso a mensagem
+      // fixa abaixo. Exceção (retrospectiva Epic 2, achado 3): "Tarefa não
+      // encontrada." já é uma mensagem própria em português de
+      // `useTaskActions` (a tarefa foi removida em outra sessão/aba
+      // enquanto este modal estava aberto) — nesse caso um retry nunca vai
+      // funcionar, então mostra essa mensagem em vez de convidar a tentar
+      // de novo.
       if (!result.ok) {
-        setSaveError('Não foi possível salvar a tarefa. Tente novamente.');
+        setSaveError(
+          result.error.message === 'Tarefa não encontrada.'
+            ? 'Esta tarefa não existe mais — ela pode ter sido removida em outra sessão. Feche o modal.'
+            : 'Não foi possível salvar a tarefa. Tente novamente.',
+        );
         return;
       }
 
@@ -190,6 +205,11 @@ export function TaskModal({ day, task, onClose }: TaskModalProps) {
   const handleCancelDelete = useCallback(() => {
     setIsConfirmingDelete(false);
     setDeleteError(null);
+    // Retrospectiva Epic 2 (achado 2): idem ao branch de Esc acima — sem
+    // isto, um erro de Nome/Salvar de antes de abrir a Confirmação
+    // reaparecia na volta à edição mesmo sem nenhuma nova tentativa falha.
+    setTitleError(false);
+    setSaveError(null);
   }, []);
 
   // "Excluir" na Confirmação: guard AD-4 já vive em `useTaskActions.deleteTask`
@@ -205,8 +225,15 @@ export function TaskModal({ day, task, onClose }: TaskModalProps) {
     setDeleteError(null);
     const result = deleteTask(task.id);
 
+    // Mesma distinção do `handleSubmit` acima (retrospectiva Epic 2, achado
+    // 3): "Tarefa não encontrada." é irrecuperável (já foi excluída em
+    // outra sessão/aba) — não convida a um retry que nunca vai funcionar.
     if (!result.ok) {
-      setDeleteError('Não foi possível excluir a tarefa. Tente novamente.');
+      setDeleteError(
+        result.error.message === 'Tarefa não encontrada.'
+          ? 'Esta tarefa já foi excluída em outra sessão.'
+          : 'Não foi possível excluir a tarefa. Tente novamente.',
+      );
       return;
     }
 

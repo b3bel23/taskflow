@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DayOfWeek, Task } from '../../types';
 import { DAY_LABELS } from '../../constants/days';
 import { TaskCard } from '../TaskCard/TaskCard';
@@ -33,17 +33,33 @@ export function DayColumn({ day, isToday, tasks }: DayColumnProps) {
 
   const closeEditModal = useCallback(() => {
     setEditingTask(null);
-    // Se a edição mudou o Dia da tarefa, o Card sai da lista `tasks` desta
-    // coluna e o React desmonta o `<button>` — focar um nó desmontado não
-    // quebra nada, mas o foco simplesmente some. `.isConnected` detecta esse
-    // caso e usa o botão "+ Adicionar tarefa" (sempre presente nesta coluna)
-    // como fallback seguro.
+  }, []);
+
+  // Retrospectiva Epic 2 (achado 1): a checagem `.isConnected` não pode
+  // rodar dentro do próprio `closeEditModal` — nesse instante `onClose()`
+  // ainda está no meio do mesmo handler que disparou `setEditingTask(null)`,
+  // então o React ainda não comitou o re-render (o `<button>` do Card antigo
+  // ainda está conectado mesmo quando a edição mudou o Dia da tarefa ou a
+  // excluiu, casos em que ele está prestes a ser desmontado). Este efeito só
+  // decide o foco depois que o React já aplicou esse re-render — reage à
+  // transição `editingTask` de "aberto" para `null`, quando o DOM já reflete
+  // a lista de tarefas atualizada desta coluna.
+  const wasEditingRef = useRef(false);
+  useEffect(() => {
+    if (editingTask) {
+      wasEditingRef.current = true;
+      return;
+    }
+    if (!wasEditingRef.current) {
+      return;
+    }
+    wasEditingRef.current = false;
     if (lastFocusedCardRef.current?.isConnected) {
       lastFocusedCardRef.current.focus();
     } else {
       addButtonRef.current?.focus();
     }
-  }, []);
+  }, [editingTask]);
 
   return (
     <section

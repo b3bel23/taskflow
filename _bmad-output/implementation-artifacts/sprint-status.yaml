@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-10-2026 17:30
-last_updated: 09-14-2026 14:00
+last_updated: 09-14-2026 14:22
 project: TaskFlow
 project_key: NOKEY
 tracking_system: file-system
@@ -45,7 +45,7 @@ development_status:
   2-1-criar-tarefa: done
   2-2-editar-tarefa-existente: done
   2-3-excluir-tarefa-com-confirmação: done
-  epic-2-retrospective: optional
+  epic-2-retrospective: done
 
   epic-3: backlog
   3-1-alternar-estado-pelo-indicador-de-estado: backlog
@@ -56,3 +56,48 @@ development_status:
   4-1-reordenar-tarefas-por-arraste-dentro-do-mesmo-nível-de-prior: backlog
   4-2-mudar-prioridade-ou-dia-arrastando-o-card: backlog
   epic-4-retrospective: optional
+action_items:
+  - id: "epic-2-retro-item-1-corrigir-a-corrida-de-foco-em-closeeditm"
+    epic: 2
+    action: "Corrigir a corrida de foco em closeEditModal (DayColumn.tsx): mover a
+      checagem .isConnected/fallback para depois do commit do React, em vez de checar
+      de forma síncrona dentro do mesmo handler que já chamou setEditingTask(null)"
+    owner: "dev"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-14.md"
+  - id: "epic-2-retro-item-2-limpar-titleerror-saveerror-também-no-ha"
+    epic: 2
+    action: "Limpar titleError/saveError também no handleCancelDelete e no branch
+      Esc-durante-confirmação do TaskModal"
+    owner: "dev"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-14.md"
+  - id: "epic-2-retro-item-3-fazer-taskmodal-distinguir-tarefa-não-en"
+    epic: 2
+    action: "Fazer TaskModal distinguir Tarefa não encontrada. de falha transitória
+      de armazenamento em vez de sempre mostrar mensagem genérica de retry"
+    owner: "dev"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-14.md"
+  - id: "epic-2-retro-item-4-adicionar-teste-cobrindo-criar-3-tarefas"
+    epic: 2
+    action: "Adicionar teste cobrindo criar 3 tarefas no mesmo grupo, excluir a do
+      meio, criar uma 4a e verificar order unico e sequencial"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-14.md"
+  - id: "epic-2-retro-item-5-adicionar-teste-daycolumn-weekview-monta"
+    epic: 2
+    action: "Adicionar teste DayColumn/WeekView-montado cobrindo edicao com troca
+      de Dia e exclusao fim-a-fim, incluindo assert do foco final"
+    owner: "dev"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-14.md"
+  - id: "epic-2-retro-item-6-ao-reaproveitar-um-padrao-de-foco-estado"
+    epic: 2
+    action: "Ao reaproveitar um padrao de foco/estado ja validado numa story anterior
+      numa nova story, revalidar a suposicao de timing/commit do React no novo ponto
+      de chamada"
+    owner: "process"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-14.md"

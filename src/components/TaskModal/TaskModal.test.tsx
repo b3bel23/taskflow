@@ -40,6 +40,20 @@ function renderEditModal(task: Task, onClose = vi.fn()) {
   return onClose;
 }
 
+// Simula uma tarefa removida em outra sessão/aba enquanto este modal segue
+// aberto com os dados antigos: o `TaskProvider` carrega um estado *sem* a
+// tarefa (retrospectiva Epic 2, achado 3), mas o modal (que recebeu `task`
+// via prop antes disso acontecer) ainda a exibe normalmente.
+function renderEditModalForMissingTask(task: Task, onClose = vi.fn()) {
+  window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify({ schemaVersion: 1, tasks: [] }));
+  render(
+    <TaskProvider>
+      <TaskModal day={task.day} task={task} onClose={onClose} />
+    </TaskProvider>,
+  );
+  return onClose;
+}
+
 function getSavedTasks(): Task[] {
   return JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}').tasks ?? [];
 }
@@ -325,6 +339,22 @@ describe('TaskModal — modo edição (Story 2.2)', () => {
     const [saved] = getSavedTasks();
     expect(saved).toMatchObject({ title: 'Original', day: 'wed', priority: 'high', state: 'pending' });
   });
+
+  // Retrospectiva Epic 2 (achado 3): "Tarefa não encontrada." é
+  // irrecuperável (a tarefa já não existe) — não pode reaproveitar a
+  // mensagem genérica que convida a "Tente novamente.".
+  it('tarefa removida em outra sessão: mensagem distinta, sem convidar a um retry inútil', () => {
+    const task = makeTask({ title: 'Original' });
+    const onClose = renderEditModalForMissingTask(task);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(
+      screen.getByText('Esta tarefa não existe mais — ela pode ter sido removida em outra sessão. Feche o modal.'),
+    ).toBeTruthy();
+    expect(screen.queryByText('Não foi possível salvar a tarefa. Tente novamente.')).toBeNull();
+  });
 });
 
 describe('TaskModal — Excluir tarefa com confirmação (Story 2.3)', () => {
@@ -379,6 +409,39 @@ describe('TaskModal — Excluir tarefa com confirmação (Story 2.3)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
 
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Excluir tarefa' }));
+  });
+
+  // Retrospectiva Epic 2 (achado 2): um erro de Nome/Salvar anterior não
+  // pode sobreviver a uma passagem pela Confirmação de Exclusão sem relação
+  // com ele.
+  it('cancela: um erro de "Nome obrigatório" anterior não reaparece ao voltar da Confirmação', () => {
+    renderEditModal(makeTask());
+
+    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: '   ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    expect(screen.getByRole('alert').textContent).toBe('Nome é obrigatório.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir tarefa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(screen.queryByText('Nome é obrigatório.')).toBeNull();
+    expect(screen.getByLabelText('Nome').getAttribute('aria-invalid')).toBe('false');
+  });
+
+  it('Esc na confirmação: um erro de "Não foi possível salvar" anterior não reaparece ao voltar à edição', () => {
+    const task = makeTask();
+    renderEditModal(task);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota exceeded');
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    expect(screen.getByText('Não foi possível salvar a tarefa. Tente novamente.')).toBeTruthy();
+    vi.restoreAllMocks();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir tarefa' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(screen.queryByText('Não foi possível salvar a tarefa. Tente novamente.')).toBeNull();
   });
 
   it('Esc na confirmação: volta ao modo edição (mesmo efeito de "Cancelar"), campo editado sobrevive, modal não fecha', () => {
@@ -498,5 +561,18 @@ describe('TaskModal — Excluir tarefa com confirmação (Story 2.3)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Excluir' }));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(getSavedTasks()).toHaveLength(0);
+  });
+
+  // Retrospectiva Epic 2 (achado 3): mesma distinção do lado de `Salvar`.
+  it('tarefa já removida em outra sessão: mensagem distinta, sem convidar a um retry inútil', () => {
+    const task = makeTask();
+    const onClose = renderEditModalForMissingTask(task);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir tarefa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir' }));
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText('Esta tarefa já foi excluída em outra sessão.')).toBeTruthy();
+    expect(screen.queryByText('Não foi possível excluir a tarefa. Tente novamente.')).toBeNull();
   });
 });

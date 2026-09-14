@@ -126,4 +126,32 @@ describe('WeekView', () => {
 
     expect(orderIndex('Primeira')).toBeLessThan(orderIndex('Segunda'));
   });
+
+  // Retrospectiva Epic 2 (achado 1): estes dois casos só existem no nível
+  // de `WeekView`/`DayColumn` reais — `TaskModal.test.tsx` monta o Modal
+  // isolado (sem `DayColumn`), então nunca exercitou `closeEditModal` de
+  // verdade nem a coluna de onde a tarefa saiu.
+  it('editar tarefa mudando o Dia: foco vai para "+ Adicionar tarefa" da coluna de origem, nunca perdido em <body>', () => {
+    renderWeekView();
+    const originColumn = createTask(DAY_LABELS.mon, 'Tarefa a mover');
+
+    fireEvent.click(within(originColumn).getByText('Tarefa a mover'));
+    fireEvent.change(screen.getByLabelText('Dia'), { target: { value: 'fri' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(within(originColumn).queryByText('Tarefa a mover')).toBeNull();
+    expect(document.activeElement).toBe(within(originColumn).getByRole('button', { name: '+ Adicionar tarefa' }));
+  });
+
+  it('excluir tarefa: foco vai para "+ Adicionar tarefa" da coluna de origem, nunca perdido em <body>', () => {
+    renderWeekView();
+    const column = createTask(DAY_LABELS.tue, 'Tarefa a excluir');
+
+    fireEvent.click(within(column).getByText('Tarefa a excluir'));
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir tarefa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir' }));
+
+    expect(within(column).queryByText('Tarefa a excluir')).toBeNull();
+    expect(document.activeElement).toBe(within(column).getByRole('button', { name: '+ Adicionar tarefa' }));
+  });
 });

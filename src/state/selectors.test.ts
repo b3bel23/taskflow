@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Task } from '../types';
-import { getNextOrderInGroup, reorderWithinGroup, sortTasksInDay } from './selectors';
+import { closeOrderGap, getNextOrderInGroup, reorderWithinGroup, sortTasksInDay } from './selectors';
 
 function makeTask(overrides: Partial<Task>): Task {
   return {
@@ -143,5 +143,63 @@ describe('reorderWithinGroup', () => {
     const result = reorderWithinGroup(tasks, 'a', 'tue', 'low');
 
     expect(result.find((t) => t.id === 'other')).toMatchObject({ day: 'wed', priority: 'medium', order: 5 });
+  });
+});
+
+describe('closeOrderGap', () => {
+  it('grupo vazio: retorna o array como está (sem tasks para reindexar)', () => {
+    const tasks = [makeTask({ id: 'a', day: 'tue', priority: 'high', order: 0 })];
+
+    expect(closeOrderGap(tasks, 'mon', 'high')).toEqual(tasks);
+  });
+
+  it('remoção do meio de um grupo de 3: as 2 remanescentes ficam reindexadas sequencialmente (0,1), sem buraco', () => {
+    // A tarefa "removida" (order=1) já não está mais no array recebido —
+    // `closeOrderGap` só reindexa o que sobrou (I/O "Exclui com grupo maior").
+    const tasks = [
+      makeTask({ id: 'a', day: 'mon', priority: 'high', order: 0 }),
+      makeTask({ id: 'c', day: 'mon', priority: 'high', order: 2 }),
+    ];
+
+    const result = closeOrderGap(tasks, 'mon', 'high');
+
+    const byId = new Map(result.map((t) => [t.id, t]));
+    expect(byId.get('a')).toMatchObject({ order: 0 });
+    expect(byId.get('c')).toMatchObject({ order: 1 });
+  });
+
+  it('grupo "sem prioridade" (null) também é reindexado', () => {
+    const tasks = [
+      makeTask({ id: 'a', day: 'fri', priority: null, order: 0 }),
+      makeTask({ id: 'b', day: 'fri', priority: null, order: 3 }),
+    ];
+
+    const result = closeOrderGap(tasks, 'fri', null);
+
+    const byId = new Map(result.map((t) => [t.id, t]));
+    expect(byId.get('a')).toMatchObject({ order: 0 });
+    expect(byId.get('b')).toMatchObject({ order: 1 });
+  });
+
+  it('tarefas fora do grupo (day,priority) alvo permanecem intocadas (mesmo order antigo)', () => {
+    const tasks = [
+      makeTask({ id: 'a', day: 'mon', priority: 'high', order: 0 }),
+      makeTask({ id: 'other-day', day: 'tue', priority: 'high', order: 5 }),
+      makeTask({ id: 'other-priority', day: 'mon', priority: 'low', order: 7 }),
+    ];
+
+    const result = closeOrderGap(tasks, 'mon', 'high');
+
+    const byId = new Map(result.map((t) => [t.id, t]));
+    expect(byId.get('other-day')).toMatchObject({ day: 'tue', priority: 'high', order: 5 });
+    expect(byId.get('other-priority')).toMatchObject({ day: 'mon', priority: 'low', order: 7 });
+  });
+
+  it('não reordena nada além do order: título/estado/prioridade preservados', () => {
+    const tasks = [makeTask({ id: 'a', day: 'mon', priority: 'high', order: 5, title: 'Original', state: 'done' })];
+
+    const [result] = closeOrderGap(tasks, 'mon', 'high');
+
+    expect(result).toMatchObject({ id: 'a', title: 'Original', state: 'done', order: 0 });
   });
 });

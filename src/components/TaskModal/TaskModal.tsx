@@ -39,12 +39,17 @@ function getFocusable(container: HTMLElement): HTMLElement[] {
 // 2.2, `task` presente). Em edição, Nome/Dia/Prioridade/Estado nascem
 // preenchidos com os valores atuais da tarefa; Dia deixa de ser fixo (7
 // opções) e ganha o campo Estado (3 opções) — Prioridade e Nome reaproveitam
-// os mesmos campos da criação. "Excluir tarefa" é Story 2.3, não antecipado
-// aqui. Retém o foco (focus trap simples via Tab/Shift+Tab) e Esc fecha
-// descartando o que não foi salvo — `onClose` (chamado pelo `DayColumn`) é
-// quem devolve o foco ao controle que abriu o modal.
+// os mesmos campos da criação. Em edição, ganha também o ponto de entrada
+// "Excluir tarefa" (Story 2.3): clicar substitui o conteúdo do modal pela
+// Confirmação de Exclusão (`isConfirmingDelete`) — nunca um segundo modal
+// empilhado, nunca uma rota/estado fora deste componente. Retém o foco
+// (focus trap simples via Tab/Shift+Tab) e Esc fecha descartando o que não
+// foi salvo — exceto durante a Confirmação, onde Esc só volta ao modo
+// edição (mesmo efeito de "Cancelar"), pela mesma razão de consistência.
+// `onClose` (chamado pelo `DayColumn`) é quem devolve o foco ao controle que
+// abriu o modal.
 export function TaskModal({ day, task, onClose }: TaskModalProps) {
-  const { createTask, updateTask } = useTaskActions();
+  const { createTask, updateTask, deleteTask } = useTaskActions();
   const isEditMode = task !== undefined;
 
   const [title, setTitle] = useState(task?.title ?? '');
@@ -53,9 +58,13 @@ export function TaskModal({ day, task, onClose }: TaskModalProps) {
   const [state, setState] = useState<TaskState>(task?.state ?? 'pending');
   const [titleError, setTitleError] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const cancelDeleteButtonRef = useRef<HTMLButtonElement>(null);
+  const deleteLinkRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const dayId = useId();
   const priorityId = useId();
@@ -68,11 +77,21 @@ export function TaskModal({ day, task, onClose }: TaskModalProps) {
   }, []);
 
   // Focus trap: Esc fecha/descarta; Tab/Shift+Tab nunca deixa o foco escapar
-  // do modal enquanto ele está aberto ("modal retém o foco").
+  // do modal enquanto ele está aberto ("modal retém o foco"). Durante a
+  // Confirmação de Exclusão, Esc não fecha o modal inteiro — volta ao modo
+  // edição (mesmo efeito de "Cancelar"), decisão de UX menor sinalizada na
+  // spec (Ask First) por consistência com "Cancelar".
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         event.preventDefault();
+        if (isConfirmingDelete) {
+          // Foco de volta ao link "Excluir tarefa" é tratado pelo efeito
+          // logo abaixo, disparado por esta mesma transição de estado.
+          setIsConfirmingDelete(false);
+          setDeleteError(null);
+          return;
+        }
         onClose();
         return;
       }
@@ -101,7 +120,28 @@ export function TaskModal({ day, task, onClose }: TaskModalProps) {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [onClose, isConfirmingDelete]);
+
+  // Ao entrar na Confirmação, foco vai para "Cancelar" (ação não-destrutiva,
+  // padrão seguro). Ao voltar à edição (via "Cancelar" ou Esc), o link
+  // "Excluir tarefa" que abriu a Confirmação foi desmontado nesse meio
+  // tempo — o navegador não tem mais para onde devolver o foco sozinho —
+  // então este mesmo efeito, dirigido pela transição `true -> false` de
+  // `isConfirmingDelete` que tanto `handleCancelDelete` quanto o branch de
+  // Esc em `handleKeyDown` disparam, devolve o foco a ele explicitamente
+  // via `deleteLinkRef` assim que o link volta a existir no DOM (uma
+  // chamada direta a `.focus()` dentro desses handlers seria tarde demais:
+  // a Confirmação ainda está montada nesse instante).
+  const wasConfirmingDeleteRef = useRef(false);
+  useEffect(() => {
+    if (isConfirmingDelete) {
+      cancelDeleteButtonRef.current?.focus();
+      wasConfirmingDeleteRef.current = true;
+    } else if (wasConfirmingDeleteRef.current) {
+      wasConfirmingDeleteRef.current = false;
+      deleteLinkRef.current?.focus();
+    }
+  }, [isConfirmingDelete]);
 
   const handleSubmit = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
@@ -142,114 +182,188 @@ export function TaskModal({ day, task, onClose }: TaskModalProps) {
     [title, priority, day, selectedDay, state, isEditMode, task, createTask, updateTask, onClose],
   );
 
+  // "Cancelar" na Confirmação (e Esc, tratado no handler de teclado acima):
+  // volta ao modo edição preservando os valores exibidos (nenhum estado de
+  // campo é tocado aqui), tarefa intacta — nada foi persistido. Foco de
+  // volta ao link "Excluir tarefa" é tratado pelo efeito de
+  // `isConfirmingDelete` acima, disparado por esta mesma transição.
+  const handleCancelDelete = useCallback(() => {
+    setIsConfirmingDelete(false);
+    setDeleteError(null);
+  }, []);
+
+  // "Excluir" na Confirmação: guard AD-4 já vive em `useTaskActions.deleteTask`
+  // (filtra + `closeOrderGap` + salva, só então despacha). Sucesso fecha o
+  // modal (a tarefa já sumiu da coluna e dos dados); falha mantém a
+  // Confirmação visível com erro inline fixo em português, nunca retry
+  // automático — a tarefa não some até sucesso (AC, I/O "Escrita falha").
+  const handleDelete = useCallback(() => {
+    if (!task) {
+      return;
+    }
+
+    setDeleteError(null);
+    const result = deleteTask(task.id);
+
+    if (!result.ok) {
+      setDeleteError('Não foi possível excluir a tarefa. Tente novamente.');
+      return;
+    }
+
+    onClose();
+  }, [task, deleteTask, onClose]);
+
   const headingId = `${titleId}-heading`;
 
   return (
     <div className={styles.overlay}>
       <div ref={dialogRef} className={styles.modal} role="dialog" aria-modal="true" aria-labelledby={headingId}>
-        <h2 id={headingId} className={styles.heading}>
-          {isEditMode ? 'Editar tarefa' : 'Adicionar tarefa'}
-        </h2>
-        <form onSubmit={handleSubmit} noValidate>
-          <div className={styles.field}>
-            <label htmlFor={titleId} className={styles.label}>
-              Nome
-            </label>
-            <input
-              id={titleId}
-              ref={titleInputRef}
-              type="text"
-              className={styles.input}
-              value={title}
-              onChange={(event) => {
-                setTitle(event.target.value);
-                if (titleError) {
-                  setTitleError(false);
-                }
-              }}
-              aria-invalid={titleError}
-              aria-describedby={titleError ? `${titleId}-error` : undefined}
-            />
-            {titleError && (
-              <p id={`${titleId}-error`} className={styles.fieldError} role="alert">
-                Nome é obrigatório.
+        {isConfirmingDelete ? (
+          // Confirmação de Exclusão: substitui o conteúdo do modal (nunca um
+          // segundo modal/dialog empilhado) — mesmo `role="dialog"` externo,
+          // mesmo `dialogRef` para o focus trap continuar funcionando sobre
+          // o que quer que esteja renderizado dentro dele.
+          <div className={styles.confirmView}>
+            <p id={headingId} className={styles.confirmText}>
+              Excluir esta tarefa? Essa ação não pode ser desfeita.
+            </p>
+            {deleteError && (
+              <p className={styles.saveError} role="alert">
+                {deleteError}
               </p>
             )}
-          </div>
-
-          {isEditMode ? (
-            <div className={styles.field}>
-              <label htmlFor={dayId} className={styles.label}>
-                Dia
-              </label>
-              <select
-                id={dayId}
-                className={styles.select}
-                value={selectedDay}
-                onChange={(event) => setSelectedDay(event.target.value as DayOfWeek)}
+            <div className={styles.confirmActions}>
+              <button
+                type="button"
+                ref={cancelDeleteButtonRef}
+                className={styles.cancelButton}
+                onClick={handleCancelDelete}
               >
-                {DAYS_OF_WEEK.map((d) => (
-                  <option key={d} value={d}>
-                    {DAY_LABELS[d]}
-                  </option>
-                ))}
-              </select>
+                Cancelar
+              </button>
+              <button type="button" className={styles.destructiveButton} onClick={handleDelete}>
+                Excluir
+              </button>
             </div>
-          ) : (
-            <p className={styles.fixedField}>
-              <span className={styles.label}>Dia</span>
-              <span>{DAY_LABELS[day]}</span>
-            </p>
-          )}
-
-          <div className={styles.field}>
-            <label htmlFor={priorityId} className={styles.label}>
-              Prioridade
-            </label>
-            <select
-              id={priorityId}
-              className={styles.select}
-              value={priority}
-              onChange={(event) => setPriority(event.target.value as PrioritySelectValue)}
-            >
-              {PRIORITY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
           </div>
+        ) : (
+          <>
+            <h2 id={headingId} className={styles.heading}>
+              {isEditMode ? 'Editar tarefa' : 'Adicionar tarefa'}
+            </h2>
+            <form onSubmit={handleSubmit} noValidate>
+              <div className={styles.field}>
+                <label htmlFor={titleId} className={styles.label}>
+                  Nome
+                </label>
+                <input
+                  id={titleId}
+                  ref={titleInputRef}
+                  type="text"
+                  className={styles.input}
+                  value={title}
+                  onChange={(event) => {
+                    setTitle(event.target.value);
+                    if (titleError) {
+                      setTitleError(false);
+                    }
+                  }}
+                  aria-invalid={titleError}
+                  aria-describedby={titleError ? `${titleId}-error` : undefined}
+                />
+                {titleError && (
+                  <p id={`${titleId}-error`} className={styles.fieldError} role="alert">
+                    Nome é obrigatório.
+                  </p>
+                )}
+              </div>
 
-          {isEditMode && (
-            <div className={styles.field}>
-              <label htmlFor={stateId} className={styles.label}>
-                Estado
-              </label>
-              <select
-                id={stateId}
-                className={styles.select}
-                value={state}
-                onChange={(event) => setState(event.target.value as TaskState)}
-              >
-                {STATE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+              {isEditMode ? (
+                <div className={styles.field}>
+                  <label htmlFor={dayId} className={styles.label}>
+                    Dia
+                  </label>
+                  <select
+                    id={dayId}
+                    className={styles.select}
+                    value={selectedDay}
+                    onChange={(event) => setSelectedDay(event.target.value as DayOfWeek)}
+                  >
+                    {DAYS_OF_WEEK.map((d) => (
+                      <option key={d} value={d}>
+                        {DAY_LABELS[d]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <p className={styles.fixedField}>
+                  <span className={styles.label}>Dia</span>
+                  <span>{DAY_LABELS[day]}</span>
+                </p>
+              )}
 
-          {saveError && (
-            <p className={styles.saveError} role="alert">
-              {saveError}
-            </p>
-          )}
+              <div className={styles.field}>
+                <label htmlFor={priorityId} className={styles.label}>
+                  Prioridade
+                </label>
+                <select
+                  id={priorityId}
+                  className={styles.select}
+                  value={priority}
+                  onChange={(event) => setPriority(event.target.value as PrioritySelectValue)}
+                >
+                  {PRIORITY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          <button type="submit" className={styles.submitButton}>
-            {isEditMode ? 'Salvar' : 'Adicionar tarefa'}
-          </button>
-        </form>
+              {isEditMode && (
+                <div className={styles.field}>
+                  <label htmlFor={stateId} className={styles.label}>
+                    Estado
+                  </label>
+                  <select
+                    id={stateId}
+                    className={styles.select}
+                    value={state}
+                    onChange={(event) => setState(event.target.value as TaskState)}
+                  >
+                    {STATE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {isEditMode && (
+                <button
+                  type="button"
+                  ref={deleteLinkRef}
+                  className={styles.deleteLink}
+                  onClick={() => setIsConfirmingDelete(true)}
+                >
+                  Excluir tarefa
+                </button>
+              )}
+
+              {saveError && (
+                <p className={styles.saveError} role="alert">
+                  {saveError}
+                </p>
+              )}
+
+              <button type="submit" className={styles.submitButton}>
+                {isEditMode ? 'Salvar' : 'Adicionar tarefa'}
+              </button>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );

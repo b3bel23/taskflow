@@ -71,3 +71,17 @@ export function reorderWithinGroup(
     t.id === id ? { ...t, day, priority, order: newOrder } : oldOrder.has(t.id) ? { ...t, order: oldOrder.get(t.id)! } : t,
   );
 }
+
+// Função pura de reindexação para exclusão (Story 2.3, AD-7): fecha o risco
+// latente registrado em `deferred-work.md` para `getNextOrderInGroup` — sem
+// isto, um buraco no `order` do grupo (após remover uma tarefa do meio)
+// poderia colidir com uma tarefa nova. `tasks` já chega SEM a tarefa
+// removida (a remoção acontece antes, em `useTaskActions.deleteTask`); esta
+// função só reindexa sequencialmente (0..n-1, por `order` crescente) as
+// tarefas remanescentes do grupo `(day, priority)` da tarefa removida —
+// nenhuma outra tarefa fora do grupo é tocada.
+export function closeOrderGap(tasks: Task[], day: DayOfWeek, priority: Priority | null): Task[] {
+  const group = tasks.filter((t) => t.day === day && t.priority === priority).sort((a, b) => a.order - b.order);
+  const newOrder = new Map(group.map((t, i) => [t.id, i]));
+  return tasks.map((t) => (newOrder.has(t.id) ? { ...t, order: newOrder.get(t.id)! } : t));
+}

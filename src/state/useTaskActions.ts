@@ -1,10 +1,15 @@
 import { useCallback } from 'react';
 import { saveTasks } from '../storage/tasksStorage';
-import { getNextOrderInGroup, reorderWithinGroup } from './selectors';
+import { closeOrderGap, getNextOrderInGroup, reorderWithinGroup } from './selectors';
 import { useTaskContext } from './TaskContext';
 import type { DayOfWeek, Priority, Task, TaskState } from '../types';
 
 export type TaskActionResult = { ok: true; task: Task } | { ok: false; error: { message: string } };
+
+// `deleteTask` não devolve uma tarefa (ela deixou de existir) — resultado
+// próprio em vez de reaproveitar `TaskActionResult`, cujo `ok:true` exige
+// `task`.
+export type DeleteTaskResult = { ok: true } | { ok: false; error: { message: string } };
 
 export interface CreateTaskInput {
   title: string;
@@ -23,6 +28,7 @@ export interface UpdateTaskInput {
 export interface TaskActions {
   createTask: (input: CreateTaskInput) => TaskActionResult;
   updateTask: (input: UpdateTaskInput) => TaskActionResult;
+  deleteTask: (id: string) => DeleteTaskResult;
 }
 
 // Guard de persistência atômica (AD-4, mesmo padrão de `useThemeActions`):
@@ -89,5 +95,35 @@ export function useTaskActions(): TaskActions {
     [state.tasks, dispatch],
   );
 
-  return { createTask, updateTask };
+  // Guard de persistência atômica (AD-4), mesmo padrão de `createTask`/
+  // `updateTask`: filtra a tarefa alvo do array, reindexa sequencialmente o
+  // grupo `(day, priority)` de onde ela saiu via `closeOrderGap` (fecha o
+  // risco latente de `deferred-work.md` — sem isto, um buraco no `order`
+  // poderia colidir com uma tarefa nova), tenta salvar o array resultante
+  // *antes* de despachar `delete`. Falha não muda o estado em memória (a
+  // tarefa não some até sucesso) e retorna `{ ok: false, error }` — nunca
+  // lança. Única chamadora do reducer para `delete`, igual a `createTask`/
+  // `updateTask`. Exclusão é definitiva (sem desfazer/lixeira no MVP).
+  const deleteTask = useCallback(
+    (id: string): DeleteTaskResult => {
+      const target = state.tasks.find((t) => t.id === id);
+      if (!target) {
+        return { ok: false, error: { message: 'Tarefa não encontrada.' } };
+      }
+
+      const withoutTask = state.tasks.filter((t) => t.id !== id);
+      const reordered = closeOrderGap(withoutTask, target.day, target.priority);
+
+      const result = saveTasks(reordered);
+      if (!result.ok) {
+        return result;
+      }
+
+      dispatch({ type: 'delete', tasks: reordered });
+      return { ok: true };
+    },
+    [state.tasks, dispatch],
+  );
+
+  return { createTask, updateTask, deleteTask };
 }

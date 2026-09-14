@@ -35,8 +35,8 @@
   evidence: Achado do blind-hunter da Story 2.1; inofensivo hoje (nenhum caminho de exclusão existe ainda), mas quem implementar a Story 2.3 precisa garantir que a exclusão reindexe o grupo (ou trocar `getNextOrderInGroup` por `max+1`) antes disso virar um bug real.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-criar-tarefa.md`
-  summary: Sem proteção contra duplo-clique rápido em "Adicionar tarefa"/"Salvar" — duas chamadas de `createTask`/`updateTask` antes do re-render poderiam ler o mesmo `state.tasks` (closure) e calcular o mesmo `order`/reindexar com dado desatualizado.
-  evidence: Achado do blind-hunter/edge-case-hunter da Story 2.1, confirmado ainda válido para `updateTask` na Story 2.2 (mesma closure `state.tasks`); risco real baixo (clique físico de mouse único, sem AC exigindo debounce), mas uma melhoria de robustez futura (desabilitar o botão durante o salvamento) se algum dia se mostrar necessário.
+  summary: Sem proteção contra duplo-clique rápido em "Adicionar tarefa"/"Salvar"/"Excluir" — duas chamadas de `createTask`/`updateTask`/`deleteTask` antes do re-render poderiam ler o mesmo `state.tasks` (closure) e calcular o mesmo `order`/reindexar com dado desatualizado.
+  evidence: Achado do blind-hunter/edge-case-hunter das Stories 2.1/2.2, confirmado ainda válido para `deleteTask` na Story 2.3 (mesma closure `state.tasks`); risco real baixo (clique físico de mouse único, sem AC exigindo debounce), mas uma melhoria de robustez futura (desabilitar o botão durante a operação) se algum dia se mostrar necessário.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-2-editar-tarefa-existente.md`
   summary: Ativação por teclado (Enter/Espaço) do `TaskCard` não é verificável via `fireEvent.keyDown`/`keyUp` — jsdom não sintetiza o `click` nativo que um `<button>` real dispara em resposta a essas teclas (confirmado experimentalmente: 0 chamadas de `onClick` na mesma sequência que um navegador real trata como clique). A garantia atual vem de usar o elemento semântico correto (`<button>`), testado via `tagName === 'BUTTON'`.

@@ -326,3 +326,177 @@ describe('TaskModal — modo edição (Story 2.2)', () => {
     expect(saved).toMatchObject({ title: 'Original', day: 'wed', priority: 'high', state: 'pending' });
   });
 });
+
+describe('TaskModal — Excluir tarefa com confirmação (Story 2.3)', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('modo criação: link "Excluir tarefa" não existe', () => {
+    renderModal();
+
+    expect(screen.queryByText('Excluir tarefa')).toBeNull();
+  });
+
+  it('abre confirmação: clica "Excluir tarefa", conteúdo vira Confirmação com texto e botões exatos, nunca um segundo modal', () => {
+    const task = makeTask();
+    renderEditModal(task);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir tarefa' }));
+
+    expect(screen.getByText('Excluir esta tarefa? Essa ação não pode ser desfeita.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Excluir' })).toBeTruthy();
+    // Conteúdo de edição sumiu (substituído, não empilhado atrás)
+    expect(screen.queryByLabelText('Nome')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull();
+    // Um único `dialog` na árvore — nunca um segundo modal/dialog empilhado
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+  });
+
+  it('cancela: clica "Cancelar" na Confirmação, volta à edição preservando os valores exibidos, tarefa intacta', () => {
+    const task = makeTask({ title: 'Original' });
+    renderEditModal(task);
+
+    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Editado mas não salvo' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir tarefa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect((screen.getByLabelText('Nome') as HTMLInputElement).value).toBe('Editado mas não salvo');
+    expect(screen.getByRole('button', { name: 'Salvar' })).toBeTruthy();
+    const [saved] = getSavedTasks();
+    expect(saved).toMatchObject({ title: 'Original' });
+  });
+
+  it('cancela: foco volta para o link "Excluir tarefa" que abriu a Confirmação', () => {
+    renderEditModal(makeTask());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir tarefa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Excluir tarefa' }));
+  });
+
+  it('Esc na confirmação: volta ao modo edição (mesmo efeito de "Cancelar"), campo editado sobrevive, modal não fecha', () => {
+    const task = makeTask({ title: 'Original' });
+    const onClose = renderEditModal(task, vi.fn());
+
+    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Editado mas não salvo' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir tarefa' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Salvar' })).toBeTruthy();
+    expect(screen.queryByText('Excluir esta tarefa? Essa ação não pode ser desfeita.')).toBeNull();
+    expect((screen.getByLabelText('Nome') as HTMLInputElement).value).toBe('Editado mas não salvo');
+    const [saved] = getSavedTasks();
+    expect(saved).toMatchObject({ id: task.id, title: 'Original' });
+  });
+
+  it('Esc na confirmação: foco volta para o link "Excluir tarefa" que abriu a Confirmação', () => {
+    renderEditModal(makeTask());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir tarefa' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Excluir tarefa' }));
+  });
+
+  it('focus trap na Confirmação: Tab a partir de "Excluir" (último) volta para "Cancelar" (primeiro)', () => {
+    renderEditModal(makeTask());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir tarefa' }));
+
+    const cancelButton = screen.getByRole('button', { name: 'Cancelar' });
+    const deleteButton = screen.getByRole('button', { name: 'Excluir' });
+
+    deleteButton.focus();
+    expect(document.activeElement).toBe(deleteButton);
+
+    fireEvent.keyDown(document, { key: 'Tab' });
+
+    expect(document.activeElement).toBe(cancelButton);
+  });
+
+  it('focus trap na Confirmação: Shift+Tab a partir de "Cancelar" (primeiro, já em foco) volta para "Excluir" (último)', () => {
+    renderEditModal(makeTask());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir tarefa' }));
+
+    const cancelButton = screen.getByRole('button', { name: 'Cancelar' });
+    const deleteButton = screen.getByRole('button', { name: 'Excluir' });
+
+    // "Cancelar" já recebe foco automático ao abrir a Confirmação.
+    expect(document.activeElement).toBe(cancelButton);
+
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+
+    expect(document.activeElement).toBe(deleteButton);
+  });
+
+  it('exclui feliz: escrita ok, tarefa some dos dados persistidos e o modal fecha', () => {
+    const task = makeTask();
+    const onClose = renderEditModal(task);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir tarefa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(getSavedTasks()).toHaveLength(0);
+  });
+
+  it('exclui com grupo maior: 3 tarefas no mesmo (day,priority), exclui a do meio, restantes reindexadas sequencialmente (0,1)', () => {
+    const first = makeTask({ id: 'a', title: 'Primeira', day: 'wed', priority: 'high', order: 0 });
+    const middle = makeTask({ id: 'b', title: 'Do meio', day: 'wed', priority: 'high', order: 1 });
+    const last = makeTask({ id: 'c', title: 'Última', day: 'wed', priority: 'high', order: 2 });
+    window.localStorage.setItem(
+      TASKS_STORAGE_KEY,
+      JSON.stringify({ schemaVersion: 1, tasks: [first, middle, last] }),
+    );
+    const onClose = vi.fn();
+    render(
+      <TaskProvider>
+        <TaskModal day="wed" task={middle} onClose={onClose} />
+      </TaskProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir tarefa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    const saved = getSavedTasks();
+    expect(saved).toHaveLength(2);
+    expect(saved.find((t) => t.id === 'a')).toMatchObject({ order: 0 });
+    expect(saved.find((t) => t.id === 'c')).toMatchObject({ order: 1 });
+  });
+
+  it('escrita falha: confirmação continua visível com erro inline, tarefa não some até sucesso, nunca retry automático', () => {
+    const task = makeTask();
+    const onClose = renderEditModal(task);
+
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota exceeded');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir tarefa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir' }));
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText('Não foi possível excluir a tarefa. Tente novamente.')).toBeTruthy();
+    expect(screen.getByText('Excluir esta tarefa? Essa ação não pode ser desfeita.')).toBeTruthy();
+
+    vi.restoreAllMocks();
+    const [saved] = getSavedTasks();
+    expect(saved).toMatchObject({ id: task.id });
+
+    // Nunca uma nova tentativa automática e silenciosa: só um novo clique
+    // explícito tenta excluir de novo.
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(getSavedTasks()).toHaveLength(0);
+  });
+});

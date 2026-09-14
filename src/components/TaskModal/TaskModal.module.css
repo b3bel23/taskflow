@@ -102,3 +102,83 @@
   padding: var(--spacing-2) var(--spacing-4);
   cursor: pointer;
 }
+
+/* "Excluir tarefa" (DESIGN.md `task-modal`): link/texto discreto em
+   ink-secondary, nunca um botão de destaque — só a Confirmação final usa
+   `button-destructive`. Separado das ações principais (Story 2.3). */
+.deleteLink {
+  align-self: flex-start;
+  margin: 0 0 var(--spacing-3);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-meta);
+  font-weight: var(--font-weight-meta);
+  color: var(--color-ink-secondary);
+  background: none;
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.deleteLink:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Confirmação de Exclusão (Story 2.3): substitui o conteúdo do modal —
+   mesma superfície/raio do `.modal` que a envolve, sem sobreposição própria
+   (nunca um segundo modal). */
+.confirmView {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.confirmText {
+  margin: 0;
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-body);
+  color: var(--color-ink-primary);
+}
+
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+}
+
+/* "Cancelar" na Confirmação (DESIGN.md): ink-secondary, sem destaque —
+   mesmo tratamento visual do texto meta, nunca um botão preenchido. */
+.cancelButton {
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--color-ink-secondary);
+  background: none;
+  border: 1px solid var(--color-border-hairline);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-2) var(--spacing-4);
+  cursor: pointer;
+}
+
+.cancelButton:focus-visible,
+.destructiveButton:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* button-destructive (DESIGN.md): fundo priority-high, texto surface-raised,
+   sempre semibold (mesma mitigação de contraste de button-primary). Único
+   lugar da interface onde priority-high aparece fora de uma Tag de
+   Prioridade. */
+.destructiveButton {
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--color-surface-raised);
+  background-color: var(--color-priority-high);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-2) var(--spacing-4);
+  cursor: pointer;
+}

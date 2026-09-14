@@ -3,7 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { TASKS_STORAGE_KEY } from '../storage/tasksStorage';
 import { TaskProvider, useTaskContext } from './TaskContext';
-import { useTaskActions, type TaskActionResult } from './useTaskActions';
+import { useTaskActions, type DeleteTaskResult, type TaskActionResult } from './useTaskActions';
 
 // Sem JSX neste arquivo (`.test.ts`, como o Code Map da spec pede) —
 // `createElement` monta o wrapper do `renderHook` (mesmo padrão de
@@ -288,5 +288,126 @@ describe('updateTask', () => {
     const saved = JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}');
     expect(saved.tasks).toHaveLength(1);
     expect(saved.tasks[0].title).toBe('Existente');
+  });
+});
+
+describe('deleteTask', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('exclui com sucesso: salva antes de despachar, tarefa some do estado e dos dados persistidos', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Vai sumir', day: 'mon', priority: 'high' });
+    });
+    const [created] = result.current.state.tasks;
+
+    let actionResult: DeleteTaskResult | undefined;
+    act(() => {
+      actionResult = result.current.deleteTask(created.id);
+    });
+
+    expect(actionResult).toEqual({ ok: true });
+    expect(result.current.state.tasks).toHaveLength(0);
+
+    const saved = JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}');
+    expect(saved.tasks).toEqual([]);
+  });
+
+  it('grupo (day,priority) com 3 tarefas, exclui a do meio: as 2 remanescentes reindexadas sequencialmente (0,1), sem buraco', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Primeira', day: 'wed', priority: 'medium' });
+    });
+    act(() => {
+      result.current.createTask({ title: 'Do meio (vai ser excluída)', day: 'wed', priority: 'medium' });
+    });
+    act(() => {
+      result.current.createTask({ title: 'Última', day: 'wed', priority: 'medium' });
+    });
+    const middle = result.current.state.tasks[1];
+
+    act(() => {
+      result.current.deleteTask(middle.id);
+    });
+
+    const tasks = result.current.state.tasks;
+    expect(tasks).toHaveLength(2);
+    const first = tasks.find((t) => t.title === 'Primeira')!;
+    const last = tasks.find((t) => t.title === 'Última')!;
+    expect(first).toMatchObject({ order: 0 });
+    expect(last).toMatchObject({ order: 1 });
+
+    const saved = JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}');
+    expect(saved.tasks).toEqual(tasks);
+  });
+
+  it('tarefas de outros grupos (day,priority) não são afetadas pela exclusão', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Grupo A', day: 'mon', priority: 'high' });
+    });
+    act(() => {
+      result.current.createTask({ title: 'Outro grupo', day: 'tue', priority: 'low' });
+    });
+    const [toDelete] = result.current.state.tasks;
+
+    act(() => {
+      result.current.deleteTask(toDelete.id);
+    });
+
+    const remaining = result.current.state.tasks;
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0]).toMatchObject({ title: 'Outro grupo', day: 'tue', priority: 'low', order: 0 });
+  });
+
+  it('escrita falha: confirmação continua íntegra — retorna {ok:false,error}, nunca lança, tarefa não some do estado nem dos dados', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Não deve sumir', day: 'thu', priority: null });
+    });
+    const [created] = result.current.state.tasks;
+
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota exceeded');
+    });
+
+    let actionResult: DeleteTaskResult | undefined;
+    expect(() => {
+      act(() => {
+        actionResult = result.current.deleteTask(created.id);
+      });
+    }).not.toThrow();
+
+    expect(actionResult).toEqual({ ok: false, error: { message: 'quota exceeded' } });
+    expect(result.current.state.tasks).toHaveLength(1);
+    expect(result.current.state.tasks[0]).toEqual(created);
+  });
+
+  it('id inexistente: retorna {ok:false,error}, nunca lança, nada é persistido/despachado', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Existente', day: 'mon', priority: null });
+    });
+
+    let actionResult: DeleteTaskResult | undefined;
+    expect(() => {
+      act(() => {
+        actionResult = result.current.deleteTask('id-que-nao-existe');
+      });
+    }).not.toThrow();
+
+    expect(actionResult).toEqual({ ok: false, error: { message: 'Tarefa não encontrada.' } });
+    expect(result.current.state.tasks).toHaveLength(1);
   });
 });

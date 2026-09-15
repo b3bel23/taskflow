@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { Task } from '../../types';
 import { TaskCard } from './TaskCard';
+import styles from './TaskCard.module.css';
 
 function makeTask(overrides: Partial<Task> = {}): Task {
   return {
@@ -91,5 +92,83 @@ describe('TaskCard', () => {
 
     expect(onClick).not.toHaveBeenCalled();
     expect(onCycleState).toHaveBeenCalledTimes(1);
+  });
+
+  // Story 3.2: diferenciação visual de tarefa Concluída (opacidade 0.55 no
+  // Card inteiro + line-through no nome) — as duas mudanças juntas, nunca
+  // uma sem a outra, e só quando task.state === 'done'.
+  describe('Diferenciação visual de tarefa Concluída (Story 3.2)', () => {
+    it('tarefa Concluída (done): Card com opacidade e nome com line-through, juntos', () => {
+      render(<TaskCard task={makeTask({ state: 'done' })} onClick={vi.fn()} onCycleState={vi.fn()} />);
+
+      const card = screen.getByRole('button', { name: /Escrever spec/ });
+      const title = screen.getByText('Escrever spec');
+
+      expect(card.classList.contains(styles.completed)).toBe(true);
+      expect(title.classList.contains(styles.titleCompleted)).toBe(true);
+    });
+
+    it('tarefa Pendente: nenhuma das duas mudanças aparece', () => {
+      render(<TaskCard task={makeTask({ state: 'pending' })} onClick={vi.fn()} onCycleState={vi.fn()} />);
+
+      const card = screen.getByRole('button', { name: /Escrever spec/ });
+      const title = screen.getByText('Escrever spec');
+
+      expect(card.classList.contains(styles.completed)).toBe(false);
+      expect(title.classList.contains(styles.titleCompleted)).toBe(false);
+    });
+
+    it('tarefa Em andamento: nenhuma das duas mudanças aparece', () => {
+      render(<TaskCard task={makeTask({ state: 'in_progress' })} onClick={vi.fn()} onCycleState={vi.fn()} />);
+
+      const card = screen.getByRole('button', { name: /Escrever spec/ });
+      const title = screen.getByText('Escrever spec');
+
+      expect(card.classList.contains(styles.completed)).toBe(false);
+      expect(title.classList.contains(styles.titleCompleted)).toBe(false);
+    });
+
+    // Regressão: nenhuma lógica hoje filtra/oculta/remove por Estado — a
+    // tarefa Concluída continua presente e visível no DOM, nunca escondida.
+    it('tarefa Concluída permanece visível/presente no DOM — nunca oculta ou removida', () => {
+      render(<TaskCard task={makeTask({ state: 'done' })} onClick={vi.fn()} onCycleState={vi.fn()} />);
+
+      const card = screen.getByRole('button', { name: /Escrever spec/ });
+
+      expect(card.hidden).toBe(false);
+      expect(document.body.contains(card)).toBe(true);
+      expect(screen.getByText('Escrever spec')).toBeTruthy();
+    });
+
+    it('a diferenciação de Concluída independe de tema: mesmas classes com data-theme="dark"', () => {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      try {
+        render(<TaskCard task={makeTask({ state: 'done' })} onClick={vi.fn()} onCycleState={vi.fn()} />);
+
+        const card = screen.getByRole('button', { name: /Escrever spec/ });
+        const title = screen.getByText('Escrever spec');
+
+        expect(card.classList.contains(styles.completed)).toBe(true);
+        expect(title.classList.contains(styles.titleCompleted)).toBe(true);
+      } finally {
+        document.documentElement.removeAttribute('data-theme');
+      }
+    });
+
+    // Revisão da Story 3.2 (blind-hunter): a diferenciação visual é só
+    // estética — nada nesta história desabilita a interação. Guarda contra
+    // uma futura regressão que acidentalmente adicione `disabled`/
+    // `pointer-events: none` a um Card Concluído.
+    it('tarefa Concluída continua clicável e com o Indicador ciclável, igual a qualquer outra', () => {
+      const onClick = vi.fn();
+      const onCycleState = vi.fn();
+      render(<TaskCard task={makeTask({ state: 'done' })} onClick={onClick} onCycleState={onCycleState} />);
+
+      fireEvent.click(screen.getByText('Escrever spec'));
+      expect(onClick).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Concluída' }));
+      expect(onCycleState).toHaveBeenCalledTimes(1);
+    });
   });
 });

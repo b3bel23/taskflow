@@ -49,3 +49,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-1-alternar-estado-pelo-indicador-de-estado.md`
   summary: Nenhum teste automatizado confirma que a mudança de `aria-label` do `StateIndicator` (ex. "Pendente" → "Em andamento") é de fato anunciada por um leitor de tela real após o ciclo — o elemento já está em foco quando o rótulo muda, cenário que nem todo leitor de tela anuncia de forma confiável.
   evidence: Achado do blind-hunter da Story 3.1; mesma classe de limitação já registrada para o `ThemeToggle` (Story 1.3, `test.css` não habilitado) — o texto do `aria-label` está correto e foi verificado por leitura de código/teste de DOM, mas só teste manual com leitor de tela real confirma o comportamento de anúncio.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2-diferenciar-visualmente-tarefa-concluida.md`
+  summary: `completed-opacity` (0.55, valor fixo de `DESIGN.md`, aplicado ao Card inteiro) reduz o contraste do nome (`--color-ink-primary`) e das cores da `PriorityTag`/`StateIndicator` — no tema claro, o cálculo de contraste do texto cai abaixo de WCAG AA 4.5:1 para texto normal, mesmo o texto sem opacidade passando facilmente.
+  evidence: Achado do blind-hunter da Story 3.2; o valor 0.55 é uma decisão de design já aprovada (Party Mode, `DESIGN.md`) e a própria AC da Story 3.2 exige literalmente essa opacidade no Card inteiro — não é algo que esta história possa mudar unilateralmente; requer decisão de Isabel/UX se o valor do token deve ser revisto.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2-diferenciar-visualmente-tarefa-concluida.md`
+  summary: Nenhuma consideração para `forced-colors`/Windows High Contrast (ou `prefers-contrast`) — nesses modos o navegador tipicamente ignora `opacity`, deixando o `text-decoration: line-through` como único sinal de diferenciação de "Concluída".
+  evidence: Achado do blind-hunter da Story 3.2; mesma classe de item já aceito como fora de escopo do MVP (ex. `color-scheme` não definido, Story 1.3); nenhuma AC exige suporte a modos de alto contraste forçado.

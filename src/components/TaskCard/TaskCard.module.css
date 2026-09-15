@@ -1,9 +1,9 @@
 /* DESIGN.md `task-card`: surface-raised, rounded.md, borda border-hairline.
-   `completed-opacity` (Tarefa Concluída) é Epic 3 — não aplicado aqui, já
-   que a diferenciação visual de "Concluída" não é responsabilidade desta
-   história. Desde a Story 2.2 o elemento raiz é um `<button>` (abre edição)
-   — reset dos estilos padrão de botão do navegador (alinhamento, fonte,
-   largura) para se comportar como o antigo `<div>`. */
+   Desde a Story 2.2 o elemento raiz é um `<button>` (abre edição) — reset
+   dos estilos padrão de botão do navegador (alinhamento, fonte, largura)
+   para se comportar como o antigo `<div>`. Story 3.2: `.completed` aplica
+   `--opacity-completed` (0.55) ao Card inteiro quando `task.state === 'done'`
+   — puramente escalar, sem cor, então idêntico em tema claro/escuro. */
 
 .card {
   display: flex;
@@ -24,6 +24,18 @@
   outline-offset: 2px;
 }
 
+.completed {
+  opacity: var(--opacity-completed);
+}
+
+/* Revisão da Story 3.2 (blind-hunter/edge-case-hunter): sem isto, o anel de
+   foco (`:focus-visible` acima) herdaria a opacidade reduzida do Card
+   Concluído, ficando menos visível para navegação por teclado. Foco sempre
+   tem prioridade sobre a diferenciação visual ambiente. */
+.completed:focus-visible {
+  opacity: 1;
+}
+
 .topRow {
   display: flex;
   align-items: center;
@@ -38,4 +50,8 @@
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   color: var(--color-ink-primary);
+}
+
+.titleCompleted {
+  text-decoration: line-through;
 }

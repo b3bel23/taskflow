@@ -47,6 +47,10 @@
   --spacing-5: 24px;
   --spacing-6: 32px;
   --column-gap: var(--spacing-4);
+
+  /* Completed-task differentiation (Story 3.2): escalar, sem cor — não
+     precisa de variante `-dark` (opacidade não depende de tema). */
+  --opacity-completed: 0.55;
 }
 
 :root[data-theme='dark'] {

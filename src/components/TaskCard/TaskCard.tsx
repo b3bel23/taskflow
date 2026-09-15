@@ -19,12 +19,16 @@ export interface TaskCardProps {
 // (`useTaskActions.cycleState`, repassado por quem monta o Card) em vez de
 // abrir o Modal. `aria-label` explícito evita que o nome acessível vire a
 // concatenação estranha do conteúdo dos filhos (aria-label do StateIndicator
-// + texto da PriorityTag + título).
+// + texto da PriorityTag + título). Story 3.2: quando `task.state === 'done'`,
+// aplica opacidade reduzida ao Card inteiro e risco no nome — juntos, nunca
+// um sem o outro — puramente visual (CSS), sem afetar posição/coluna.
 export function TaskCard({ task, onClick, onCycleState }: TaskCardProps) {
+  const isCompleted = task.state === 'done';
+
   return (
     <button
       type="button"
-      className={styles.card}
+      className={isCompleted ? `${styles.card} ${styles.completed}` : styles.card}
       onClick={onClick}
       aria-label={`Editar tarefa: ${task.title}`}
     >
@@ -32,7 +36,9 @@ export function TaskCard({ task, onClick, onCycleState }: TaskCardProps) {
         <StateIndicator state={task.state} onCycle={onCycleState} />
         <PriorityTag priority={task.priority} />
       </div>
-      <p className={styles.title}>{task.title}</p>
+      <p className={isCompleted ? `${styles.title} ${styles.titleCompleted}` : styles.title}>
+        {task.title}
+      </p>
     </button>
   );
 }

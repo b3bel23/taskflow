@@ -81,3 +81,24 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-1-reordenar-tarefas-por-arraste.md`
   summary: Um `DragDropProvider`/`DragDropManager` próprio é criado por grupo `(day, priority)` — com 7 dias × até 4 níveis de prioridade, potencialmente dezenas de instâncias simultâneas montadas (cada uma com seus próprios sensores/ResizeObservers/nós de acessibilidade), sem nenhuma medição do custo de DOM/desempenho conforme o volume de tarefas cresce.
   evidence: Achado do blind-hunter da Story 4.1; nenhum problema observado hoje (uso pessoal, poucas tarefas por dia esperadas), mas vale revisitar se o uso real mostrar degradação, não hipoteticamente.
+  resolved: Story 4.2 consolidou as ~28 instâncias isoladas por grupo num único `DragDropProvider` em `WeekView` (decisão arquitetural necessária para permitir arraste entre grupos, não uma otimização deliberada deste item) — o risco original não se aplica mais.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-2-mudar-prioridade-ou-dia-arrastando-o-card.md`
+  summary: O rótulo de cada zona de Prioridade (`.zoneLabel`, ex. "Alta") só existe visualmente durante um arraste ativo e não está associado via `aria-label`/`aria-labelledby` à lista da zona; também não há anúncio do resultado (ex. "movida para Quarta-feira, Alta Prioridade") após um cruzamento de grupo por teclado.
+  evidence: Achado do blind-hunter da Story 4.2; estende o item já registrado na Story 4.1 sobre os anúncios em inglês/UUID do plugin de acessibilidade padrão do `@dnd-kit` — agora mais relevante, já que cruzar Dia/Prioridade muda mais coisas para o usuário perceber do que só reposicionar dentro do mesmo grupo.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-2-mudar-prioridade-ou-dia-arrastando-o-card.md`
+  summary: O destaque visual das zonas durante o arraste (`.zoneActive`) muda `border-color` e `padding` (1px → `--spacing-1`), o que altera as dimensões da caixa — iniciar qualquer arraste desloca a posição de todos os Cards/zonas nas 28 zonas da semana simultaneamente (reflow), não só uma mudança de cor/sombra.
+  evidence: Achado do blind-hunter da Story 4.2; um `outline`/`box-shadow` evitaria o reflow sem mudar o efeito visual pretendido — não corrigido nesta revisão por ser um ajuste de CSS não crítico, sem AC/`DESIGN.md` exigindo um comportamento específico (a decisão de destacar zonas foi confirmada com Isabel, mas não a técnica exata de destaque).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-2-mudar-prioridade-ou-dia-arrastando-o-card.md`
+  summary: Todas as 28 zonas (7 dias × 4 prioridades) ficam "ativas" (rótulo visível, destaque) durante qualquer arraste, mesmo um simples reposicionamento dentro do mesmo grupo que nunca vai sair dali — não há distinção visual entre "um arraste está em andamento em algum lugar" e "esta é a zona onde o Card seria solto agora".
+  evidence: Achado do blind-hunter da Story 4.2; corrigir exigiria ligar o destaque ao estado de colisão/hover real do `@dnd-kit` (`isDropTarget` ou equivalente) por zona, não só a um booleano global de "há arraste em andamento" — feature maior, não um ajuste rápido de revisão.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-2-mudar-prioridade-ou-dia-arrastando-o-card.md`
+  summary: A ordem/rótulos dos 4 níveis de Prioridade são declarados de forma independente em 3 lugares — `PRIORITY_RANK` (`selectors.ts`), `PRIORITY_ZONES`/`ZONE_LABELS` (`DayColumn.tsx`, novos nesta story) e os rótulos já usados por `PriorityTag` — nenhuma fonte única compartilhada.
+  evidence: Achado do blind-hunter da Story 4.2; risco baixo hoje (os 4 níveis são fixos, nunca mudaram desde o Epic 2), mas os três lugares podem divergir silenciosamente se um nível for renomeado/reordenado no futuro.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-2-mudar-prioridade-ou-dia-arrastando-o-card.md`
+  summary: `resolveWeekDragChange` decide "cruzou grupo" comparando `source.group` com `source.initialGroup`, campos mantidos ao vivo pelo `OptimisticSortingPlugin` do `@dnd-kit` durante o arraste — esse comportamento exato (o que `source.group` reflete no instante do drop após um gesto físico real, incluindo casos como soltar rapidamente ou cancelar no meio) não foi verificado manualmente num navegador real, só via eventos sintéticos em teste.
+  evidence: Achado do blind-hunter da Story 4.2, mitigado (não eliminado) pelo guard de `target` ausente adicionado na revisão; mesma classe de limitação já aceita para todo o resto da interação de arraste (jsdom não simula gestos físicos) — recomenda-se uma checagem manual quando houver oportunidade de testar num navegador real.

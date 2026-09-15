@@ -34,14 +34,72 @@
   color: var(--color-ink-secondary);
 }
 
-.taskList {
+/* Story 4.2 (Epic 4): container das 4 zonas de Prioridade fixas do dia
+   (`PRIORITY_ZONES`) — substitui o único `<ul class="taskList">` plano da
+   Story 4.1 (cada zona agora tem seu próprio `<ul class="zoneList">` interno,
+   ver abaixo), já que as 4 zonas existem sempre, mesmo vazias. */
+.taskZones {
   display: flex;
   flex: 1;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+/* Uma zona de Prioridade (Boundaries, Story 4.2): discreta fora de um
+   arraste ativo (sem borda/rótulo, só o espaçamento entre Cards) — a borda
+   tracejada + fundo suave + rótulo (`.zoneLabel`, só renderizado quando
+   `isDragActive`) entram junto com `.zoneActive`, tornando a zona "mais
+   evidente" enquanto uma tarefa está sendo arrastada em qualquer lugar da
+   semana (decisão de UX confirmada com Isabel, fora de `DESIGN.md`). */
+.zone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  border: 1px dashed transparent;
+  border-radius: var(--radius-md);
+  padding: 1px;
+}
+
+.zoneActive {
+  border-color: var(--color-border-hairline);
+  background-color: color-mix(in srgb, var(--color-accent) 4%, transparent);
+  padding: var(--spacing-1);
+}
+
+.zoneLabel {
+  margin: 0;
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-meta);
+  font-weight: var(--font-weight-meta);
+  color: var(--color-ink-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.zoneList {
+  display: flex;
   flex-direction: column;
   gap: var(--spacing-2);
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* Placeholder de uma zona sem nenhuma tarefa hoje (Story 4.2): invisível e
+   sem altura fora de um arraste ativo (não ocupa espaço visual à toa); ganha
+   altura mínima + borda tracejada só durante o arraste (`.zoneActive`), pra
+   ter uma área de fato soltável pelo mouse — sem isto, uma zona vazia teria
+   altura zero e nunca seria alcançável fisicamente, mesmo já registrada como
+   alvo válido no `DragDropManager`. */
+.emptyZonePlaceholder {
+  list-style: none;
+  min-height: 2px;
+}
+
+.zoneActive .emptyZonePlaceholder {
+  min-height: 40px;
+  border: 2px dashed var(--color-border-hairline);
+  border-radius: var(--radius-md);
 }
 
 /* Story 4.1 (Epic 4): placeholder tracejado no destino durante o arraste.
@@ -51,14 +109,14 @@
    `visibility: hidden` (só reserva o espaço); aqui sobrescrevemos para ficar
    visível como uma caixa tracejada, escondendo o conteúdo clonado (título/
    Indicador/Tag duplicados não fariam sentido num placeholder). */
-.taskList li[data-dnd-placeholder] {
+.zoneList li[data-dnd-placeholder] {
   visibility: visible;
   border: 2px dashed var(--color-border-hairline);
   border-radius: var(--radius-md);
   background: transparent;
 }
 
-.taskList li[data-dnd-placeholder] > * {
+.zoneList li[data-dnd-placeholder] > * {
   visibility: hidden;
 }
 

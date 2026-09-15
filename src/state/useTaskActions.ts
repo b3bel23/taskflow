@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { saveTasks } from '../storage/tasksStorage';
 import { closeOrderGap, getNextOrderInGroup, reorderGroupByIndex, reorderWithinGroup } from './selectors';
 import { useTaskContext } from './TaskContext';
+import { unregisterDragHandle } from '../components/WeekView/dragHandleRegistry';
 import type { DayOfWeek, Priority, Task, TaskState } from '../types';
 
 export type TaskActionResult = { ok: true; task: Task } | { ok: false; error: { message: string } };
@@ -130,6 +131,12 @@ export function useTaskActions(): TaskActions {
       }
 
       dispatch({ type: 'delete', tasks: reordered });
+      // Revisão da Story 4.2 (blind-hunter/edge-case-hunter): diferente de um
+      // cruzamento de grupo por arraste (a alça é desmontada E remontada),
+      // uma tarefa excluída nunca remonta — sem isto, o registro de alças de
+      // arraste (`dragHandleRegistry`) reteria o nó DOM desconectado dela
+      // para sempre. Só depois do sucesso confirmado (AD-4).
+      unregisterDragHandle(id);
       return { ok: true };
     },
     [state.tasks, dispatch],

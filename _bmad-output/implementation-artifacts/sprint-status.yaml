@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-10-2026 17:30
-last_updated: 09-15-2026 15:00
+last_updated: 09-15-2026 18:30
 project: TaskFlow
 project_key: NOKEY
 tracking_system: file-system
@@ -52,9 +52,9 @@ development_status:
   3-2-diferenciar-visualmente-tarefa-concluída: done
   epic-3-retrospective: done
 
-  epic-4: in-progress
+  epic-4: done
   4-1-reordenar-tarefas-por-arraste-dentro-do-mesmo-nível-de-prior: done
-  4-2-mudar-prioridade-ou-dia-arrastando-o-card: backlog
+  4-2-mudar-prioridade-ou-dia-arrastando-o-card: done
   epic-4-retrospective: optional
 action_items:
   - id: "epic-2-retro-item-1-corrigir-a-corrida-de-foco-em-closeeditm"

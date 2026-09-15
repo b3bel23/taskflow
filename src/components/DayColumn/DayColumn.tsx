@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
-import { DragDropProvider, type DragEndEvent } from '@dnd-kit/react';
+import { useDragOperation } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
-import { move } from '@dnd-kit/helpers';
-import type { DayOfWeek, Task } from '../../types';
+import type { DayOfWeek, Priority, Task } from '../../types';
 import { DAY_LABELS } from '../../constants/days';
 import { useTaskActions } from '../../state/useTaskActions';
+import { groupKey } from '../WeekView/dragChange';
+import { registerDragHandle } from '../WeekView/dragHandleRegistry';
 import { TaskCard } from '../TaskCard/TaskCard';
 import { TaskModal } from '../TaskModal/TaskModal';
 import styles from './DayColumn.module.css';
@@ -15,43 +16,31 @@ export interface DayColumnProps {
   tasks: Task[];
 }
 
-// Story 4.1 (Epic 4): `tasks` chega de `WeekView` já ordenada por
-// `sortTasksInDay` (prioridade, depois `order`) — cada nível de prioridade é
-// por isso uma sequência *contígua* no array recebido. Agrupa essa sequência
-// em segmentos por `priority` (chave estável entre renders: não pode haver
-// dois segmentos com a mesma prioridade num array já ordenado assim) — cada
-// segmento vira seu próprio contexto `@dnd-kit` (`TaskPriorityGroup`
-// abaixo), isolando fisicamente os grupos: nunca existe um `Droppable` de
-// outro grupo para colidir, então cruzar prioridade por arraste é
-// estruturalmente impossível nesta história (Story 4.2 cuida disso depois).
-export interface PriorityGroup {
-  key: string;
-  tasks: Task[];
-}
+// Story 4.2 (Epic 4): ordem fixa das 4 zonas de Prioridade por Dia
+// (Alta->Média->Baixa->sem prioridade, mesma ordem de `PRIORITY_RANK` em
+// `selectors.ts`) — SEMPRE as 4, mesmo vazias (Boundaries: "as 4 zonas de
+// Prioridade por dia existem sempre"), nunca derivadas dos segmentos
+// contíguos que `groupTasksByPriority` calculava na Story 4.1 (removida
+// nesta história: com um único `DragDropProvider` para a semana, inteira,
+// cada zona precisa existir mesmo sem nenhuma tarefa hoje, para continuar
+// sendo um alvo de arraste válido).
+const PRIORITY_ZONES: (Priority | null)[] = ['high', 'medium', 'low', null];
 
-// Exportada (revisão da Story 4.1, verification-gap): decide quais tarefas
-// compartilham um `TaskPriorityGroup`/`DragDropProvider` — ou seja, quais
-// podem ser reordenadas entre si. `TaskPriorityGroup` não renderiza nenhum
-// nó DOM próprio, então um agrupamento incorreto (ex. cada tarefa isolada no
-// próprio grupo) seria invisível olhando só a ordem no DOM renderizado —
-// testada diretamente aqui em vez de só indiretamente.
-export function groupTasksByPriority(tasks: Task[]): PriorityGroup[] {
-  const groups: PriorityGroup[] = [];
-  for (const task of tasks) {
-    const key = task.priority ?? 'none';
-    const currentGroup = groups[groups.length - 1];
-    if (currentGroup && currentGroup.key === key) {
-      currentGroup.tasks.push(task);
-    } else {
-      groups.push({ key, tasks: [task] });
-    }
-  }
-  return groups;
+const ZONE_LABELS: Record<string, string> = {
+  high: 'Alta',
+  medium: 'Média',
+  low: 'Baixa',
+  none: 'Sem prioridade',
+};
+
+function zoneLabelKey(priority: Priority | null): string {
+  return priority ?? 'none';
 }
 
 interface SortableTaskItemProps {
   task: Task;
   index: number;
+  group: string;
   onOpenEdit: (event: MouseEvent<HTMLButtonElement>) => void;
   onCycleState: () => void;
 }
@@ -63,9 +52,24 @@ interface SortableTaskItemProps {
 // própria lib põe nesse elemento durante o arraste); `handleRef` só na alça
 // dedicada dentro do `TaskCard` — é isso que faz o sensor de ponteiro/
 // teclado ligar só nela, nunca no Card/StateIndicator (ver comentário do
-// `TaskCard`).
-function SortableTaskItem({ task, index, onOpenEdit, onCycleState }: SortableTaskItemProps) {
-  const { ref, handleRef, isDragging } = useSortable({ id: task.id, index });
+// `TaskCard`). Story 4.2: `group` (chave `(day,priority)` de
+// `dragChange.groupKey`) é o que permite `resolveWeekDragChange` (WeekView)
+// distinguir reordenar (mesmo grupo, Story 4.1) de cruzar grupo (Dia e/ou
+// Prioridade mudaram). `registerDragHandle` alimenta o registro
+// module-scope que `WeekView` usa para restaurar o foco na alça remontada
+// depois de um cruzamento de grupo (Boundaries "Foco") — nunca apagado no
+// desmonte (ver comentário de `dragHandleRegistry.ts`), então não precisa de
+// cleanup aqui.
+function SortableTaskItem({ task, index, group, onOpenEdit, onCycleState }: SortableTaskItemProps) {
+  const { ref, handleRef, isDragging } = useSortable({ id: task.id, index, group });
+
+  const combinedHandleRef = useCallback(
+    (element: Element | null) => {
+      handleRef(element);
+      registerDragHandle(task.id, element);
+    },
+    [handleRef, task.id],
+  );
 
   return (
     <li ref={ref}>
@@ -73,101 +77,77 @@ function SortableTaskItem({ task, index, onOpenEdit, onCycleState }: SortableTas
         task={task}
         onClick={onOpenEdit}
         onCycleState={onCycleState}
-        dragHandleRef={handleRef}
+        dragHandleRef={combinedHandleRef}
         isDragging={isDragging}
       />
     </li>
   );
 }
 
-interface TaskPriorityGroupProps {
+interface EmptyZoneDropTargetProps {
+  group: string;
+}
+
+// Zona de Prioridade sem nenhuma tarefa hoje (Boundaries + I/O "Zona de
+// Prioridade vazia", Story 4.2): mesmo vazia, a zona precisa continuar sendo
+// um alvo de arraste válido — sem nenhuma tarefa real para carregar
+// `useSortable`/`group`, este placeholder (nunca arrastável,
+// `disabled: { draggable: true }`) é quem registra o grupo `(day,priority)`
+// como `Droppable` de verdade no `DragDropManager` único da semana (sem
+// isto, `source.group` nunca seria atualizado ao soltar sobre uma zona
+// vazia — ver comentário de `dragChange.ts`). `aria-hidden`: nunca aparece
+// para leitor de tela nem para `getAllByRole('listitem')` dos testes
+// (Testing Library exclui por padrão elementos fora da árvore de
+// acessibilidade), então não interfere com a leitura de "Nenhuma tarefa"
+// nem com a contagem de tarefas reais por zona/dia.
+function EmptyZoneDropTarget({ group }: EmptyZoneDropTargetProps) {
+  const { ref } = useSortable({ id: `empty:${group}`, index: 0, group, disabled: { draggable: true } });
+
+  return <li ref={ref} aria-hidden="true" className={styles.emptyZonePlaceholder} />;
+}
+
+interface PriorityZoneProps {
+  day: DayOfWeek;
+  priority: Priority | null;
   tasks: Task[];
+  isDragActive: boolean;
   onOpenEdit: (task: Task) => (event: MouseEvent<HTMLButtonElement>) => void;
   onCycleState: (id: string) => void;
-  reorderTask: (id: string, toIndex: number) => void;
 }
 
-// Extraído de `handleDragEnd` (abaixo) para ser testável sem simular um
-// gesto físico de arraste: `move()` de `@dnd-kit/helpers` é pura — só lê
-// `event.operation.{source,target,canceled}` (nenhuma medição real de DOM
-// para o caso de array plano de ids que usamos aqui) — então um teste pode
-// construir um `DragEndEvent` sintético e chamar esta função diretamente,
-// cobrindo a MESMA lógica que o mouse e o sensor de teclado do @dnd-kit
-// disparam (ambos produzem o mesmo formato de evento). O que fica de fora
-// (e seria só verificável manualmente): se o @dnd-kit em si dispara esse
-// evento corretamente a partir de um gesto físico real — limitação conhecida
-// de testar consumidores de @dnd-kit sob jsdom.
-export function resolveDragReorder(tasks: Task[], event: DragEndEvent): { id: string; toIndex: number } | null {
-  if (event.canceled) {
-    return null;
-  }
-
-  const ids = tasks.map((t) => t.id);
-  const reordered = move(ids, event);
-  // Revisão da Story 4.1 (blind-hunter): compara por conteúdo, não por
-  // identidade de referência — `move()` devolve a mesma referência quando
-  // não há nada a mover (ex. sem `target` válido), mas esse é um detalhe de
-  // implementação de `@dnd-kit/helpers`, não um contrato documentado; uma
-  // comparação por conteúdo continua correta mesmo que isso mude no futuro.
-  if (reordered.length === ids.length && reordered.every((id, i) => id === ids[i])) {
-    return null;
-  }
-
-  const sourceId = event.operation.source?.id;
-  if (typeof sourceId !== 'string') {
-    return null;
-  }
-
-  const toIndex = reordered.indexOf(sourceId);
-  if (toIndex === -1) {
-    return null;
-  }
-
-  return { id: sourceId, toIndex };
-}
-
-// Um `<DragDropProvider>` por grupo `(day, priority)` — instância própria de
-// `DragDropManager` (isolamento estrutural entre grupos, ver comentário de
-// `groupTasksByPriority`). Não renderiza nenhum elemento DOM próprio (só
-// Context.Provider + os `<li>` filhos), então continua produzindo `<ul><li>`
-// válido dentro de `DayColumn`.
-function TaskPriorityGroup({ tasks, onOpenEdit, onCycleState, reorderTask }: TaskPriorityGroupProps) {
-  // `resolveDragReorder` (acima) faz a leitura pura do evento — funciona
-  // igual para arraste por mouse e pelo sensor de teclado (Enter/Espaço+
-  // setas+Enter), já que ambos produzem o mesmo formato de evento. Esc
-  // cancela (`event.canceled`) sem chamar `reorderTask` — o próprio
-  // @dnd-kit devolve o Card à posição original visualmente, nada é
-  // persistido (I/O "Cancelar via teclado"). Grupo com 1 tarefa: não há
-  // para onde mover, `resolveDragReorder` devolve `null` — `reorderTask`
-  // nunca chega a ser chamado (I/O "Grupo com 1 tarefa"). Única chamadora:
-  // nenhum dispatch cru a partir do handler de arraste (guard AD-4 vive
-  // inteiro dentro de `useTaskActions.reorderTask`, inclusive o "sem retry
-  // automático" em caso de falha de escrita — se `saveTasks` falhar, o
-  // estado em memória não muda, `tasks` desta coluna continua na ordem
-  // antiga no próximo render, e o Card volta sozinho à posição original
-  // pela própria animação de drop do @dnd-kit).
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const result = resolveDragReorder(tasks, event);
-      if (result) {
-        reorderTask(result.id, result.toIndex);
-      }
-    },
-    [tasks, reorderTask],
-  );
+// Uma das 4 zonas de Prioridade do Dia (Boundaries, Story 4.2): sempre
+// renderizada, mesmo sem nenhuma tarefa — é isso que torna qualquer faixa de
+// qualquer dia um alvo de arraste válido, não só as que já têm tarefa hoje.
+// Discreta fora de um arraste ativo (`isDragActive`, de `useDragOperation` —
+// `WeekView` é quem tem o único `DragDropProvider` da semana, este
+// componente só lê o estado dele), mais evidente (rótulo visível, área de
+// soltar maior na zona vazia) só durante o arraste — decisão de UX
+// confirmada com Isabel, adição desta story, fora de `DESIGN.md`.
+function PriorityZone({ day, priority, tasks, isDragActive, onOpenEdit, onCycleState }: PriorityZoneProps) {
+  const key = groupKey(day, priority);
+  const labelKey = zoneLabelKey(priority);
+  const zoneClassName = isDragActive ? `${styles.zone} ${styles.zoneActive}` : styles.zone;
 
   return (
-    <DragDropProvider onDragEnd={handleDragEnd}>
-      {tasks.map((task, index) => (
-        <SortableTaskItem
-          key={task.id}
-          task={task}
-          index={index}
-          onOpenEdit={onOpenEdit(task)}
-          onCycleState={() => onCycleState(task.id)}
-        />
-      ))}
-    </DragDropProvider>
+    <div className={zoneClassName} data-priority-zone={labelKey}>
+      {isDragActive && <span className={styles.zoneLabel}>{ZONE_LABELS[labelKey]}</span>}
+      <ul className={styles.zoneList}>
+        {tasks.length === 0 ? (
+          <EmptyZoneDropTarget group={key} />
+        ) : (
+          tasks.map((task, index) => (
+            <SortableTaskItem
+              key={task.id}
+              task={task}
+              index={index}
+              group={key}
+              onOpenEdit={onOpenEdit(task)}
+              onCycleState={() => onCycleState(task.id)}
+            />
+          ))
+        )}
+      </ul>
+    </div>
   );
 }
 
@@ -176,9 +156,18 @@ function TaskPriorityGroup({ tasks, onOpenEdit, onCycleState, reorderTask }: Tas
 // "+ Adicionar tarefa" abre o `TaskModal` em criação; clicar num `TaskCard`
 // (Story 2.2) abre o mesmo `TaskModal` em edição, pré-preenchido. Em ambos
 // os casos, `Esc`/sucesso fecham o modal e devolvem o foco ao controle que
-// abriu (o botão "+ Adicionar tarefa" ou o próprio Card clicado). Story 4.1:
-// dentro de cada nível de prioridade, os Cards também podem ser reordenados
-// por arraste (`TaskPriorityGroup`/`SortableTaskItem` acima).
+// abriu (o botão "+ Adicionar tarefa" ou o próprio Card clicado).
+//
+// Story 4.2 (Epic 4): deixou de criar seu próprio `DragDropProvider`/
+// segmentos contíguos por prioridade (Story 4.1) — isso agora vive uma vez
+// só em `WeekView`, dono do único `DragDropManager` da semana. `DayColumn`
+// só renderiza as 4 `PriorityZone` fixas (`PRIORITY_ZONES` acima) com as
+// tarefas que já recebeu, filtradas por Prioridade — cada zona decide por
+// conta própria se tem tarefa (`SortableTaskItem`, reordenável dentro do
+// grupo, Story 4.1 intocada) ou não (`EmptyZoneDropTarget`, só um alvo de
+// soltar). `useDragOperation` (também `@dnd-kit/react`) é só leitura do
+// estado do `DragDropProvider` de `WeekView` — não cria nenhum estado novo
+// aqui, só decide quando mostrar as zonas "mais evidentes".
 export function DayColumn({ day, isToday, tasks }: DayColumnProps) {
   const columnClassName = isToday ? `${styles.column} ${styles.today}` : styles.column;
   const labelId = `day-label-${day}`;
@@ -187,7 +176,9 @@ export function DayColumn({ day, isToday, tasks }: DayColumnProps) {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const lastFocusedCardRef = useRef<HTMLButtonElement | null>(null);
-  const { cycleState, reorderTask } = useTaskActions();
+  const { cycleState } = useTaskActions();
+  const { source } = useDragOperation();
+  const isDragActive = source != null;
 
   const closeAddModal = useCallback(() => {
     setIsAddModalOpen(false);
@@ -242,21 +233,20 @@ export function DayColumn({ day, isToday, tasks }: DayColumnProps) {
       <h2 id={labelId} className={styles.dayLabel}>
         {DAY_LABELS[day]}
       </h2>
-      {tasks.length === 0 ? (
-        <p className={styles.emptyState}>Nenhuma tarefa</p>
-      ) : (
-        <ul className={styles.taskList}>
-          {groupTasksByPriority(tasks).map((group) => (
-            <TaskPriorityGroup
-              key={group.key}
-              tasks={group.tasks}
-              onOpenEdit={handleOpenEdit}
-              onCycleState={cycleState}
-              reorderTask={reorderTask}
-            />
-          ))}
-        </ul>
-      )}
+      {tasks.length === 0 && <p className={styles.emptyState}>Nenhuma tarefa</p>}
+      <div className={styles.taskZones}>
+        {PRIORITY_ZONES.map((priority) => (
+          <PriorityZone
+            key={zoneLabelKey(priority)}
+            day={day}
+            priority={priority}
+            tasks={tasks.filter((task) => task.priority === priority)}
+            isDragActive={isDragActive}
+            onOpenEdit={handleOpenEdit}
+            onCycleState={cycleState}
+          />
+        ))}
+      </div>
       <button
         type="button"
         ref={addButtonRef}

@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
-import type { DragEndEvent } from '@dnd-kit/react';
-import { DayColumn, groupTasksByPriority, resolveDragReorder } from './DayColumn';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { DayColumn } from './DayColumn';
 import styles from './DayColumn.module.css';
 import { TaskProvider } from '../../state/TaskContext';
 import { TASKS_STORAGE_KEY } from '../../storage/tasksStorage';
@@ -16,31 +15,6 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     priority: overrides.priority ?? null,
     order: overrides.order ?? 0,
   };
-}
-
-// Constrói um `DragEndEvent` sintético — `move()` (`@dnd-kit/helpers`) só lê
-// `operation.{source,target,canceled}` para o caso de array plano de ids que
-// `resolveDragReorder` usa, então não precisa de instâncias reais de
-// `Draggable`/`Droppable` nem de gesto físico simulado. `source.index` é o
-// mesmo índice já projetado que tanto o mouse quanto o sensor de teclado do
-// @dnd-kit produzem em tempo real.
-function makeDragEndEvent(overrides: {
-  sourceId?: string;
-  sourceIndex?: number;
-  targetId?: string;
-  canceled?: boolean;
-}): DragEndEvent {
-  const { sourceId, sourceIndex, targetId, canceled = false } = overrides;
-  return {
-    operation: {
-      source: sourceId === undefined ? null : { id: sourceId, index: sourceIndex },
-      target: targetId === undefined ? null : { id: targetId },
-      canceled,
-    },
-    canceled,
-    nativeEvent: undefined,
-    suspend: () => ({ resume: () => {}, abort: () => {} }),
-  } as unknown as DragEndEvent;
 }
 
 describe('DayColumn', () => {
@@ -304,92 +278,69 @@ describe('DayColumn', () => {
     });
   });
 
-  // Story 4.1: `resolveDragReorder` é a lógica que o handler de `onDragEnd`
-  // de fato executa — testada aqui diretamente com eventos sintéticos,
-  // porque simular um gesto físico de arraste (mouse ou sensor de teclado
-  // real do @dnd-kit) não é viável sob jsdom (limitação conhecida). Isto
-  // cobre a MESMA computação que o mouse e o teclado disparam, já que ambos
-  // produzem o mesmo formato de `DragEndEvent` — só a origem física do
-  // evento (não testável aqui) muda.
-  describe('Reordenar por arraste dentro do grupo (Story 4.1)', () => {
-    const tasks = [makeTask({ id: 'a' }), makeTask({ id: 'b' }), makeTask({ id: 'c' })];
+  // Story 4.2 (Epic 4): as 4 zonas de Prioridade por Dia existem sempre,
+  // mesmo vazias — é isso que torna qualquer faixa de qualquer dia um alvo
+  // de arraste válido (cruzar grupo, Prioridade e/ou Dia; a decisão pura
+  // fica em `dragChange.test.ts`, testada por eventos sintéticos, já que
+  // simular um gesto físico de arraste não é viável sob jsdom). Aqui só a
+  // estrutura renderizada: as 4 zonas continuam presentes independente de
+  // terem tarefa hoje, e discretas (sem rótulo) fora de um arraste ativo.
+  describe('As 4 zonas de Prioridade sempre presentes (Story 4.2)', () => {
+    it('renderiza as 4 zonas (Alta/Média/Baixa/Sem prioridade), nessa ordem, mesmo com o dia vazio', () => {
+      const { container } = renderInProvider();
 
-    it('reordena: solta a tarefa "b" (índice 1) na posição 2', () => {
-      const event = makeDragEndEvent({ sourceId: 'b', sourceIndex: 2, targetId: 'c' });
-
-      expect(resolveDragReorder(tasks, event)).toEqual({ id: 'b', toIndex: 2 });
-    });
-
-    it('cancelado (Esc): retorna null, nada a persistir', () => {
-      const event = makeDragEndEvent({ sourceId: 'b', sourceIndex: 2, targetId: 'c', canceled: true });
-
-      expect(resolveDragReorder(tasks, event)).toBeNull();
-    });
-
-    it('grupo com 1 tarefa: soltar sobre si mesma não move nada, retorna null', () => {
-      const single = [makeTask({ id: 'only' })];
-      const event = makeDragEndEvent({ sourceId: 'only', sourceIndex: 0, targetId: 'only' });
-
-      expect(resolveDragReorder(single, event)).toBeNull();
-    });
-
-    it('sem origem/destino identificável: retorna null em vez de lançar', () => {
-      const event = makeDragEndEvent({});
-
-      expect(resolveDragReorder(tasks, event)).toBeNull();
-    });
-
-    // Revisão da Story 4.1 (blind-hunter): soltar fora de qualquer alvo
-    // válido (ex. fora da coluna) — origem existe, mas sem destino.
-    it('origem válida sem destino (solta fora de qualquer alvo): retorna null', () => {
-      const event = makeDragEndEvent({ sourceId: 'b', sourceIndex: 1 });
-
-      expect(resolveDragReorder(tasks, event)).toBeNull();
-    });
-  });
-
-  // Revisão da Story 4.1 (verification-gap): `groupTasksByPriority` decide
-  // quais tarefas compartilham um `DragDropProvider` — ou seja, quais podem
-  // ser reordenadas entre si. `TaskPriorityGroup` não renderiza nenhum nó
-  // DOM próprio, então testar só a ordem final no DOM não distinguiria um
-  // agrupamento correto de cada tarefa isolada no próprio grupo — por isso
-  // esta função é testada diretamente aqui.
-  describe('groupTasksByPriority (Story 4.1)', () => {
-    it('tarefas contíguas da mesma prioridade viram um único grupo', () => {
-      const highA = makeTask({ id: 'a', priority: 'high' });
-      const highB = makeTask({ id: 'b', priority: 'high' });
-      const low = makeTask({ id: 'c', priority: 'low' });
-
-      const groups = groupTasksByPriority([highA, highB, low]);
-
-      expect(groups).toEqual([
-        { key: 'high', tasks: [highA, highB] },
-        { key: 'low', tasks: [low] },
+      const zones = container.querySelectorAll('[data-priority-zone]');
+      expect(Array.from(zones).map((zone) => zone.getAttribute('data-priority-zone'))).toEqual([
+        'high',
+        'medium',
+        'low',
+        'none',
       ]);
     });
 
-    it('ausência de prioridade agrupa sob a chave "none", distinta dos níveis nomeados', () => {
-      const noPriority = makeTask({ id: 'a', priority: null });
+    it('zona sem tarefa continua presente no DOM (alvo de arraste válido), sem nenhum Card dentro', () => {
+      const highTask = makeTask({ id: 'a', priority: 'high' });
+      const { container } = renderInProvider('mon', false, [highTask]);
 
-      expect(groupTasksByPriority([noPriority])).toEqual([{ key: 'none', tasks: [noPriority] }]);
+      const mediumZone = container.querySelector('[data-priority-zone="medium"]');
+      expect(mediumZone).toBeTruthy();
+      expect(within(mediumZone as HTMLElement).queryAllByRole('listitem')).toHaveLength(0);
     });
 
-    it('grupos não-contíguos da mesma prioridade NÃO se fundem (a entrada já vem ordenada por sortTasksInDay)', () => {
-      const highA = makeTask({ id: 'a', priority: 'high' });
-      const low = makeTask({ id: 'b', priority: 'low' });
-      const highC = makeTask({ id: 'c', priority: 'high' });
+    // Revisão da Story 4.2 (verification-gap/blind-hunter): o teste acima só
+    // verifica a zona vazia; nada até aqui garantia que uma tarefa com
+    // Prioridade definida de fato aparece DENTRO da zona correspondente (em
+    // vez de só aparecer em algum lugar do DOM). Testa as 4 zonas juntas para
+    // também confirmar que uma tarefa nunca aparece em mais de uma zona.
+    it('cada tarefa aparece dentro da zona da sua própria Prioridade, nunca em outra', () => {
+      const highTask = makeTask({ id: 'a', title: 'Tarefa Alta', priority: 'high' });
+      const lowTask = makeTask({ id: 'b', title: 'Tarefa Baixa', priority: 'low' });
+      const noneTask = makeTask({ id: 'c', title: 'Tarefa Sem Prioridade', priority: null });
+      const { container } = renderInProvider('mon', false, [highTask, lowTask, noneTask]);
 
-      const groups = groupTasksByPriority([highA, low, highC]);
+      const zone = (priority: string) => container.querySelector(`[data-priority-zone="${priority}"]`) as HTMLElement;
 
-      expect(groups).toEqual([
-        { key: 'high', tasks: [highA] },
-        { key: 'low', tasks: [low] },
-        { key: 'high', tasks: [highC] },
-      ]);
+      expect(within(zone('high')).getByText('Tarefa Alta')).toBeTruthy();
+      expect(within(zone('low')).getByText('Tarefa Baixa')).toBeTruthy();
+      expect(within(zone('none')).getByText('Tarefa Sem Prioridade')).toBeTruthy();
+
+      // Nenhuma tarefa vaza para uma zona que não é a sua.
+      expect(within(zone('high')).queryByText('Tarefa Baixa')).toBeNull();
+      expect(within(zone('medium')).queryAllByRole('listitem')).toHaveLength(0);
     });
 
-    it('lista vazia: nenhum grupo', () => {
-      expect(groupTasksByPriority([])).toEqual([]);
+    it('rótulo da zona ("Alta" etc.) não aparece no DOM fora de um arraste ativo (discreta)', () => {
+      // `queryByText('Alta')` sozinho combinaria com a `PriorityTag` do
+      // próprio Card (também mostra "Alta") — a checagem precisa ser
+      // especificamente sobre o rótulo da zona (`.zoneLabel`), não sobre
+      // qualquer texto "Alta" na árvore.
+      const { container } = renderInProvider('mon', false, [makeTask({ priority: 'high' })]);
+
+      // Sem nenhum arraste em andamento, `useDragOperation().source` é nulo
+      // (`DragDropManager` compartilhado por padrão fora de um
+      // `DragDropProvider`, ver `WeekView.tsx`) — o rótulo da zona não é
+      // renderizado, só o Card em si.
+      expect(container.querySelector(`.${styles.zoneLabel}`)).toBeNull();
     });
   });
 });

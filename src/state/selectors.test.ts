@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Task } from '../types';
-import { closeOrderGap, getNextOrderInGroup, reorderWithinGroup, sortTasksInDay } from './selectors';
+import {
+  closeOrderGap,
+  getNextOrderInGroup,
+  reorderGroupByIndex,
+  reorderWithinGroup,
+  sortTasksInDay,
+} from './selectors';
 
 function makeTask(overrides: Partial<Task>): Task {
   return {
@@ -143,6 +149,93 @@ describe('reorderWithinGroup', () => {
     const result = reorderWithinGroup(tasks, 'a', 'tue', 'low');
 
     expect(result.find((t) => t.id === 'other')).toMatchObject({ day: 'wed', priority: 'medium', order: 5 });
+  });
+});
+
+describe('reorderGroupByIndex', () => {
+  it('move para trás (toIndex maior): reindexa sequencialmente o grupo, dia/prioridade preservados', () => {
+    const tasks = [
+      makeTask({ id: 'a', day: 'mon', priority: 'high', order: 0 }),
+      makeTask({ id: 'b', day: 'mon', priority: 'high', order: 1 }),
+      makeTask({ id: 'c', day: 'mon', priority: 'high', order: 2 }),
+    ];
+
+    const result = reorderGroupByIndex(tasks, 'a', 'mon', 'high', 2);
+
+    const byId = new Map(result.map((t) => [t.id, t]));
+    expect(byId.get('b')).toMatchObject({ order: 0, day: 'mon', priority: 'high' });
+    expect(byId.get('c')).toMatchObject({ order: 1, day: 'mon', priority: 'high' });
+    expect(byId.get('a')).toMatchObject({ order: 2, day: 'mon', priority: 'high' });
+  });
+
+  it('move para frente (toIndex menor): reindexa sequencialmente o grupo', () => {
+    const tasks = [
+      makeTask({ id: 'a', day: 'mon', priority: 'high', order: 0 }),
+      makeTask({ id: 'b', day: 'mon', priority: 'high', order: 1 }),
+      makeTask({ id: 'c', day: 'mon', priority: 'high', order: 2 }),
+    ];
+
+    const result = reorderGroupByIndex(tasks, 'c', 'mon', 'high', 0);
+
+    const byId = new Map(result.map((t) => [t.id, t]));
+    expect(byId.get('c')).toMatchObject({ order: 0 });
+    expect(byId.get('a')).toMatchObject({ order: 1 });
+    expect(byId.get('b')).toMatchObject({ order: 2 });
+  });
+
+  it('id inexistente: no-op, retorna o mesmo array de tasks', () => {
+    const tasks = [makeTask({ id: 'a', day: 'mon', priority: 'high', order: 0 })];
+
+    const result = reorderGroupByIndex(tasks, 'inexistente', 'mon', 'high', 0);
+
+    expect(result).toBe(tasks);
+  });
+
+  it('grupo "sem prioridade" (null) também é reindexado corretamente', () => {
+    const tasks = [
+      makeTask({ id: 'a', day: 'fri', priority: null, order: 0 }),
+      makeTask({ id: 'b', day: 'fri', priority: null, order: 1 }),
+    ];
+
+    const result = reorderGroupByIndex(tasks, 'a', 'fri', null, 1);
+
+    const byId = new Map(result.map((t) => [t.id, t]));
+    expect(byId.get('b')).toMatchObject({ order: 0 });
+    expect(byId.get('a')).toMatchObject({ order: 1 });
+  });
+
+  it('grupo com 1 tarefa: reindexa para a mesma posição (0), no-op semântico', () => {
+    const tasks = [makeTask({ id: 'a', day: 'mon', priority: 'high', order: 0 })];
+
+    const result = reorderGroupByIndex(tasks, 'a', 'mon', 'high', 0);
+
+    expect(result[0]).toMatchObject({ id: 'a', order: 0 });
+  });
+
+  it('tarefas de outros dias/prioridades permanecem intocadas (mesmo order antigo)', () => {
+    const tasks = [
+      makeTask({ id: 'a', day: 'mon', priority: 'high', order: 0 }),
+      makeTask({ id: 'b', day: 'mon', priority: 'high', order: 1 }),
+      makeTask({ id: 'other-day', day: 'tue', priority: 'high', order: 5 }),
+      makeTask({ id: 'other-priority', day: 'mon', priority: 'low', order: 7 }),
+    ];
+
+    const result = reorderGroupByIndex(tasks, 'a', 'mon', 'high', 1);
+
+    const byId = new Map(result.map((t) => [t.id, t]));
+    expect(byId.get('other-day')).toMatchObject({ day: 'tue', priority: 'high', order: 5 });
+    expect(byId.get('other-priority')).toMatchObject({ day: 'mon', priority: 'low', order: 7 });
+  });
+
+  it('não altera nada além do order: título/estado/prioridade preservados', () => {
+    const tasks = [
+      makeTask({ id: 'a', day: 'mon', priority: 'high', order: 0, title: 'Original', state: 'done' }),
+      makeTask({ id: 'b', day: 'mon', priority: 'high', order: 1 }),
+    ];
+
+    const result = reorderGroupByIndex(tasks, 'a', 'mon', 'high', 1);
+
+    expect(result.find((t) => t.id === 'a')).toMatchObject({ title: 'Original', state: 'done', order: 1 });
   });
 });
 

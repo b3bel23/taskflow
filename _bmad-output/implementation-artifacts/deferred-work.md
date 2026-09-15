@@ -44,7 +44,7 @@
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-criar-tarefa.md`
   summary: `DayColumn` mantém estado de modal independente por coluna (agora dois: `isAddModalOpen` e, desde a Story 2.2, `editingTask`) — nada garante centralmente que só um `TaskModal` pode estar aberto por vez entre as 7 colunas (hoje isso já é impedido na prática pelo overlay em tela cheia + focus trap, que bloqueia clique/Tab para qualquer Card ou botão por trás, incluindo o "+ Adicionar tarefa" da mesma coluna).
-  evidence: Achado do blind-hunter/edge-case-hunter das Stories 2.1 e 2.2; não é um bug alcançável por interação normal do usuário (overlay cobre a viewport inteira), mas vale revisitar se um gerenciador de modal global for introduzido nas próximas histórias (2.3 reusa o mesmo `TaskModal`).
+  evidence: Achado do blind-hunter/edge-case-hunter das Stories 2.1 e 2.2; não é um bug alcançável por interação normal do usuário (overlay cobre a viewport inteira), mas vale revisitar se um gerenciador de modal global for introduzido nas próximas histórias (2.3 reusa o mesmo `TaskModal`). Estendido pelo blind-hunter da Story 4.1: a mesma suposição (overlay bloqueia tudo atrás) agora também precisa cobrir a nova alça de arraste (`role="button"`, focável) de cada `TaskCard` — nunca re-verificado com o `TaskModal` aberto.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-1-alternar-estado-pelo-indicador-de-estado.md`
   summary: Nenhum teste automatizado confirma que a mudança de `aria-label` do `StateIndicator` (ex. "Pendente" → "Em andamento") é de fato anunciada por um leitor de tela real após o ciclo — o elemento já está em foco quando o rótulo muda, cenário que nem todo leitor de tela anuncia de forma confiável.
@@ -57,3 +57,27 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-2-diferenciar-visualmente-tarefa-concluida.md`
   summary: Nenhuma consideração para `forced-colors`/Windows High Contrast (ou `prefers-contrast`) — nesses modos o navegador tipicamente ignora `opacity`, deixando o `text-decoration: line-through` como único sinal de diferenciação de "Concluída".
   evidence: Achado do blind-hunter da Story 3.2; mesma classe de item já aceito como fora de escopo do MVP (ex. `color-scheme` não definido, Story 1.3); nenhuma AC exige suporte a modos de alto contraste forçado.
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-3-retro-2026-09-14.md`
+  summary: `task.state === 'done'` é checado de forma independente em `TaskCard.tsx` (para decidir `isCompleted`/opacidade+risco) e em `StateIndicator.tsx` (para o rótulo/classe visual do Indicador) — nenhum predicado ou mapa único compartilhado entre os dois.
+  evidence: Achado do adversarial na retrospectiva do Epic 3 (fronteira Story 3.1 × 3.2); risco baixo hoje (só um `TaskState` "parece concluído"), mas exigiria editar os dois arquivos em sincronia se um novo Estado "parecido com concluído" for adicionado no futuro.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-reordenar-tarefas-por-arraste.md`
+  summary: O plugin de acessibilidade padrão do `@dnd-kit` (`Accessibility`, parte do `defaultPreset`) anuncia o início/fim do arraste em inglês e citando o UUID cru da tarefa (ex. "Picked up draggable item {uuid}"), nunca sobrescrito por `DragDropProvider` em `DayColumn.tsx` — inconsistente com o resto do app, cuidadosamente em português (ex. "Arrastar tarefa: {título}").
+  evidence: Achado do blind-hunter da Story 4.1, confirmado lendo `node_modules/@dnd-kit/dom`'s `defaultAnnouncements`/`Accessibility` options (`announcements`/`screenReaderInstructions` são configuráveis, mas corrigir corretamente exige mapear `event.operation.source.id` de volta ao título da tarefa dentro do closure de `TaskPriorityGroup` — pesquisa de API suficiente para não ser um patch seguro durante a revisão desta story; precisa de uma passada dedicada antes de expor a funcionalidade a uma usuária real de leitor de tela).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-reordenar-tarefas-por-arraste.md`
+  summary: Falha de escrita ao reordenar por arraste (`useTaskActions.reorderTask` retornando `{ok:false}`) não tem nenhum feedback visível ao usuário — diferente do padrão `role="alert"` já usado por `createTask`/`updateTask`/`deleteTask` no `TaskModal`.
+  evidence: Achado do blind-hunter da Story 4.1; ao contrário de `cycleState` (Story 3.1, cujo "Never" na spec decidiu explicitamente não mostrar erro, mesmo padrão do `ThemeToggle`), a spec da 4.1 não tomou essa decisão explicitamente — mas não há Modal aberto durante um arraste para hospedar uma mensagem `role="alert"`, então corrigir isto exige uma decisão de UX nova (ex. toast/banner) antes de virar código.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-reordenar-tarefas-por-arraste.md`
+  summary: O placeholder tracejado que o `@dnd-kit` insere no destino do arraste (`[data-dnd-placeholder]`) não foi verificado quanto a `aria-hidden` — pode permanecer um item de lista vazio e sem rótulo na árvore de acessibilidade enquanto um arraste está em andamento.
+  evidence: Achado do blind-hunter da Story 4.1; não confirmado se a própria lib já trata isso por padrão (comportamento não pesquisado a fundo) — precisa de verificação antes de decidir se há algo a corrigir.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-reordenar-tarefas-por-arraste.md`
+  summary: A animação de "levantado" durante o arraste (`.dragging`: sombra + rotação -2deg) e a transição de reposicionamento do próprio `@dnd-kit` não respeitam `prefers-reduced-motion`.
+  evidence: Achado do blind-hunter da Story 4.1; nenhuma AC ou `DESIGN.md` exige isso explicitamente, mas é uma lacuna real de acessibilidade não coberta por nenhuma história ainda.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-reordenar-tarefas-por-arraste.md`
+  summary: Um `DragDropProvider`/`DragDropManager` próprio é criado por grupo `(day, priority)` — com 7 dias × até 4 níveis de prioridade, potencialmente dezenas de instâncias simultâneas montadas (cada uma com seus próprios sensores/ResizeObservers/nós de acessibilidade), sem nenhuma medição do custo de DOM/desempenho conforme o volume de tarefas cresce.
+  evidence: Achado do blind-hunter da Story 4.1; nenhum problema observado hoje (uso pessoal, poucas tarefas por dia esperadas), mas vale revisitar se o uso real mostrar degradação, não hipoteticamente.

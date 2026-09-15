@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { saveTasks } from '../storage/tasksStorage';
-import { closeOrderGap, getNextOrderInGroup, reorderWithinGroup } from './selectors';
+import { closeOrderGap, getNextOrderInGroup, reorderGroupByIndex, reorderWithinGroup } from './selectors';
 import { useTaskContext } from './TaskContext';
 import type { DayOfWeek, Priority, Task, TaskState } from '../types';
 
@@ -30,6 +30,7 @@ export interface TaskActions {
   updateTask: (input: UpdateTaskInput) => TaskActionResult;
   deleteTask: (id: string) => DeleteTaskResult;
   cycleState: (id: string) => TaskActionResult;
+  reorderTask: (id: string, toIndex: number) => TaskActionResult;
 }
 
 // Ciclo fixo do Indicador de Estado (Story 3.1, FR-4): Pendente→Em
@@ -162,5 +163,37 @@ export function useTaskActions(): TaskActions {
     [state.tasks, dispatch],
   );
 
-  return { createTask, updateTask, deleteTask, cycleState };
+  // Guard de persistência atômica (AD-4), mesmo padrão de `createTask`/
+  // `updateTask`/`deleteTask`/`cycleState`: reindexa só a posição relativa
+  // dentro do grupo `(day, priority)` que `id` já está — nunca muda
+  // Dia/Prioridade/Título/Estado (isso é Story 4.2/Modal, não arraste dentro
+  // do mesmo nível). `reorderGroupByIndex` (AD-7, distinta de
+  // `reorderWithinGroup`) é a única função de reindexação usada aqui —
+  // nenhum dispatch cru a partir do handler de drag (`DayColumn`), só via
+  // esta função. Tenta salvar o array resultante *antes* de despachar
+  // `update` (mesma action da 2.2/3.1, nenhuma nova no reducer); falha não
+  // muda o estado em memória (a ordem exibida reverte sozinha, já que o
+  // Card nunca chega a ser re-renderizado numa posição nova) e retorna
+  // `{ ok: false, error }` — nunca lança, sem nova tentativa automática.
+  const reorderTask = useCallback(
+    (id: string, toIndex: number): TaskActionResult => {
+      const target = state.tasks.find((t) => t.id === id);
+      if (!target) {
+        return { ok: false, error: { message: 'Tarefa não encontrada.' } };
+      }
+
+      const reordered = reorderGroupByIndex(state.tasks, id, target.day, target.priority, toIndex);
+
+      const result = saveTasks(reordered);
+      if (!result.ok) {
+        return result;
+      }
+
+      dispatch({ type: 'update', tasks: reordered });
+      return { ok: true, task: reordered.find((t) => t.id === id) as Task };
+    },
+    [state.tasks, dispatch],
+  );
+
+  return { createTask, updateTask, deleteTask, cycleState, reorderTask };
 }

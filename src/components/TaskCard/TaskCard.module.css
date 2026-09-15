@@ -36,11 +36,59 @@
   opacity: 1;
 }
 
+/* Story 4.1 (Epic 4 context): único uso deliberado de sombra decorativa do
+   produto — reforça visualmente que o Card está "levantado" durante o
+   arraste (mouse ou teclado). Aplicada via prop `isDragging` (repassada por
+   `DayColumn`/`useSortable`), não via seletor de atributo do `@dnd-kit` —
+   mesma convenção de `.completed` (classe condicional no componente, não
+   estado escondido no DOM). */
+.dragging {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  rotate: -2deg;
+}
+
 .topRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-2);
+}
+
+.leftControls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+/* Alça de arraste dedicada (Story 4.1): elemento próprio, nunca o Card nem
+   o StateIndicator — mesmo padrão de foco visível dos dois. `cursor: grab`
+   só como dica visual; a ativação de fato é do @dnd-kit (pointerdown na
+   alça). */
+.dragHandle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Revisão da Story 4.1 (blind-hunter): 24x24 é o mínimo de WCAG 2.5.8
+     (Target Size) — 20x20 ficava abaixo. */
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: var(--color-ink-secondary);
+  cursor: grab;
+  touch-action: none;
+}
+
+/* Revisão da Story 4.1 (blind-hunter): `.dragging` (aplicada ao `.card`
+   durante o arraste) reflete no cursor da própria alça — sem isto, o cursor
+   ficava preso em "grab" mesmo com o arraste em andamento. */
+.dragging .dragHandle {
+  cursor: grabbing;
+}
+
+.dragHandle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 .title {

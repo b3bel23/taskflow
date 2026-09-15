@@ -72,6 +72,33 @@ export function reorderWithinGroup(
   );
 }
 
+// Função pura de reindexação para arraste dentro do mesmo grupo (Story 4.1,
+// Epic 4): distinta de `reorderWithinGroup` de propósito — aquela existe só
+// para mudança de *grupo* (Dia/Prioridade, Story 2.2/Story 4.2) e é no-op se
+// o grupo não muda; esta função nunca muda `day`/`priority`, só a posição
+// relativa dentro do grupo `(day, priority)` que já é o de `id`. `toIndex` é
+// a posição final desejada dentro do grupo (já reindexado 0..n-1); grupo com
+// 1 tarefa ou `toIndex` igual à posição atual ainda passam por aqui (quem
+// chama, `DayColumn`, só invoca isto quando o `@dnd-kit/helpers.move` já
+// confirmou que a posição projetada mudou — I/O "Grupo com 1 tarefa" nunca
+// chega a chamar `reorderTask`). `id` inexistente: no-op, retorna `tasks`
+// sem tocar em nada.
+export function reorderGroupByIndex(
+  tasks: Task[],
+  id: string,
+  day: DayOfWeek,
+  priority: Priority | null,
+  toIndex: number,
+): Task[] {
+  const group = tasks.filter((t) => t.day === day && t.priority === priority).sort((a, b) => a.order - b.order);
+  const withoutTarget = group.filter((t) => t.id !== id);
+  const target = group.find((t) => t.id === id);
+  if (!target) return tasks;
+  withoutTarget.splice(toIndex, 0, target);
+  const newOrder = new Map(withoutTarget.map((t, i) => [t.id, i]));
+  return tasks.map((t) => (newOrder.has(t.id) ? { ...t, order: newOrder.get(t.id)! } : t));
+}
+
 // Função pura de reindexação para exclusão (Story 2.3, AD-7): fecha o risco
 // latente registrado em `deferred-work.md` para `getNextOrderInGroup` — sem
 // isto, um buraco no `order` do grupo (após remover uma tarefa do meio)

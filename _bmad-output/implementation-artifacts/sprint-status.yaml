@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-10-2026 17:30
-last_updated: 09-14-2026 23:20
+last_updated: 09-15-2026 15:00
 project: TaskFlow
 project_key: NOKEY
 tracking_system: file-system
@@ -50,10 +50,10 @@ development_status:
   epic-3: done
   3-1-alternar-estado-pelo-indicador-de-estado: done
   3-2-diferenciar-visualmente-tarefa-concluída: done
-  epic-3-retrospective: optional
+  epic-3-retrospective: done
 
-  epic-4: backlog
-  4-1-reordenar-tarefas-por-arraste-dentro-do-mesmo-nível-de-prior: backlog
+  epic-4: in-progress
+  4-1-reordenar-tarefas-por-arraste-dentro-do-mesmo-nível-de-prior: done
   4-2-mudar-prioridade-ou-dia-arrastando-o-card: backlog
   epic-4-retrospective: optional
 action_items:
@@ -101,3 +101,34 @@ action_items:
     owner: "process"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-14.md"
+  - id: "epic-3-retro-item-7-corrigir-completed-focus-visible-em-task"
+    epic: 3
+    action: "Corrigir .completed:focus-visible em TaskCard.module.css para tambem
+      cobrir o foco pousando no StateIndicator aninhado (ex. .card.completed:focus-within
+      opacity:1) - hoje o anel de foco do Indicador esmaece num Card Concluido"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-14.md"
+  - id: "epic-3-retro-item-8-adicionar-teste-em-weekview-test-tsx-que"
+    epic: 3
+    action: "Adicionar teste em WeekView.test.tsx que cicla um Card ate Concluido
+      e de volta a Pendente e verifica que as classes completed/titleCompleted do
+      TaskCard desaparecem"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-14.md"
+  - id: "epic-3-retro-item-9-extrair-um-predicado-mapa-unico-para-tas"
+    epic: 3
+    action: "Extrair um predicado/mapa unico para task.state === done, hoje duplicado
+      entre TaskCard.tsx e StateIndicator.tsx"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-14.md"
+  - id: "epic-3-retro-item-10-antes-da-story-4-1-decidir-explicitament"
+    epic: 3
+    action: "Antes da Story 4.1, decidir explicitamente na spec como o guard AD-4
+      se aplica a updates continuos de arraste, e como StateIndicator/foco/Tab-stops
+      coexistem com o sensor de arraste do dnd-kit sobre o mesmo Card"
+    owner: "process"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-14.md"

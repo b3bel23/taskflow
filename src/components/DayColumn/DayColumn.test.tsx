@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { DayColumn } from './DayColumn';
+import type { DragEndEvent } from '@dnd-kit/react';
+import { DayColumn, groupTasksByPriority, resolveDragReorder } from './DayColumn';
 import styles from './DayColumn.module.css';
 import { TaskProvider } from '../../state/TaskContext';
 import { TASKS_STORAGE_KEY } from '../../storage/tasksStorage';
@@ -15,6 +16,31 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     priority: overrides.priority ?? null,
     order: overrides.order ?? 0,
   };
+}
+
+// Constrói um `DragEndEvent` sintético — `move()` (`@dnd-kit/helpers`) só lê
+// `operation.{source,target,canceled}` para o caso de array plano de ids que
+// `resolveDragReorder` usa, então não precisa de instâncias reais de
+// `Draggable`/`Droppable` nem de gesto físico simulado. `source.index` é o
+// mesmo índice já projetado que tanto o mouse quanto o sensor de teclado do
+// @dnd-kit produzem em tempo real.
+function makeDragEndEvent(overrides: {
+  sourceId?: string;
+  sourceIndex?: number;
+  targetId?: string;
+  canceled?: boolean;
+}): DragEndEvent {
+  const { sourceId, sourceIndex, targetId, canceled = false } = overrides;
+  return {
+    operation: {
+      source: sourceId === undefined ? null : { id: sourceId, index: sourceIndex },
+      target: targetId === undefined ? null : { id: targetId },
+      canceled,
+    },
+    canceled,
+    nativeEvent: undefined,
+    suspend: () => ({ resume: () => {}, abort: () => {} }),
+  } as unknown as DragEndEvent;
 }
 
 describe('DayColumn', () => {
@@ -160,7 +186,7 @@ describe('DayColumn', () => {
       const task = makeTask({ title: 'Escrever spec' });
       renderWithTask(task);
 
-      const card = screen.getByRole('button', { name: /Escrever spec/ });
+      const card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
       fireEvent.click(card);
       expect(screen.getByRole('dialog')).toBeTruthy();
 
@@ -175,7 +201,7 @@ describe('DayColumn', () => {
       const task = makeTask({ title: 'Escrever spec' });
       renderWithTask(task);
 
-      const card = screen.getByRole('button', { name: /Escrever spec/ });
+      const card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
       fireEvent.click(card);
 
       fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Não deveria salvar' } });
@@ -275,6 +301,95 @@ describe('DayColumn', () => {
 
       expect(screen.getByRole('dialog')).toBeTruthy();
       expect(savedState()).toBe('pending');
+    });
+  });
+
+  // Story 4.1: `resolveDragReorder` é a lógica que o handler de `onDragEnd`
+  // de fato executa — testada aqui diretamente com eventos sintéticos,
+  // porque simular um gesto físico de arraste (mouse ou sensor de teclado
+  // real do @dnd-kit) não é viável sob jsdom (limitação conhecida). Isto
+  // cobre a MESMA computação que o mouse e o teclado disparam, já que ambos
+  // produzem o mesmo formato de `DragEndEvent` — só a origem física do
+  // evento (não testável aqui) muda.
+  describe('Reordenar por arraste dentro do grupo (Story 4.1)', () => {
+    const tasks = [makeTask({ id: 'a' }), makeTask({ id: 'b' }), makeTask({ id: 'c' })];
+
+    it('reordena: solta a tarefa "b" (índice 1) na posição 2', () => {
+      const event = makeDragEndEvent({ sourceId: 'b', sourceIndex: 2, targetId: 'c' });
+
+      expect(resolveDragReorder(tasks, event)).toEqual({ id: 'b', toIndex: 2 });
+    });
+
+    it('cancelado (Esc): retorna null, nada a persistir', () => {
+      const event = makeDragEndEvent({ sourceId: 'b', sourceIndex: 2, targetId: 'c', canceled: true });
+
+      expect(resolveDragReorder(tasks, event)).toBeNull();
+    });
+
+    it('grupo com 1 tarefa: soltar sobre si mesma não move nada, retorna null', () => {
+      const single = [makeTask({ id: 'only' })];
+      const event = makeDragEndEvent({ sourceId: 'only', sourceIndex: 0, targetId: 'only' });
+
+      expect(resolveDragReorder(single, event)).toBeNull();
+    });
+
+    it('sem origem/destino identificável: retorna null em vez de lançar', () => {
+      const event = makeDragEndEvent({});
+
+      expect(resolveDragReorder(tasks, event)).toBeNull();
+    });
+
+    // Revisão da Story 4.1 (blind-hunter): soltar fora de qualquer alvo
+    // válido (ex. fora da coluna) — origem existe, mas sem destino.
+    it('origem válida sem destino (solta fora de qualquer alvo): retorna null', () => {
+      const event = makeDragEndEvent({ sourceId: 'b', sourceIndex: 1 });
+
+      expect(resolveDragReorder(tasks, event)).toBeNull();
+    });
+  });
+
+  // Revisão da Story 4.1 (verification-gap): `groupTasksByPriority` decide
+  // quais tarefas compartilham um `DragDropProvider` — ou seja, quais podem
+  // ser reordenadas entre si. `TaskPriorityGroup` não renderiza nenhum nó
+  // DOM próprio, então testar só a ordem final no DOM não distinguiria um
+  // agrupamento correto de cada tarefa isolada no próprio grupo — por isso
+  // esta função é testada diretamente aqui.
+  describe('groupTasksByPriority (Story 4.1)', () => {
+    it('tarefas contíguas da mesma prioridade viram um único grupo', () => {
+      const highA = makeTask({ id: 'a', priority: 'high' });
+      const highB = makeTask({ id: 'b', priority: 'high' });
+      const low = makeTask({ id: 'c', priority: 'low' });
+
+      const groups = groupTasksByPriority([highA, highB, low]);
+
+      expect(groups).toEqual([
+        { key: 'high', tasks: [highA, highB] },
+        { key: 'low', tasks: [low] },
+      ]);
+    });
+
+    it('ausência de prioridade agrupa sob a chave "none", distinta dos níveis nomeados', () => {
+      const noPriority = makeTask({ id: 'a', priority: null });
+
+      expect(groupTasksByPriority([noPriority])).toEqual([{ key: 'none', tasks: [noPriority] }]);
+    });
+
+    it('grupos não-contíguos da mesma prioridade NÃO se fundem (a entrada já vem ordenada por sortTasksInDay)', () => {
+      const highA = makeTask({ id: 'a', priority: 'high' });
+      const low = makeTask({ id: 'b', priority: 'low' });
+      const highC = makeTask({ id: 'c', priority: 'high' });
+
+      const groups = groupTasksByPriority([highA, low, highC]);
+
+      expect(groups).toEqual([
+        { key: 'high', tasks: [highA] },
+        { key: 'low', tasks: [low] },
+        { key: 'high', tasks: [highC] },
+      ]);
+    });
+
+    it('lista vazia: nenhum grupo', () => {
+      expect(groupTasksByPriority([])).toEqual([]);
     });
   });
 });

@@ -531,3 +531,136 @@ describe('cycleState', () => {
     expect(result.current.state.tasks[0].state).toBe('pending');
   });
 });
+
+describe('reorderTask (Story 4.1)', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('reposiciona dentro do mesmo grupo (day,priority): reindexa sequencialmente, salva antes de despachar', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Primeira', day: 'mon', priority: 'high' });
+    });
+    act(() => {
+      result.current.createTask({ title: 'Segunda', day: 'mon', priority: 'high' });
+    });
+    act(() => {
+      result.current.createTask({ title: 'Terceira', day: 'mon', priority: 'high' });
+    });
+    const [first] = result.current.state.tasks;
+
+    let actionResult: TaskActionResult | undefined;
+    act(() => {
+      actionResult = result.current.reorderTask(first.id, 2);
+    });
+
+    expect(actionResult?.ok).toBe(true);
+    const tasks = result.current.state.tasks;
+    expect(tasks.find((t) => t.title === 'Segunda')).toMatchObject({ order: 0 });
+    expect(tasks.find((t) => t.title === 'Terceira')).toMatchObject({ order: 1 });
+    expect(tasks.find((t) => t.title === 'Primeira')).toMatchObject({ order: 2, day: 'mon', priority: 'high' });
+
+    const saved = JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}');
+    expect(saved.tasks).toEqual(tasks);
+  });
+
+  it('nunca muda Dia/Prioridade/Título/Estado — só a posição relativa (order) dentro do grupo', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Tarefa', day: 'wed', priority: 'low' });
+    });
+    act(() => {
+      result.current.createTask({ title: 'Outra', day: 'wed', priority: 'low' });
+    });
+    const [created] = result.current.state.tasks;
+    act(() => {
+      result.current.updateTask({
+        id: created.id,
+        title: created.title,
+        day: created.day,
+        priority: created.priority,
+        state: 'in_progress',
+      });
+    });
+
+    act(() => {
+      result.current.reorderTask(created.id, 1);
+    });
+
+    const moved = result.current.state.tasks.find((t) => t.id === created.id);
+    expect(moved).toMatchObject({ title: 'Tarefa', day: 'wed', priority: 'low', state: 'in_progress', order: 1 });
+  });
+
+  it('outros grupos (day,priority) permanecem intocados', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Grupo A - 1', day: 'mon', priority: 'high' });
+    });
+    act(() => {
+      result.current.createTask({ title: 'Grupo A - 2', day: 'mon', priority: 'high' });
+    });
+    act(() => {
+      result.current.createTask({ title: 'Outro grupo', day: 'tue', priority: 'low' });
+    });
+    const [first] = result.current.state.tasks;
+
+    act(() => {
+      result.current.reorderTask(first.id, 1);
+    });
+
+    const untouched = result.current.state.tasks.find((t) => t.title === 'Outro grupo');
+    expect(untouched).toMatchObject({ day: 'tue', priority: 'low', order: 0 });
+  });
+
+  it('escrita falha: retorna {ok:false,error}, nunca lança, ordem em memória permanece a original (Card volta à posição)', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Primeira', day: 'thu', priority: null });
+    });
+    act(() => {
+      result.current.createTask({ title: 'Segunda', day: 'thu', priority: null });
+    });
+    const [first, second] = result.current.state.tasks;
+
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota exceeded');
+    });
+
+    let actionResult: TaskActionResult | undefined;
+    expect(() => {
+      act(() => {
+        actionResult = result.current.reorderTask(first.id, 1);
+      });
+    }).not.toThrow();
+
+    expect(actionResult).toEqual({ ok: false, error: { message: 'quota exceeded' } });
+    expect(result.current.state.tasks).toEqual([first, second]);
+  });
+
+  it('id inexistente: retorna {ok:false,error}, nunca lança, nada é persistido/despachado', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Existente', day: 'mon', priority: null });
+    });
+
+    let actionResult: TaskActionResult | undefined;
+    expect(() => {
+      act(() => {
+        actionResult = result.current.reorderTask('id-que-nao-existe', 0);
+      });
+    }).not.toThrow();
+
+    expect(actionResult).toEqual({ ok: false, error: { message: 'Tarefa não encontrada.' } });
+    expect(result.current.state.tasks).toHaveLength(1);
+  });
+});

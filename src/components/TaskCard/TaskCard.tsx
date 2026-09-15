@@ -8,6 +8,13 @@ export interface TaskCardProps {
   task: Task;
   onClick: (event: MouseEvent<HTMLButtonElement>) => void;
   onCycleState: () => void;
+  // Story 4.1 (Epic 4): `DayColumn` é quem monta o contexto `@dnd-kit`
+  // (`useSortable`) escopado ao grupo `(day, priority)` — `TaskCard` só
+  // recebe e planta o `handleRef` na alça (a lib liga o sensor de
+  // ponteiro/teclado direto a este elemento DOM) e o booleano `isDragging`
+  // para o visual "levantado". `TaskCard` não sabe nada de `@dnd-kit`.
+  dragHandleRef?: (element: Element | null) => void;
+  isDragging?: boolean;
 }
 
 // Card de Tarefa (DESIGN.md `task-card`): compõe `StateIndicator` +
@@ -22,18 +29,59 @@ export interface TaskCardProps {
 // + texto da PriorityTag + título). Story 3.2: quando `task.state === 'done'`,
 // aplica opacidade reduzida ao Card inteiro e risco no nome — juntos, nunca
 // um sem o outro — puramente visual (CSS), sem afetar posição/coluna.
-export function TaskCard({ task, onClick, onCycleState }: TaskCardProps) {
+//
+// Story 4.1: alça de arraste dedicada (mesmo `role="button"`+`tabIndex=0`+
+// `stopPropagation` de `StateIndicator`, elemento próprio, nunca o Card nem
+// o `StateIndicator` ativando o sensor de arraste — decisão já confirmada
+// com Isabel, ver "Ask First" da spec). `aria-label` "Arrastar tarefa:
+// {título}" é o nome acessível dela, distinto do "Editar tarefa: {título}"
+// do Card — os dois compartilham o título, então buscas por nome de botão
+// devem usar o texto completo, não um trecho que combine com os dois.
+export function TaskCard({ task, onClick, onCycleState, dragHandleRef, isDragging = false }: TaskCardProps) {
   const isCompleted = task.state === 'done';
+
+  const cardClassNames = [styles.card, isCompleted && styles.completed, isDragging && styles.dragging]
+    .filter(Boolean)
+    .join(' ');
+
+  const handleDragHandleClick = (event: MouseEvent<HTMLSpanElement>) => {
+    event.stopPropagation();
+  };
 
   return (
     <button
       type="button"
-      className={isCompleted ? `${styles.card} ${styles.completed}` : styles.card}
+      className={cardClassNames}
       onClick={onClick}
       aria-label={`Editar tarefa: ${task.title}`}
     >
       <div className={styles.topRow}>
-        <StateIndicator state={task.state} onCycle={onCycleState} />
+        <div className={styles.leftControls}>
+          {dragHandleRef && (
+            // Revisão da Story 4.1 (edge-case-hunter): renderizada só quando
+            // `dragHandleRef` é fornecida — sem isto, um `TaskCard` montado
+            // sem contexto de arraste (ex. direto num teste) ainda expunha
+            // um "botão" focável de arrastar sem nenhum sensor ligado a ele.
+            <span
+              className={styles.dragHandle}
+              role="button"
+              tabIndex={0}
+              aria-label={`Arrastar tarefa: ${task.title}`}
+              ref={dragHandleRef}
+              onClick={handleDragHandleClick}
+            >
+              <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false">
+                <circle cx="5" cy="3" r="1.4" fill="currentColor" />
+                <circle cx="11" cy="3" r="1.4" fill="currentColor" />
+                <circle cx="5" cy="8" r="1.4" fill="currentColor" />
+                <circle cx="11" cy="8" r="1.4" fill="currentColor" />
+                <circle cx="5" cy="13" r="1.4" fill="currentColor" />
+                <circle cx="11" cy="13" r="1.4" fill="currentColor" />
+              </svg>
+            </span>
+          )}
+          <StateIndicator state={task.state} onCycle={onCycleState} />
+        </div>
         <PriorityTag priority={task.priority} />
       </div>
       <p className={isCompleted ? `${styles.title} ${styles.titleCompleted}` : styles.title}>

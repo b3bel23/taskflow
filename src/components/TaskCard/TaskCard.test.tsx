@@ -36,7 +36,7 @@ describe('TaskCard', () => {
   it('é um <button> focável por teclado, com foco visível via CSS (Story 2.2)', () => {
     render(<TaskCard task={makeTask()} onClick={vi.fn()} onCycleState={vi.fn()} />);
 
-    const card = screen.getByRole('button', { name: /Escrever spec/ });
+    const card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
     expect(card.tagName).toBe('BUTTON');
 
     card.focus();
@@ -70,7 +70,7 @@ describe('TaskCard', () => {
   it('é um <button> nativo — garante ativação por teclado (Enter/Espaço) sem handler próprio', () => {
     render(<TaskCard task={makeTask()} onClick={vi.fn()} onCycleState={vi.fn()} />);
 
-    const card = screen.getByRole('button', { name: /Escrever spec/ });
+    const card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
     expect(card.tagName).toBe('BUTTON');
   });
 
@@ -101,7 +101,7 @@ describe('TaskCard', () => {
     it('tarefa Concluída (done): Card com opacidade e nome com line-through, juntos', () => {
       render(<TaskCard task={makeTask({ state: 'done' })} onClick={vi.fn()} onCycleState={vi.fn()} />);
 
-      const card = screen.getByRole('button', { name: /Escrever spec/ });
+      const card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
       const title = screen.getByText('Escrever spec');
 
       expect(card.classList.contains(styles.completed)).toBe(true);
@@ -111,7 +111,7 @@ describe('TaskCard', () => {
     it('tarefa Pendente: nenhuma das duas mudanças aparece', () => {
       render(<TaskCard task={makeTask({ state: 'pending' })} onClick={vi.fn()} onCycleState={vi.fn()} />);
 
-      const card = screen.getByRole('button', { name: /Escrever spec/ });
+      const card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
       const title = screen.getByText('Escrever spec');
 
       expect(card.classList.contains(styles.completed)).toBe(false);
@@ -121,7 +121,7 @@ describe('TaskCard', () => {
     it('tarefa Em andamento: nenhuma das duas mudanças aparece', () => {
       render(<TaskCard task={makeTask({ state: 'in_progress' })} onClick={vi.fn()} onCycleState={vi.fn()} />);
 
-      const card = screen.getByRole('button', { name: /Escrever spec/ });
+      const card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
       const title = screen.getByText('Escrever spec');
 
       expect(card.classList.contains(styles.completed)).toBe(false);
@@ -133,7 +133,7 @@ describe('TaskCard', () => {
     it('tarefa Concluída permanece visível/presente no DOM — nunca oculta ou removida', () => {
       render(<TaskCard task={makeTask({ state: 'done' })} onClick={vi.fn()} onCycleState={vi.fn()} />);
 
-      const card = screen.getByRole('button', { name: /Escrever spec/ });
+      const card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
 
       expect(card.hidden).toBe(false);
       expect(document.body.contains(card)).toBe(true);
@@ -145,7 +145,7 @@ describe('TaskCard', () => {
       try {
         render(<TaskCard task={makeTask({ state: 'done' })} onClick={vi.fn()} onCycleState={vi.fn()} />);
 
-        const card = screen.getByRole('button', { name: /Escrever spec/ });
+        const card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
         const title = screen.getByText('Escrever spec');
 
         expect(card.classList.contains(styles.completed)).toBe(true);
@@ -169,6 +169,88 @@ describe('TaskCard', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Concluída' }));
       expect(onCycleState).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // Story 4.1 (Epic 4): alça de arraste dedicada — elemento próprio,
+  // focável, nunca o Card nem o StateIndicator ativando o sensor de
+  // arraste (decisão já confirmada com Isabel, "Ask First" da spec).
+  describe('Alça de arraste (Story 4.1)', () => {
+    it('é um elemento próprio, focável (tabIndex=0), com nome acessível "Arrastar tarefa: {título}"', () => {
+      render(
+        <TaskCard
+          task={makeTask({ title: 'Escrever spec' })}
+          onClick={vi.fn()}
+          onCycleState={vi.fn()}
+          dragHandleRef={vi.fn()}
+        />,
+      );
+
+      const handle = screen.getByRole('button', { name: 'Arrastar tarefa: Escrever spec' });
+      expect(handle.tagName).not.toBe('BUTTON');
+      expect(handle.getAttribute('tabindex')).toBe('0');
+
+      handle.focus();
+      expect(document.activeElement).toBe(handle);
+    });
+
+    it('a alça é distinta do Card: nomes acessíveis diferentes, dois elementos com role="button"', () => {
+      render(
+        <TaskCard
+          task={makeTask({ title: 'Escrever spec' })}
+          onClick={vi.fn()}
+          onCycleState={vi.fn()}
+          dragHandleRef={vi.fn()}
+        />,
+      );
+
+      const card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
+      const handle = screen.getByRole('button', { name: 'Arrastar tarefa: Escrever spec' });
+
+      expect(card).not.toBe(handle);
+    });
+
+    it('clicar na alça não aciona onClick do Card (stopPropagation) nem onCycleState', () => {
+      const onClick = vi.fn();
+      const onCycleState = vi.fn();
+      render(
+        <TaskCard task={makeTask()} onClick={onClick} onCycleState={onCycleState} dragHandleRef={vi.fn()} />,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Arrastar tarefa: Escrever spec' }));
+
+      expect(onClick).not.toHaveBeenCalled();
+      expect(onCycleState).not.toHaveBeenCalled();
+    });
+
+    it('planta o dragHandleRef recebido no elemento da alça (@dnd-kit liga o sensor a este nó)', () => {
+      const dragHandleRef = vi.fn();
+      render(<TaskCard task={makeTask()} onClick={vi.fn()} onCycleState={vi.fn()} dragHandleRef={dragHandleRef} />);
+
+      const handle = screen.getByRole('button', { name: 'Arrastar tarefa: Escrever spec' });
+      expect(dragHandleRef).toHaveBeenCalledWith(handle);
+    });
+
+    it('isDragging aplica o visual "levantado" (sombra+rotação) só ao Card, sem afetar a alça', () => {
+      const { rerender } = render(
+        <TaskCard task={makeTask()} onClick={vi.fn()} onCycleState={vi.fn()} isDragging={false} />,
+      );
+      let card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
+      expect(card.classList.contains(styles.dragging)).toBe(false);
+
+      rerender(<TaskCard task={makeTask()} onClick={vi.fn()} onCycleState={vi.fn()} isDragging />);
+      card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
+      expect(card.classList.contains(styles.dragging)).toBe(true);
+    });
+
+    // Revisão da Story 4.1 (edge-case-hunter): sem `dragHandleRef`, a alça
+    // não é renderizada — evita expor um "botão" de arrastar focável sem
+    // nenhum sensor de fato ligado a ele (ex. um TaskCard fora do contexto
+    // de arraste de `DayColumn`, como em outros testes desta suíte).
+    it('sem dragHandleRef: a alça de arraste não é renderizada', () => {
+      render(<TaskCard task={makeTask()} onClick={vi.fn()} onCycleState={vi.fn()} />);
+
+      expect(screen.queryByRole('button', { name: /Arrastar tarefa/ })).toBeNull();
     });
   });
 });

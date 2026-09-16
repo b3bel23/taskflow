@@ -32,9 +32,12 @@ coverage
 # BMAD Method tooling/installation (framework engine, skill definitions,
 # workflow render cache) — not TaskFlow app code or SDD artifacts.
 # `_bmad-output/` (specs, epics, planning docs) IS versioned — see above.
+# `.github/workflows/` é exceção: CI/deploy de verdade do TaskFlow (GitHub
+# Pages), precisa estar versionado pro GitHub Actions rodar.
 /.agents/
 /.claude/
-/.github/
+/.github/*
+!/.github/workflows/
 /_bmad/
 
 # Spec de outro projeto (não-TaskFlow), fora do escopo deste repositório.

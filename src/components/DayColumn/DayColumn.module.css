@@ -102,24 +102,6 @@
   border-radius: var(--radius-md);
 }
 
-/* Story 4.1 (Epic 4): placeholder tracejado no destino durante o arraste.
-   `[data-dnd-placeholder]` é um atributo que o próprio @dnd-kit põe no clone
-   que ele insere na posição original enquanto o Card de verdade "flutua"
-   seguindo o ponteiro/teclado — por padrão esse clone fica com
-   `visibility: hidden` (só reserva o espaço); aqui sobrescrevemos para ficar
-   visível como uma caixa tracejada, escondendo o conteúdo clonado (título/
-   Indicador/Tag duplicados não fariam sentido num placeholder). */
-.zoneList li[data-dnd-placeholder] {
-  visibility: visible;
-  border: 2px dashed var(--color-border-hairline);
-  border-radius: var(--radius-md);
-  background: transparent;
-}
-
-.zoneList li[data-dnd-placeholder] > * {
-  visibility: hidden;
-}
-
 .addTaskButton {
   align-self: flex-start;
   font-family: var(--font-family-base);

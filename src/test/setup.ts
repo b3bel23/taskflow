@@ -9,13 +9,14 @@ afterEach(() => {
   cleanup();
 });
 
-// Story 4.1 (Epic 4, AD-6): `@dnd-kit/dom` referencia `ResizeObserver` do
-// browser incondicionalmente ao registrar qualquer Draggable/Droppable
-// (mesmo sem nenhum arraste em andamento) — jsdom não implementa essa API.
-// Sem este stub, só *renderizar* uma coluna com Cards arrastáveis já
-// lançaria `ReferenceError: ResizeObserver is not defined` em todo teste
-// desta suíte, inclusive os que nada têm a ver com arraste. Não observamos
-// nada de verdade (jsdom não tem layout real) — só evita o erro.
+// Story 4.1 (Epic 4, AD-6): `@dnd-kit` referencia `ResizeObserver` do
+// browser ao registrar Draggable/Droppable — jsdom não implementa essa API.
+// Migração Epic 4 retro item 11 (`@dnd-kit/core`+`@dnd-kit/sortable`, no
+// lugar do par `@dnd-kit/react`+`@dnd-kit/dom` pre-1.0): a lib nova já trata
+// `ResizeObserver` ausente com um guard interno (não lança) — o stub aqui
+// deixou de ser estritamente necessário, mas continua inofensivo mantê-lo
+// (defesa contra qualquer outro uso futuro, mesmo espírito de sempre: jsdom
+// não tem layout real, isto nunca observa nada de verdade).
 if (typeof globalThis.ResizeObserver === 'undefined') {
   class ResizeObserverStub {
     observe() {}

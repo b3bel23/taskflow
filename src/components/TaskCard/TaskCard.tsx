@@ -10,10 +10,16 @@ export interface TaskCardProps {
   onCycleState: () => void;
   // Story 4.1 (Epic 4): `DayColumn` é quem monta o contexto `@dnd-kit`
   // (`useSortable`) escopado ao grupo `(day, priority)` — `TaskCard` só
-  // recebe e planta o `handleRef` na alça (a lib liga o sensor de
-  // ponteiro/teclado direto a este elemento DOM) e o booleano `isDragging`
-  // para o visual "levantado". `TaskCard` não sabe nada de `@dnd-kit`.
+  // recebe e planta o `dragHandleRef` na alça (a lib liga o sensor de
+  // ponteiro/teclado a este elemento DOM) e o booleano `isDragging` para o
+  // visual "levantado". Migração Epic 4 retro item 11 (`@dnd-kit/core`+
+  // `@dnd-kit/sortable`): diferente da versão anterior, o sensor de
+  // ponteiro/teclado clássico do `@dnd-kit` precisa de `attributes`+
+  // `listeners` (do `useSortable`) espalhados como props DOM na própria alça
+  // — `dragHandleProps` carrega esse par pronto, num tipo opaco (`Record`)
+  // pra `TaskCard` continuar sem importar nenhum tipo do `@dnd-kit`.
   dragHandleRef?: (element: Element | null) => void;
+  dragHandleProps?: Record<string, unknown>;
   isDragging?: boolean;
 }
 
@@ -37,7 +43,14 @@ export interface TaskCardProps {
 // {título}" é o nome acessível dela, distinto do "Editar tarefa: {título}"
 // do Card — os dois compartilham o título, então buscas por nome de botão
 // devem usar o texto completo, não um trecho que combine com os dois.
-export function TaskCard({ task, onClick, onCycleState, dragHandleRef, isDragging = false }: TaskCardProps) {
+export function TaskCard({
+  task,
+  onClick,
+  onCycleState,
+  dragHandleRef,
+  dragHandleProps,
+  isDragging = false,
+}: TaskCardProps) {
   const isCompleted = task.state === 'done';
 
   const cardClassNames = [styles.card, isCompleted && styles.completed, isDragging && styles.dragging]
@@ -68,6 +81,7 @@ export function TaskCard({ task, onClick, onCycleState, dragHandleRef, isDraggin
               tabIndex={0}
               aria-label={`Arrastar tarefa: ${task.title}`}
               ref={dragHandleRef}
+              {...dragHandleProps}
               onClick={handleDragHandleClick}
             >
               <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false">

@@ -36,6 +36,17 @@
   opacity: 1;
 }
 
+/* Correção retro Epic 3 (achado 7): a regra acima só cobre o próprio `.card`
+   recebendo foco — mas o `StateIndicator` (Story 3.1) e a alça de arraste
+   (Story 4.1) são elementos focáveis próprios, aninhados dentro do Card.
+   Tab até qualquer um dos dois nunca ativa `:focus-visible` no Card, então a
+   opacidade reduzida (0.55) continuava esmaecendo o anel de foco deles.
+   `:focus-within` cobre foco no próprio Card OU em qualquer descendente —
+   um único ponto de verdade para os três alvos focáveis do Card. */
+.completed:focus-within {
+  opacity: 1;
+}
+
 /* Story 4.1 (Epic 4 context): único uso deliberado de sombra decorativa do
    produto — reforça visualmente que o Card está "levantado" durante o
    arraste (mouse ou teclado). Aplicada via prop `isDragging` (repassada por

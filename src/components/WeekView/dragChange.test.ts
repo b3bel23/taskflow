@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { DragEndEvent } from '@dnd-kit/react';
+import type { DragEndEvent } from '@dnd-kit/core';
 import { applyWeekDragChange, groupKey, parseGroupKey, resolveWeekDragChange } from './dragChange';
 import type { DayOfWeek, Task } from '../../types';
 
@@ -15,34 +15,29 @@ function makeTask(overrides: Partial<Task> = {}): Task {
 }
 
 // Constrói um `DragEndEvent` sintético — mesma técnica de
-// `DayColumn.test.tsx` (Story 4.1): `move()` (`@dnd-kit/helpers`) e
-// `resolveWeekDragChange` só leem `operation.{source,target,canceled}` (mais
-// `source.group`/`source.initialGroup`, novidade da 4.2) — não precisa de
-// instâncias reais de `Draggable`/`Droppable` (`SortableDraggable`) nem de
-// gesto físico simulado, inviável sob jsdom. `source.group`/`initialGroup`
-// aqui representam o par que o `OptimisticSortingPlugin` do @dnd-kit mantém
-// ao vivo durante o arraste real.
+// `DayColumn.test.tsx` (Story 4.1): `resolveWeekDragChange` só lê
+// `active`/`over` (mais `.data.current.group`, novidade da 4.2 — migração
+// Epic 4 retro item 11 pro `@dnd-kit/core`+`@dnd-kit/sortable`: `group` não
+// é mais atualizado ao vivo no `source` durante o gesto, é lido de
+// `active`/`over` no momento do soltar — ver comentário de `dragChange.ts`)
+// — não precisa de instâncias reais de `Draggable`/`Droppable` nem de gesto
+// físico simulado, inviável sob jsdom.
 function makeDragEndEvent(overrides: {
   sourceId?: string;
-  sourceIndex?: number;
   sourceGroup?: string;
-  sourceInitialGroup?: string;
   targetId?: string;
-  canceled?: boolean;
+  targetGroup?: string;
 }): DragEndEvent {
-  const { sourceId, sourceIndex, sourceGroup, sourceInitialGroup, targetId, canceled = false } = overrides;
+  const { sourceId, sourceGroup, targetId, targetGroup } = overrides;
   return {
-    operation: {
-      source:
-        sourceId === undefined
-          ? null
-          : { id: sourceId, index: sourceIndex, group: sourceGroup, initialGroup: sourceInitialGroup },
-      target: targetId === undefined ? null : { id: targetId },
-      canceled,
-    },
-    canceled,
-    nativeEvent: undefined,
-    suspend: () => ({ resume: () => {}, abort: () => {} }),
+    active:
+      sourceId === undefined
+        ? null
+        : { id: sourceId, data: { current: sourceGroup === undefined ? undefined : { group: sourceGroup } } },
+    over:
+      targetId === undefined
+        ? null
+        : { id: targetId, data: { current: targetGroup === undefined ? undefined : { group: targetGroup } } },
   } as unknown as DragEndEvent;
 }
 
@@ -75,10 +70,9 @@ describe('resolveWeekDragChange', () => {
     it('reordena dentro do grupo: solta "b" na posição 2', () => {
       const event = makeDragEndEvent({
         sourceId: 'b',
-        sourceIndex: 2,
         sourceGroup: groupA,
-        sourceInitialGroup: groupA,
         targetId: 'c',
+        targetGroup: groupA,
       });
 
       expect(resolveWeekDragChange(tasks, event)).toEqual({ kind: 'reorder', id: 'b', toIndex: 2 });
@@ -87,10 +81,9 @@ describe('resolveWeekDragChange', () => {
     it('origem = destino exato (mesma posição): nada a persistir, retorna null', () => {
       const event = makeDragEndEvent({
         sourceId: 'a',
-        sourceIndex: 0,
         sourceGroup: groupA,
-        sourceInitialGroup: groupA,
         targetId: 'a',
+        targetGroup: groupA,
       });
 
       expect(resolveWeekDragChange(tasks, event)).toBeNull();
@@ -100,10 +93,9 @@ describe('resolveWeekDragChange', () => {
       const single = [makeTask({ id: 'only', day: 'mon', priority: 'high' })];
       const event = makeDragEndEvent({
         sourceId: 'only',
-        sourceIndex: 0,
         sourceGroup: groupA,
-        sourceInitialGroup: groupA,
         targetId: 'only',
+        targetGroup: groupA,
       });
 
       expect(resolveWeekDragChange(single, event)).toBeNull();
@@ -117,9 +109,9 @@ describe('resolveWeekDragChange', () => {
     it('mudar só a Prioridade (mesmo dia): "move" com o novo priority, dia preservado', () => {
       const event = makeDragEndEvent({
         sourceId: 'a',
-        sourceGroup: groupKey('mon', 'low'),
-        sourceInitialGroup: groupKey('mon', 'high'),
+        sourceGroup: groupKey('mon', 'high'),
         targetId: 'placeholder',
+        targetGroup: groupKey('mon', 'low'),
       });
 
       expect(resolveWeekDragChange([], event)).toEqual({ kind: 'move', id: 'a', day: 'mon', priority: 'low' });
@@ -128,9 +120,9 @@ describe('resolveWeekDragChange', () => {
     it('mudar só o Dia (mesma faixa de Prioridade): "move" com o novo day, prioridade preservada', () => {
       const event = makeDragEndEvent({
         sourceId: 'a',
-        sourceGroup: groupKey('fri', 'medium'),
-        sourceInitialGroup: groupKey('mon', 'medium'),
+        sourceGroup: groupKey('mon', 'medium'),
         targetId: 'placeholder',
+        targetGroup: groupKey('fri', 'medium'),
       });
 
       expect(resolveWeekDragChange([], event)).toEqual({ kind: 'move', id: 'a', day: 'fri', priority: 'medium' });
@@ -139,9 +131,9 @@ describe('resolveWeekDragChange', () => {
     it('mudar Dia E Prioridade juntos: "move" único com os dois novos valores', () => {
       const event = makeDragEndEvent({
         sourceId: 'a',
-        sourceGroup: groupKey('wed', 'low'),
-        sourceInitialGroup: groupKey('mon', 'high'),
+        sourceGroup: groupKey('mon', 'high'),
         targetId: 'placeholder',
+        targetGroup: groupKey('wed', 'low'),
       });
 
       expect(resolveWeekDragChange([], event)).toEqual({ kind: 'move', id: 'a', day: 'wed', priority: 'low' });
@@ -150,9 +142,9 @@ describe('resolveWeekDragChange', () => {
     it('destino é uma zona de Prioridade sem nenhuma tarefa: "move" funciona igual (a zona sempre existe)', () => {
       const event = makeDragEndEvent({
         sourceId: 'a',
-        sourceGroup: groupKey('sun', 'high'),
-        sourceInitialGroup: groupKey('mon', null),
+        sourceGroup: groupKey('mon', null),
         targetId: 'empty:sun::high',
+        targetGroup: groupKey('sun', 'high'),
       });
 
       expect(resolveWeekDragChange([], event)).toEqual({ kind: 'move', id: 'a', day: 'sun', priority: 'high' });
@@ -161,9 +153,9 @@ describe('resolveWeekDragChange', () => {
     it('destino sem Prioridade nenhuma ("Sem prioridade"): "move" com priority null', () => {
       const event = makeDragEndEvent({
         sourceId: 'a',
-        sourceGroup: groupKey('tue', null),
-        sourceInitialGroup: groupKey('mon', 'high'),
+        sourceGroup: groupKey('mon', 'high'),
         targetId: 'placeholder',
+        targetGroup: groupKey('tue', null),
       });
 
       expect(resolveWeekDragChange([], event)).toEqual({ kind: 'move', id: 'a', day: 'tue', priority: null });
@@ -171,17 +163,13 @@ describe('resolveWeekDragChange', () => {
   });
 
   describe('casos sem mudança/identificáveis', () => {
-    it('cancelado (Esc): retorna null, nada a persistir', () => {
-      const event = makeDragEndEvent({
-        sourceId: 'a',
-        sourceGroup: groupKey('mon', 'high'),
-        sourceInitialGroup: groupKey('mon', 'high'),
-        targetId: 'a',
-        canceled: true,
-      });
-
-      expect(resolveWeekDragChange([], event)).toBeNull();
-    });
+    // Cancelamento (Esc): no `@dnd-kit/core` (migração Epic 4 retro item 11),
+    // um arraste cancelado nunca chega a `onDragEnd` — dispara `onDragCancel`,
+    // um callback estruturalmente separado, que `WeekView` não liga a
+    // `handleDragEnd`. Não há mais um `DragEndEvent` "cancelado" possível de
+    // testar aqui (diferente da versão anterior, `@dnd-kit/react`, cujo
+    // `DragEndEvent` carregava `canceled` no próprio evento) — por isso este
+    // teste foi removido em vez de adaptado.
 
     it('sem origem identificável (solta fora de qualquer alvo): retorna null', () => {
       const event = makeDragEndEvent({});
@@ -190,24 +178,22 @@ describe('resolveWeekDragChange', () => {
     });
 
     // Revisão da Story 4.2 (blind-hunter): origem válida, mas sem destino —
-    // ex. solta fora de toda a grade da semana depois de ter sobrevoado uma
-    // zona válida. `source.group` poderia continuar refletindo o último
-    // grupo sobrevoado; o guard de `target` ausente (adicionado na revisão)
-    // impede que isso seja tratado como um cruzamento de grupo válido.
-    it('origem válida sem destino (solta fora de toda a grade): retorna null mesmo com group/initialGroup diferentes', () => {
+    // ex. solta fora de toda a grade da semana. `event.over` é `null` nesse
+    // caso (contrato do `@dnd-kit/core`) — o guard de `over` ausente impede
+    // que isso seja tratado como qualquer tipo de mudança válida.
+    it('origem válida sem destino (solta fora de toda a grade): retorna null', () => {
       const event = makeDragEndEvent({
         sourceId: 'a',
-        sourceGroup: groupKey('wed', 'low'),
-        sourceInitialGroup: groupKey('mon', 'high'),
+        sourceGroup: groupKey('mon', 'high'),
       });
 
       expect(resolveWeekDragChange([], event)).toBeNull();
     });
 
-    it('origem sem group/initialGroup (não-sortable): retorna null em vez de lançar', () => {
+    it('origem sem group (não-sortable): retorna null em vez de lançar', () => {
       const event = {
-        operation: { source: { id: 'a' }, target: { id: 'b' }, canceled: false },
-        canceled: false,
+        active: { id: 'a', data: { current: undefined } },
+        over: { id: 'b', data: { current: undefined } },
       } as unknown as DragEndEvent;
 
       expect(resolveWeekDragChange([], event)).toBeNull();

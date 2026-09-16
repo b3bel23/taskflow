@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-10-2026 17:30
-last_updated: 09-15-2026 18:30
+last_updated: 09-16-2026 19:34
 project: TaskFlow
 project_key: NOKEY
 tracking_system: file-system
@@ -39,7 +39,7 @@ development_status:
   1-1-visualizar-a-semana-vazia: done
   1-2-persistir-dados-de-tarefas-entre-sessões: done
   1-3-alternar-entre-tema-claro-e-escuro: done
-  epic-1-retrospective: optional
+  epic-1-retrospective: done
 
   epic-2: done
   2-1-criar-tarefa: done
@@ -55,7 +55,7 @@ development_status:
   epic-4: done
   4-1-reordenar-tarefas-por-arraste-dentro-do-mesmo-nível-de-prior: done
   4-2-mudar-prioridade-ou-dia-arrastando-o-card: done
-  epic-4-retrospective: optional
+  epic-4-retrospective: done
 action_items:
   - id: "epic-2-retro-item-1-corrigir-a-corrida-de-foco-em-closeeditm"
     epic: 2
@@ -99,7 +99,7 @@ action_items:
       numa nova story, revalidar a suposicao de timing/commit do React no novo ponto
       de chamada"
     owner: "process"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-14.md"
   - id: "epic-3-retro-item-7-corrigir-completed-focus-visible-em-task"
     epic: 3
@@ -107,7 +107,7 @@ action_items:
       cobrir o foco pousando no StateIndicator aninhado (ex. .card.completed:focus-within
       opacity:1) - hoje o anel de foco do Indicador esmaece num Card Concluido"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-14.md"
   - id: "epic-3-retro-item-8-adicionar-teste-em-weekview-test-tsx-que"
     epic: 3
@@ -130,5 +130,138 @@ action_items:
       se aplica a updates continuos de arraste, e como StateIndicator/foco/Tab-stops
       coexistem com o sensor de arraste do dnd-kit sobre o mesmo Card"
     owner: "process"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-14.md"
+  - id: "epic-4-retro-item-11-verificar-manualmente-navegador-real-ide"
+    epic: 4
+    action: "Verificar manualmente (navegador real, idealmente com leitor de tela)
+      o comportamento das setas do teclado no grid 2D (7 dias x 4 prioridades) durante
+      um arraste por teclado — o SortableKeyboardPlugin padrao do @dnd-kit foi desenhado
+      para listas 1D; nenhum teste/comentario confirma o mapeamento de eixo hoje"
+    owner: "process"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-15.md"
+  - id: "epic-4-retro-item-12-adicionar-teste-de-integracao-em-weekvie"
+    epic: 4
+    action: "Adicionar teste de integracao em WeekView.test.tsx que exercita o handleDragEnd
+      real (mockando useSortable/useDragOperation ou disparando o evento real do DragDropProvider)
+      cobrindo reorderTask/updateTask chamados corretamente e o foco restaurado na
+      alca remontada apos um cruzamento de grupo bem-sucedido"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-15.md"
+  - id: "epic-4-retro-item-13-adicionar-teste-que-mocka-usedragoperati"
+    epic: 4
+    action: "Adicionar teste que mocka useDragOperation para simular um arraste ativo
+      e verificar que o rotulo da zona (.zoneLabel) e a classe .zoneActive aparecem
+      em PriorityZone — hoje so o ramo sem arraste e testado"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-15.md"
+  - id: "epic-4-retro-item-14-deferred-work-md-pointersensor-do-dragdr"
+    epic: 4
+    action: "(deferred-work.md) PointerSensor do DragDropProvider sem activationConstraints
+      configurado — threshold clique-vs-arraste em hardware real nao verificado"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-15.md"
+  - id: "epic-4-retro-item-15-deferred-work-md-emptyzonedroptarget-e-a"
+    epic: 4
+    action: "(deferred-work.md) EmptyZoneDropTarget e aria-hidden — zona de prioridade
+      vazia e um alvo de soltar inalcancavel para leitor de tela/teclado durante um
+      arraste"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-15.md"
+  - id: "epic-4-retro-item-16-deferred-work-md-arraste-interrompido-pe"
+    epic: 4
+    action: "(deferred-work.md) Arraste interrompido (perda de foco da janela, perda
+      de captura de ponteiro) pode deixar o Card preso visualmente em .dragging sem
+      caminho de recuperacao no codigo"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-15.md"
+  - id: "epic-4-retro-item-17-deferred-work-md-draghandleregistry-e-um"
+    epic: 4
+    action: "(deferred-work.md) dragHandleRegistry e um Map module-scope nunca resetado
+      entre arquivos de teste — hoje inofensivo, mas pode causar falso-positivo/negativo
+      se testes futuros reusarem o mesmo id padrao entre arquivos"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-15.md"
+  - id: "epic-4-retro-item-18-deferred-work-md-as-3-funcoes-de-reindex"
+    epic: 4
+    action: "(deferred-work.md) As 3 funcoes de reindexacao (reorderWithinGroup/reorderGroupByIndex/closeOrderGap)
+      compartilham a mesma forma sem helper comum — baixo risco hoje, mas uma 4a funcao
+      futura poderia esquecer uma guarda que as outras tres ja aprenderam"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-15.md"
+  - id: "epic-4-retro-item-19-ao-extrair-uma-funcao-pura-de-decisao-de"
+    epic: 4
+    action: "Ao extrair uma funcao pura de decisao de um handler de drag/evento, planejar
+      deliberadamente tambem um teste para o handler de producao que restou (com hooks
+      mockados), em vez de assumir que testar so a funcao extraida cobre a fiacao
+      real"
+    owner: "process"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-15.md"
+  - id: "epic-1-retro-item-20-fortalecer-as-checagens-ad-8-ad-9-de-arc"
+    epic: 1
+    action: "Fortalecer as checagens AD-8/AD-9 de architecture.test.ts alem de substring
+      simples (ex. varredura via TypeScript compiler API por acesso a localStorage/dataset
+      computado), ou no minimo documentar explicitamente no comentario do proprio
+      teste que ele so pega acesso literal nao-ofuscado"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
+  - id: "epic-1-retro-item-21-adicionar-um-teste-que-realmente-prove-q"
+    epic: 1
+    action: "Adicionar um teste que realmente prove que a escrita sincrona pre-pintura
+      de data-theme (dentro do inicializador lazy) importa — hoje nenhum teste distingue
+      essa escrita da alternativa via useEffect de montagem"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
+  - id: "epic-1-retro-item-22-trocar-useeffect-por-uselayouteffect-na"
+    epic: 1
+    action: "Trocar useEffect por useLayoutEffect na sincronizacao pos-montagem de
+      dataset.theme em ThemeContext.tsx, para evitar um possivel descompasso visual
+      de um quadro entre o icone do ThemeToggle e as cores via CSS tokens ao alternar
+      o tema"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
+  - id: "epic-1-retro-item-23-deferred-work-md-nenhum-dos-dois-dominio"
+    epic: 1
+    action: "(deferred-work.md) Nenhum dos dois dominios de localStorage escuta o
+      evento storage do navegador — uma segunda aba aberta fica com tema/tarefas obsoletos
+      ate reload manual"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
+  - id: "epic-1-retro-item-24-deferred-work-md-gettodaydayofweek-so-e"
+    epic: 1
+    action: "(deferred-work.md) getTodayDayOfWeek so e avaliado no momento da renderizacao
+      — destaque de hoje pode ficar preso no dia anterior se a aba ficar aberta atravessando
+      a meia-noite"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
+  - id: "epic-1-retro-item-25-deferred-work-md-isvalidtask-nao-checa-i"
+    epic: 1
+    action: "(deferred-work.md) isValidTask nao checa id duplicado entre itens do
+      array em loadTasks — um payload corrompido-mas-com-forma-valida pode carregar
+      com ids repetidos"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
+  - id: "epic-1-retro-item-26-tratar-testes-auto-aplicaveis-de-arquite"
+    epic: 1
+    action: "Tratar testes auto-aplicaveis de arquitetura como tropecos contra o caso
+      obvio, com escopo documentado, nao como garantia forte; ao escrever um comentario
+      do tipo esta linha evita X flash/timing, parear com um teste que falharia se
+      o mecanismo especifico fosse removido"
+    owner: "process"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"

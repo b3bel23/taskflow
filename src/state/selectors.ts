@@ -79,10 +79,11 @@ export function reorderWithinGroup(
 // relativa dentro do grupo `(day, priority)` que já é o de `id`. `toIndex` é
 // a posição final desejada dentro do grupo (já reindexado 0..n-1); grupo com
 // 1 tarefa ou `toIndex` igual à posição atual ainda passam por aqui (quem
-// chama, `DayColumn`, só invoca isto quando o `@dnd-kit/helpers.move` já
-// confirmou que a posição projetada mudou — I/O "Grupo com 1 tarefa" nunca
-// chega a chamar `reorderTask`). `id` inexistente: no-op, retorna `tasks`
-// sem tocar em nada.
+// chama, `WeekView` via `dragChange.resolveWeekDragChange`, só invoca isto
+// quando `arrayMove` (`@dnd-kit/sortable`) já confirmou que a posição
+// projetada mudou — I/O "Grupo com 1 tarefa" nunca chega a chamar
+// `reorderTask`). `id` inexistente: no-op, retorna `tasks` sem tocar em
+// nada.
 export function reorderGroupByIndex(
   tasks: Task[],
   id: string,

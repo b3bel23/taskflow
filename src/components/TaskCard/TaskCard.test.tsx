@@ -170,6 +170,47 @@ describe('TaskCard', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Concluída' }));
       expect(onCycleState).toHaveBeenCalledTimes(1);
     });
+
+    // Retro Epic 3 (achado 7) + fechamento do MVP: o anel de foco do
+    // StateIndicator/alça de arraste, aninhados dentro de um Card Concluído,
+    // ficava esmaecido — `.completed:focus-visible` só cobria o próprio Card
+    // recebendo foco, nunca o caso mais comum (Tab até o Indicador).
+    // Corrigido com `.completed:focus-within` em TaskCard.module.css.
+    //
+    // O que este teste NÃO prova (limitação já aceita no projeto, mesma
+    // classe do AC5 do `ThemeToggle`/Story 1.3 em `deferred-work.md`):
+    // `vite.config.ts` não habilita `test.css`, e sob esse default o
+    // Vitest intercepta qualquer import de `*.module.css` (inclusive via
+    // `?raw`, testado e confirmado) devolvendo um módulo vazio — não há
+    // como ler o texto bruto da regra nem renderizar a cascata real sem
+    // uma mudança de configuração maior que o escopo desta correção. Não é
+    // viável, portanto, provar por teste automatizado que a opacidade
+    // realmente volta a 1 num navegador real.
+    //
+    // O que este teste PROVA: a condição estrutural da qual
+    // `:focus-within` depende para funcionar — StateIndicator e a alça de
+    // arraste continuam descendentes DOM do próprio `.card.completed`. Se
+    // um dos dois for movido para fora do Card numa refatoração futura, a
+    // regra CSS (existente, verificada por leitura direta do arquivo)
+    // silenciosamente pararia de protegê-lo, e esta asserção pegaria isso.
+    it('StateIndicator e a alça de arraste continuam descendentes DOM do Card Concluído (pré-condição de :focus-within)', () => {
+      render(
+        <TaskCard
+          task={makeTask({ state: 'done' })}
+          onClick={vi.fn()}
+          onCycleState={vi.fn()}
+          dragHandleRef={vi.fn()}
+        />,
+      );
+
+      const card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
+      const indicator = screen.getByRole('button', { name: 'Concluída' });
+      const dragHandle = screen.getByRole('button', { name: 'Arrastar tarefa: Escrever spec' });
+
+      expect(card.classList.contains(styles.completed)).toBe(true);
+      expect(card.contains(indicator)).toBe(true);
+      expect(card.contains(dragHandle)).toBe(true);
+    });
   });
 
   // Story 4.1 (Epic 4): alça de arraste dedicada — elemento próprio,

@@ -1,5 +1,5 @@
-import { move } from '@dnd-kit/helpers';
-import type { DragEndEvent } from '@dnd-kit/react';
+import { arrayMove } from '@dnd-kit/sortable';
+import type { DragEndEvent } from '@dnd-kit/core';
 import type { TaskActionResult } from '../../state/useTaskActions';
 import type { DayOfWeek, Priority, Task } from '../../types';
 
@@ -25,88 +25,90 @@ export type WeekDragChange =
   | { kind: 'reorder'; id: string; toIndex: number }
   | { kind: 'move'; id: string; day: DayOfWeek; priority: Priority | null };
 
-// Formato mínimo lido de `event.operation.source` — o real, em produção, é
-// sempre um `SortableDraggable` (`node_modules/@dnd-kit/dom/sortable.d.ts`,
-// classe que estende `Draggable` com os getters `group`/`initialGroup` livre-
-// dinâmicos, ver `.js` compilado: refletem o `group` passado a `useSortable`
-// em cada `TaskCard`, atualizado ao vivo pelo `OptimisticSortingPlugin`
-// conforme o Card cruza zonas/colunas durante o arraste). Lido
-// estruturalmente (não via `instanceof SortableDraggable`) pelo mesmo motivo
-// da Story 4.1 (`resolveDragReorder`): um `DragEndEvent` sintético em teste
-// não é uma instância real de `SortableDraggable` — simular um gesto físico
-// de arraste não é viável sob jsdom (limitação conhecida, mesmo comentário de
-// `DayColumn.test.tsx`).
-interface SortableSourceLike {
+// Formato mínimo lido de `event.active`/`event.over` — o real, em produção,
+// vem do `useSortable`/`useDroppable` (`@dnd-kit/core`+`@dnd-kit/sortable`,
+// migração Epic 4 retro item 11), cujo `data.current.group` é o `groupKey`
+// (`(day,priority)`) passado a cada `useSortable`/`useDroppable` no momento
+// do render — NUNCA atualizado ao vivo durante o gesto (decisão consciente:
+// cruzar de grupo só é decidido no soltar, não mostrado como "salto" visual
+// antecipado durante o arraste — ver investigação do item 11: a versão
+// anterior, `@dnd-kit/react`+`@dnd-kit/dom`, atualizava isso ao vivo via
+// mutação imperativa de DOM, e essa mutação colidindo com a fiber tree do
+// React era a causa raiz do crash `removeChild`). Por isso o par relevante
+// agora é `active.data.current.group` (grupo ONDE a tarefa está renderizada,
+// sempre o grupo de origem, já que não há mais salto ao vivo) vs.
+// `over.data.current.group` (grupo do alvo em que soltou) — não mais
+// `source.group` vs. `source.initialGroup`. Lido estruturalmente (não via
+// tipos concretos do `@dnd-kit/core`) pelo mesmo motivo de sempre: um
+// `DragEndEvent` sintético em teste não precisa de instâncias reais de
+// `Draggable`/`Droppable` — simular um gesto físico de arraste não é viável
+// sob jsdom (limitação conhecida, mesmo comentário de `DayColumn.test.tsx`).
+interface DragEndPointLike {
   id: unknown;
-  group?: unknown;
-  initialGroup?: unknown;
+  data?: { current?: { group?: unknown } };
 }
 
-// Story 4.2 (Epic 4): único `DragDropProvider` para a semana inteira
+// Story 4.2 (Epic 4): único `<DndContext>` para a semana inteira
 // (`WeekView`) — cada `TaskCard` arrastável carrega um `group` (`groupKey`
-// acima, `(day,priority)`) via `useSortable`. `source.initialGroup` (grupo em
-// que o arraste começou) e `source.group` (grupo atual) são o par que decide
+// acima, `(day,priority)`) via `data` do `useSortable`/`useDroppable`.
+// `active.data.current.group` (grupo de onde a tarefa saiu) e
+// `over.data.current.group` (grupo em que foi solta) são o par que decide
 // tudo aqui: iguais -> mesmo grupo, nunca mudou de Prioridade/Dia (delega à
-// MESMA lógica pura da Story 4.1, escopada só às tarefas desse grupo);
+// MESMA lógica pura da Story 4.1, escopada só às tarefas desse grupo, agora
+// via `arrayMove` de `@dnd-kit/sortable` em vez de `@dnd-kit/helpers.move`);
 // diferentes -> cruzou grupo, a chamadora (`WeekView`) trata como
 // `updateTask` (Dia e/ou Prioridade, sempre numa única chamada, nunca duas).
 export function resolveWeekDragChange(tasks: Task[], event: DragEndEvent): WeekDragChange | null {
-  if (event.canceled) {
+  const active = event.active as DragEndPointLike | null;
+  if (!active) {
     return null;
   }
 
-  const source = event.operation.source as SortableSourceLike | null;
-  if (!source) {
+  // Soltar fora de qualquer alvo válido (fora de toda a grade da semana)
+  // precisa ser um no-op — `event.over` é `null` nesse caso (contrato do
+  // `@dnd-kit/core`, substitui a checagem antiga de `event.operation.target`).
+  const over = event.over as DragEndPointLike | null;
+  if (!over) {
     return null;
   }
 
-  // Revisão da Story 4.2 (blind-hunter): soltar fora de qualquer alvo válido
-  // (fora de toda a grade da semana) precisa ser um no-op, mesmo que
-  // `source.group` ainda reflita o último grupo sobrevoado durante o
-  // arraste — sem checar `target` aqui (só o branch de mesmo grupo, via
-  // `move()`, checava isso antes), um drop sem destino real correria o
-  // risco de ser tratado como um cruzamento de grupo válido.
-  if (!event.operation.target) {
-    return null;
-  }
-
-  const sourceId = source.id;
+  const sourceId = active.id;
   if (typeof sourceId !== 'string') {
     return null;
   }
 
-  const initialGroup = source.initialGroup;
-  const currentGroup = source.group;
-  if (typeof currentGroup !== 'string' || typeof initialGroup !== 'string') {
+  const sourceGroup = active.data?.current?.group;
+  const targetGroup = over.data?.current?.group;
+  if (typeof sourceGroup !== 'string' || typeof targetGroup !== 'string') {
     return null;
   }
 
-  if (currentGroup !== initialGroup) {
-    const { day, priority } = parseGroupKey(currentGroup);
+  if (targetGroup !== sourceGroup) {
+    const { day, priority } = parseGroupKey(targetGroup);
     return { kind: 'move', id: sourceId, day, priority };
   }
 
   // Mesmo grupo: MESMA computação pura da Story 4.1 (`resolveDragReorder`),
   // só que escopada ao array de tarefas do grupo em vez de receber essas
-  // tarefas já isoladas por um `DragDropProvider` próprio (a 4.1 tinha um
-  // provider por grupo; a 4.2 tem um único provider para a semana inteira —
-  // ver comentário de `WeekView.tsx`). `move()` de `@dnd-kit/helpers` é pura,
-  // só lê `event.operation.{source,target,canceled}`.
-  const { day, priority } = parseGroupKey(currentGroup);
+  // tarefas já isoladas por um provider próprio (a 4.1 tinha um provider por
+  // grupo; a 4.2 tem um único provider para a semana inteira — ver
+  // comentário de `WeekView.tsx`). `arrayMove` (`@dnd-kit/sortable`) é pura,
+  // só move um item de um índice pro outro num array — a decisão de QUAIS
+  // índices já foi tomada acima, lendo `active`/`over`.
+  const { day, priority } = parseGroupKey(sourceGroup);
   const ids = tasks
     .filter((t) => t.day === day && t.priority === priority)
     .sort((a, b) => a.order - b.order)
     .map((t) => t.id);
 
-  const reordered = move(ids, event);
-  // Comparação por conteúdo, não por identidade de referência — `move()`
-  // devolve a mesma referência quando não há nada a mover, mas isso é
-  // detalhe de implementação de `@dnd-kit/helpers`, não contrato documentado
-  // (mesma nota da Story 4.1).
-  if (reordered.length === ids.length && reordered.every((id, i) => id === ids[i])) {
+  const sourceIndex = ids.indexOf(sourceId);
+  const targetId = over.id;
+  const targetIndex = typeof targetId === 'string' ? ids.indexOf(targetId) : -1;
+  if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) {
     return null;
   }
 
+  const reordered = arrayMove(ids, sourceIndex, targetIndex);
   const toIndex = reordered.indexOf(sourceId);
   if (toIndex === -1) {
     return null;

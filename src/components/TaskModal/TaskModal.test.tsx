@@ -178,33 +178,46 @@ describe('TaskModal', () => {
     expect(window.localStorage.getItem(TASKS_STORAGE_KEY)).toBeNull();
   });
 
-  it('modal retém o foco: Tab a partir do último elemento focável volta ao primeiro, nunca escapando do modal', () => {
+  it('modal retém o foco: Tab a partir do último elemento focável volta ao primeiro ("Fechar"), nunca escapando do modal', () => {
     renderModal();
 
-    const nameInput = screen.getByLabelText('Nome') as HTMLInputElement;
+    const closeButton = screen.getByRole('button', { name: 'Fechar' });
     const submitButton = screen.getByRole('button', { name: 'Adicionar tarefa' });
 
-    // Nome já está em foco na abertura (primeiro elemento focável) — move
-    // manualmente para o último (botão) para simular o fim do ciclo de Tab.
+    // Nome está em foco na abertura (AC1) — move manualmente para o último
+    // elemento (botão de submit) para simular o fim do ciclo de Tab.
     submitButton.focus();
     expect(document.activeElement).toBe(submitButton);
 
     fireEvent.keyDown(document, { key: 'Tab' });
 
-    expect(document.activeElement).toBe(nameInput);
+    expect(document.activeElement).toBe(closeButton);
   });
 
-  it('modal retém o foco: Shift+Tab a partir do primeiro elemento focável volta ao último, nunca escapando do modal', () => {
+  it('modal retém o foco: Shift+Tab a partir do primeiro elemento focável ("Fechar") volta ao último, nunca escapando do modal', () => {
     renderModal();
 
-    const nameInput = screen.getByLabelText('Nome') as HTMLInputElement;
+    const closeButton = screen.getByRole('button', { name: 'Fechar' });
     const submitButton = screen.getByRole('button', { name: 'Adicionar tarefa' });
 
-    expect(document.activeElement).toBe(nameInput);
+    // "Fechar" é o primeiro elemento focável do modal (sempre presente, fora
+    // do conteúdo condicional) — mesmo o foco inicial (AC1) pousando no
+    // campo Nome, é a partir de "Fechar" que o ciclo de Tab volta ao último.
+    closeButton.focus();
 
     fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
 
     expect(document.activeElement).toBe(submitButton);
+  });
+
+  it('clicar em "Fechar" chama onClose, sem persistir nada', () => {
+    const onClose = renderModal();
+
+    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Não deveria salvar' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(window.localStorage.getItem(TASKS_STORAGE_KEY)).toBeNull();
   });
 });
 
@@ -469,12 +482,20 @@ describe('TaskModal — Excluir tarefa com confirmação (Story 2.3)', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Excluir tarefa' }));
   });
 
-  it('focus trap na Confirmação: Tab a partir de "Excluir" (último) volta para "Cancelar" (primeiro)', () => {
+  it('Confirmação: "Cancelar" recebe foco automático ao abrir', () => {
     renderEditModal(makeTask());
 
     fireEvent.click(screen.getByRole('button', { name: 'Excluir tarefa' }));
 
-    const cancelButton = screen.getByRole('button', { name: 'Cancelar' });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cancelar' }));
+  });
+
+  it('focus trap na Confirmação: Tab a partir de "Excluir" (último) volta para "Fechar" (primeiro — sempre presente, fora do conteúdo condicional)', () => {
+    renderEditModal(makeTask());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir tarefa' }));
+
+    const closeButton = screen.getByRole('button', { name: 'Fechar' });
     const deleteButton = screen.getByRole('button', { name: 'Excluir' });
 
     deleteButton.focus();
@@ -482,23 +503,33 @@ describe('TaskModal — Excluir tarefa com confirmação (Story 2.3)', () => {
 
     fireEvent.keyDown(document, { key: 'Tab' });
 
-    expect(document.activeElement).toBe(cancelButton);
+    expect(document.activeElement).toBe(closeButton);
   });
 
-  it('focus trap na Confirmação: Shift+Tab a partir de "Cancelar" (primeiro, já em foco) volta para "Excluir" (último)', () => {
+  it('focus trap na Confirmação: Shift+Tab a partir de "Fechar" (primeiro) volta para "Excluir" (último)', () => {
     renderEditModal(makeTask());
 
     fireEvent.click(screen.getByRole('button', { name: 'Excluir tarefa' }));
 
-    const cancelButton = screen.getByRole('button', { name: 'Cancelar' });
+    const closeButton = screen.getByRole('button', { name: 'Fechar' });
     const deleteButton = screen.getByRole('button', { name: 'Excluir' });
 
-    // "Cancelar" já recebe foco automático ao abrir a Confirmação.
-    expect(document.activeElement).toBe(cancelButton);
+    closeButton.focus();
 
     fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
 
     expect(document.activeElement).toBe(deleteButton);
+  });
+
+  it('clicar em "Fechar" durante a Confirmação só volta à edição (mesmo efeito de "Cancelar"/Esc), nunca fecha o modal inteiro', () => {
+    const onClose = renderEditModal(makeTask());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir tarefa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar' }));
+
+    expect(screen.queryByText('Excluir esta tarefa? Essa ação não pode ser desfeita.')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Excluir tarefa' })).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('exclui feliz: escrita ok, tarefa some dos dados persistidos e o modal fecha', () => {

@@ -81,23 +81,31 @@ export function TaskModal({ day, task, onClose }: TaskModalProps) {
   // Confirmação de Exclusão, Esc não fecha o modal inteiro — volta ao modo
   // edição (mesmo efeito de "Cancelar"), decisão de UX menor sinalizada na
   // spec (Ask First) por consistência com "Cancelar".
+  // Extraído do handler de Esc abaixo para ser reaproveitado pelo botão "X"
+  // (alça visível de fechar/cancelar) — os dois precisam do mesmo
+  // comportamento: na Confirmação, só volta à edição (nunca fecha o modal
+  // inteiro nem descarta a edição em andamento); fora dela, fecha de fato.
+  const handleCloseRequest = useCallback(() => {
+    if (isConfirmingDelete) {
+      // Foco de volta ao link "Excluir tarefa" é tratado pelo efeito logo
+      // abaixo, disparado por esta mesma transição de estado. Retrospectiva
+      // Epic 2 (achado 2): também limpa erro de Nome/Salvar de uma tentativa
+      // anterior — "Cancelar"/Esc/X na Confirmação volta a uma edição limpa,
+      // não a um erro obsoleto que nada disparou agora.
+      setIsConfirmingDelete(false);
+      setDeleteError(null);
+      setTitleError(false);
+      setSaveError(null);
+      return;
+    }
+    onClose();
+  }, [isConfirmingDelete, onClose]);
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         event.preventDefault();
-        if (isConfirmingDelete) {
-          // Foco de volta ao link "Excluir tarefa" é tratado pelo efeito
-          // logo abaixo, disparado por esta mesma transição de estado.
-          // Retrospectiva Epic 2 (achado 2): também limpa erro de Nome/Salvar
-          // de uma tentativa anterior — "Cancelar"/Esc na Confirmação volta a
-          // uma edição limpa, não a um erro obsoleto que nada disparou agora.
-          setIsConfirmingDelete(false);
-          setDeleteError(null);
-          setTitleError(false);
-          setSaveError(null);
-          return;
-        }
-        onClose();
+        handleCloseRequest();
         return;
       }
 
@@ -125,7 +133,7 @@ export function TaskModal({ day, task, onClose }: TaskModalProps) {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, isConfirmingDelete]);
+  }, [handleCloseRequest]);
 
   // Ao entrar na Confirmação, foco vai para "Cancelar" (ação não-destrutiva,
   // padrão seguro). Ao voltar à edição (via "Cancelar" ou Esc), o link
@@ -245,6 +253,23 @@ export function TaskModal({ day, task, onClose }: TaskModalProps) {
   return (
     <div className={styles.overlay}>
       <div ref={dialogRef} className={styles.modal} role="dialog" aria-modal="true" aria-labelledby={headingId}>
+        {/* Alça visível de fechar (achado de uso real: só Esc, sem nenhum
+            controle na tela, não é descobrível) — mesmo `handleCloseRequest`
+            do Esc, então o comportamento na Confirmação (só volta à edição,
+            nunca descarta/fecha de fato) fica idêntico nos dois casos.
+            Fica ANTES do conteúdo condicional (sempre presente, nos dois
+            modos) — por isso é o primeiro elemento focável do modal; os
+            testes de focus trap abaixo já contam com isso. */}
+        <button type="button" className={styles.closeButton} aria-label="Fechar" onClick={handleCloseRequest}>
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+            <path
+              d="M3 3 L13 13 M13 3 L3 13"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
         {isConfirmingDelete ? (
           // Confirmação de Exclusão: substitui o conteúdo do modal (nunca um
           // segundo modal/dialog empilhado) — mesmo `role="dialog"` externo,

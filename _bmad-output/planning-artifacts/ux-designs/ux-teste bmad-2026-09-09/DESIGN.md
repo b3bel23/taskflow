@@ -5,7 +5,9 @@ status: final
 sources:
   - "{planning_artifacts}/prds/prd-teste bmad-2026-09-09/prd.md"
   - "{planning_artifacts}/briefs/brief-teste bmad-2026-09-09/brief.md"
-updated: 2026-09-10
+updated: 2026-09-18
+changelog:
+  - "2026-09-18: Tag de Prioridade passa a sempre visível (token `priority-tag.none`); novo token `task-time` para o rótulo de horário. Ver sprint-change-proposal-2026-09-18.md. Mockups em mockups/ pendentes de regeneração."
 colors:
   surface-base: '#F7F7F5'
   surface-raised: '#FFFFFF'
@@ -78,7 +80,11 @@ components:
     high: '{colors.priority-high}'
     medium: '{colors.priority-medium}'
     low: '{colors.priority-low}'
+    none: '{colors.border-hairline}' # estado neutro "sem prioridade" — sempre visível e clicável, ver EXPERIENCE.md FR-8
     shape: 'barra lateral de 3px ou pílula pequena — ver Components'
+  task-time:
+    typography: '{typography.meta}'
+    color: '{colors.ink-secondary}'
   state-indicator:
     shape: '{rounded.full}'
     size: '18px'
@@ -162,8 +168,9 @@ TaskFlow usa um único degrau de elevação: `surface-raised` sobre `surface-bas
 
 - **Cabeçalho (`header`)** — faixa fina no topo: título "TaskFlow" (`typography.heading`) à esquerda, Alternador de Tema à direita. Único elemento fora da grade de dias.
 - **Coluna do Dia (`day-column`)** — nome do dia (`day-label`) no topo; lista de Cards de Tarefa; controle "+ Adicionar tarefa" sempre visível no rodapé. A coluna do dia atual recebe o tratamento `today-background` (ver Colors).
-- **Card de Tarefa (`task-card`)** — `surface-raised`, `rounded.md`, borda `border-hairline`. Contém: Indicador de Estado (canto), nome da tarefa (`body`), Tag de Prioridade (quando definida). Tarefa Concluída aplica `completed-opacity` (0.55) ao card inteiro e risca o nome (`text-decoration: line-through`).
-- **Tag de Prioridade (`priority-tag`)** — elemento pequeno e discreto (barra lateral fina de 3px ou pílula compacta — implementação livre, desde que nunca ocupe mais do que uma fração pequena do card). Cor = nível de prioridade. Ausente quando a tarefa não tem prioridade definida — nunca um espaço reservado vazio.
+- **Card de Tarefa (`task-card`)** — `surface-raised`, `rounded.md`, borda `border-hairline`. Contém: Indicador de Estado (canto), nome da tarefa (`body`), rótulo de Horário (`task-time`, quando definido) e Tag de Prioridade (sempre presente, ver abaixo). Tarefa Concluída aplica `completed-opacity` (0.55) ao card inteiro e risca o nome (`text-decoration: line-through`).
+- **Rótulo de Horário (`task-time`)** — texto pequeno e discreto (`typography.meta`, `ink-secondary`), formato `HH:MM` (ex. "08:00"). Ausente por completo quando a tarefa não tem horário definido — nunca um placeholder vazio (mesma convenção que a antiga regra da Tag de Prioridade, agora aplicada aqui).
+- **Tag de Prioridade (`priority-tag`)** — elemento pequeno e discreto (barra lateral fina de 3px ou pílula compacta — implementação livre, desde que nunca ocupe mais do que uma fração pequena do card). Cor = nível de prioridade; usa `priority-tag.none` (`border-hairline`, neutro) quando a tarefa não tem prioridade definida. **Sempre visível e clicável** — ao contrário do Rótulo de Horário, nunca fica ausente, porque serve de alvo de clique para o ciclo de prioridade (EXPERIENCE.md FR-8). Regra anterior ("ausente quando sem prioridade") revogada em 2026-09-18.
 - **Indicador de Estado (`state-indicator`)** — círculo pequeno (`rounded.full`, 18px). Pendente: contorno `ink-secondary`, preenchimento vazio. Em andamento: metade preenchida com `accent`. Concluída: preenchido com `ink-secondary` (não usa cor de prioridade nem accent, para não competir com esses dois sinais).
 - **Modal de Tarefa (`task-modal`)** — `surface-raised`, `rounded.lg`, sobre overlay escurecido. Dois modos (criação/edição) descritos em `EXPERIENCE.md.Component Patterns`. Botão principal usa `button-primary`; "Excluir tarefa" é um link/texto discreto em `ink-secondary`, nunca um botão de destaque — só a confirmação final usa `button-destructive`.
 - **Alternador de Tema (`theme-toggle`)** — ícone sol/lua no Cabeçalho; `icon-color-active` (accent) indica o tema atualmente ativo.
@@ -174,6 +181,8 @@ TaskFlow usa um único degrau de elevação: `surface-raised` sobre `surface-bas
 | Do | Don't |
 |---|---|
 | Cor de prioridade só na Tag de Prioridade, pequena e discreta | Pintar o card inteiro com a cor de prioridade |
+| Tag de Prioridade sempre visível, mesmo em estado neutro (`priority-tag.none`) | Esconder a Tag por completo quando não há prioridade — perde o alvo de clique do ciclo (FR-8) |
+| Ordenar Tarefas por Horário; usar `task-time` só como rótulo informativo | Usar Prioridade ou Horário para pintar o card inteiro, ou fazer o card mudar de tamanho por causa deles |
 | Um único accent (`accent`), para ação primária e destaque de "hoje" | Introduzir uma segunda cor de marca ou cores decorativas |
 | Diferenciar Concluída por opacidade + risco no texto | Remover, esmaecer para invisível, ou ocultar a tarefa Concluída |
 | Elevação só por tom + borda hairline | Sombras decorativas fora do estado de arraste |

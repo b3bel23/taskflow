@@ -1,5 +1,5 @@
 ---
-stepsCompleted: ["step-01-validate-prerequisites-confirmed", "step-02-design-epics-approved", "step-03-epic-1-approved", "step-03-epic-2-approved", "step-03-epic-3-approved", "step-03-epic-4-approved", "step-03-all-epics-complete"]
+stepsCompleted: ["step-01-validate-prerequisites-confirmed", "step-02-design-epics-approved", "step-03-epic-1-approved", "step-03-epic-2-approved", "step-03-epic-3-approved", "step-03-epic-4-approved", "step-03-all-epics-complete", "step-03-epic-5-approved-2026-09-18", "step-03-epic-6-approved-2026-09-18", "step-03-epic-7-approved-2026-09-18", "step-03-epic-4-revised-2026-09-18"]
 inputDocuments:
   - "_bmad-output/specs/spec-taskflow/SPEC.md"
   - "_bmad-output/specs/spec-taskflow/glossary.md"
@@ -8,6 +8,9 @@ inputDocuments:
   - "_bmad-output/planning-artifacts/ux-designs/ux-teste bmad-2026-09-09/EXPERIENCE.md"
   - "_bmad-output/planning-artifacts/prds/prd-teste bmad-2026-09-09/prd.md"
   - "_bmad-output/planning-artifacts/briefs/brief-teste bmad-2026-09-09/brief.md"
+  - "_bmad-output/planning-artifacts/sprint-change-proposal-2026-09-18.md"
+changelog:
+  - "2026-09-18: Epics 5/6/7 adicionados (semana dinâmica+rollover, horário, prioridade visual); Epic 4/Story 4.1 removida, Story 4.2 revisada (drag só muda dia). Ver sprint-change-proposal-2026-09-18.md."
 ---
 
 # TaskFlow - Epic Breakdown
@@ -32,9 +35,13 @@ FR-4: Isabel pode alternar o Estado de uma Tarefa entre Pendente, Em andamento e
 
 FR-5: Isabel vê, numa única tela, os 7 dias da semana e as tarefas de cada um, sem navegar entre telas. Um dia sem tarefas exibe claramente que está vazio, nunca parece erro de carregamento. [CAP-5]
 
-FR-6: Dentro de cada dia, as tarefas são ordenadas automaticamente por Prioridade (Alta→Média→Baixa→sem prioridade), com o nível reconhecível visualmente. Dentro do mesmo nível, Isabel reordena manualmente por arraste, com equivalente completo pelo Modal de Tarefa (nenhuma ação depende exclusivamente de mouse). Reordenar dentro do nível persiste entre sessões. [CAP-6]
+FR-6: Dentro de cada dia, as tarefas são ordenadas automaticamente por Horário (sem horário primeiro, depois ordem crescente); Prioridade é sinalizada visualmente mas não afeta a ordem. Isabel pode mudar a Data de uma tarefa arrastando o card para outra coluna (preserva Horário/Prioridade), com equivalente completo pelo Modal de Tarefa (nenhuma ação depende exclusivamente de mouse). **[Revisado 2026-09-18 — substitui a ordenação por Prioridade e remove a reordenação manual dentro do dia, ambas do FR-6 original.]** [CAP-6]
 
-FR-7: Tarefas com Estado Concluída permanecem visíveis no seu dia, com diferenciação visual clara, reconhecível sem ler o rótulo de Estado. Nunca ocultadas ou removidas da visualização. [CAP-7]
+FR-7: Tarefas com Estado Concluída permanecem visíveis na sua Data, com diferenciação visual clara, reconhecível sem ler o rótulo de Estado, **enquanto a Data estiver dentro da janela de 7 dias visível** [Revisado 2026-09-18]. [CAP-7]
+
+FR-8 (novo, 2026-09-18): Isabel cicla a Prioridade de uma tarefa clicando diretamente na Tag de Prioridade do card (Sem prioridade → Baixa → Média → Alta → Sem prioridade), sem abrir o Modal nem alterar o Estado. [CAP-10]
+
+FR-9 (novo, 2026-09-18): Toda tarefa não concluída cuja Data saiu da janela de 7 dias é movida automaticamente para hoje, preservando Título/Horário/Prioridade/Estado, sem duplicar. [CAP-11]
 
 *(CAP-8 e CAP-9 não têm FR numerado próprio no PRD — são cobertas pelo NFR de Persistência (§5) e pela Foundation de tema do EXPERIENCE.md, formalizadas em ADs. Ver Additional Requirements.)*
 
@@ -57,10 +64,13 @@ NFR-3 (Sem autenticação): MVP single-user, sem cadastro/login; todas as tarefa
 - AD-3 — Mitigação do risco de perda de dados é um aviso estático e discreto na interface; sem backup/exportação no MVP. [CAP-8]
 - AD-4 — Persistência e commit de estado são atômicos: toda função de ação (`useTaskActions`/`useThemeActions`) tenta salvar em `localStorage` (síncrono, `try/catch`) antes de despachar ao reducer; falha não muda o estado React e retorna `{ok:false, error:{message}}`; sucesso retorna `{ok:true, ...}`; nenhum caminho de mutação (incluindo o drop handler do drag-and-drop) contorna esse guard ou chama `dispatch` diretamente. [CAP-1, CAP-2, CAP-3, CAP-4, CAP-6, CAP-8]
 - AD-5 — Estado gerenciado via `useReducer` + `Context` nativo do React (`tasksReducer`/`TaskContext`, `themeReducer`/`ThemeContext`); sem lib de state management externa. [transversal, todas as CAPs]
-- AD-6 — Arraste via `@dnd-kit/react` (+ `@dnd-kit/dom`, `@dnd-kit/helpers`), cujo sensor de teclado é a mesma lógica usada pelo mouse — sem reimplementação paralela. [CAP-6]
-- AD-7 — Campo `order` (inteiro) com escopo `(day, priorityGroup)`; função pura única `reorderWithinGroup` (`src/state/`) reindexa sequencialmente, chamada tanto pelo drag quanto pelo Modal; tarefa nova recebe `order` = último do grupo. [CAP-6]
+- AD-6 — Arraste via `@dnd-kit/react` (+ `@dnd-kit/dom`, `@dnd-kit/helpers`), cujo sensor de teclado é a mesma lógica usada pelo mouse — sem reimplementação paralela. **Escopo reduzido 2026-09-18: só move a tarefa entre colunas de dia, sem zonas de prioridade.** [CAP-6]
+- AD-7 — **[OBSOLETO 2026-09-18]** Ordem manual por `(day, priorityGroup)`/`reorderWithinGroup` — não existe mais reordenação manual; `order` agora só desempata tarefas com o mesmo Horário dentro da mesma Data. Ver AD-10/AD-11 na Architecture Spine.
 - AD-8 — Só o storage adapter (`src/storage/`) toca `localStorage`; `src/components/` e `src/state/` nunca importam `window.localStorage` diretamente. [CAP-8; transversal]
 - AD-9 — Tokens de `DESIGN.md` como CSS custom properties em `src/styles/tokens.css`, valores `-dark` redefinidos sob `:root[data-theme="dark"]`; `ThemeContext` só seta `document.documentElement.dataset.theme`; troca de tema é 100% CSS, sem re-render de estilos via JS; CSS Modules colocalizados por componente, sem CSS-in-JS/Tailwind. [CAP-9; estilo visual de todas as CAPs]
+- AD-10 (novo, 2026-09-18) — Janela de 7 dias sempre `[hoje..hoje+6]`, calculada via `Date` nativo; recalculada ao carregar e por timer periódico (~60s) enquanto o app está aberto, sem lib de datas nova. [CAP-5]
+- AD-11 (novo, 2026-09-18) — Rollover: toda tarefa com `state != 'done'` e `date` fora da janela é movida direto para hoje (nunca incremental), numa única escrita em lote guardada pelo mesmo padrão do AD-4. [CAP-11]
+- AD-2 (migração, adenda 2026-09-18) — `schemaVersion: 1` (formato por dia-da-semana) migra automaticamente para `schemaVersion: 2` (data real) ao carregar, mapeando cada dia antigo para a data correspondente dentro da primeira janela calculada; nunca cai no caminho de dado corrompido. [CAP-8]
 
 ### UX Design Requirements
 
@@ -70,13 +80,13 @@ UX-DR1: Tokens de design (cores, tipografia, `rounded`, `spacing`) implementados
 
 UX-DR2: Componente Cabeçalho (`Header`) — faixa fina no topo, título "TaskFlow" (`typography.heading`) à esquerda, Alternador de Tema à direita; único elemento fora da grade de dias. [CAP-9; DESIGN.md/EXPERIENCE.md Component Patterns]
 
-UX-DR3: Componente Coluna do Dia (`DayColumn`) — nome do dia (`day-label`) no topo; lista de Cards de Tarefa; controle "+ Adicionar tarefa" sempre visível no rodapé, mesmo com a coluna cheia; a coluna do dia atual recebe o destaque visual `today-background` (~8% opacidade + borda superior sólida). [CAP-5, CAP-1]
+UX-DR3: Componente Coluna do Dia (`DayColumn`) — nome do dia (`day-label`) + Data real no topo; lista de Cards de Tarefa; controle "+ Adicionar tarefa" sempre visível no rodapé, mesmo com a coluna cheia; a coluna do dia atual recebe o destaque visual `today-background` (~8% opacidade + borda superior sólida). **Ordem das colunas dinâmica hoje→hoje+6 (não mais fixa Segunda→Domingo) [Revisado 2026-09-18].** [CAP-5, CAP-1]
 
-UX-DR4: Componente Card de Tarefa (`TaskCard`) — mostra Indicador de Estado, nome da tarefa (`body`), Tag de Prioridade quando definida; clique em qualquer área do Card exceto o Indicador de Estado abre o Modal de Tarefa em modo edição; o Card é arrastável. [CAP-2, CAP-5, CAP-6]
+UX-DR4: Componente Card de Tarefa (`TaskCard`) — mostra Indicador de Estado, nome da tarefa (`body`), rótulo de Horário (`task-time`, quando definido) e Tag de Prioridade (sempre presente — ver UX-DR6); clique em qualquer área do Card exceto o Indicador de Estado e a Tag de Prioridade abre o Modal de Tarefa em modo edição; o Card é arrastável só entre colunas de dia. [CAP-2, CAP-5, CAP-6]
 
 UX-DR5: Tarefa Concluída aplica `completed-opacity` (0.55) ao Card inteiro e risca o nome (`text-decoration: line-through`); permanece na posição da coluna, nunca ocultada ou removida. [CAP-7]
 
-UX-DR6: Tag de Prioridade (`PriorityTag`) — cor por nível (Alta/Média/Baixa), formato barra lateral fina de 3px ou pílula compacta; ausente por completo (sem placeholder vazio) quando a Tarefa não tem prioridade definida. [CAP-6]
+UX-DR6: Tag de Prioridade (`PriorityTag`) — cor por nível (Alta/Média/Baixa), formato barra lateral fina de 3px ou pílula compacta; **sempre visível, mesmo sem prioridade definida (estado neutro `priority-tag.none`) [Revisado 2026-09-18 — regra anterior de "ausente por completo" revogada]**; clique único cicla Sem prioridade→Baixa→Média→Alta→Sem prioridade, sem abrir o Modal nem alterar o Estado (FR-8). [CAP-10]
 
 UX-DR7: Indicador de Estado (`StateIndicator`) — círculo de 18px (`rounded.full`); clique único cicla Pendente → Em andamento → Concluída → Pendente (wraparound); não abre o modal; anuncia o nome do estado atual para leitor de tela (não apenas ícone/cor). [CAP-4]
 
@@ -88,7 +98,9 @@ UX-DR10: Confirmação de Exclusão — passo interno do próprio Modal de Taref
 
 UX-DR11: Alternador de Tema (`ThemeToggle`) — ícone sol/lua no Cabeçalho, `icon-color-active` (`accent`) indica o tema atualmente ativo; alterna claro/escuro instantaneamente, sem recarregar a página; preferência salva e usada em toda sessão futura; nunca segue `prefers-color-scheme`. [CAP-9]
 
-UX-DR12: Interações de arraste — arrastar um Card para outra faixa de Prioridade dentro do mesmo dia muda a Prioridade (posição = prioridade); arrastar um Card para a coluna de outro dia muda o Dia da Semana (entra na nova coluna já ordenada pela Prioridade atual); durante o arraste o Card ganha sombra + leve rotação (único uso de sombra decorativa do produto) e um placeholder tracejado marca onde vai encaixar. [CAP-6]
+UX-DR12: Interações de arraste — arrastar um Card para a coluna de outro dia muda a Data (entra na nova coluna já ordenada pelo Horário atual; Horário e Prioridade não mudam); durante o arraste o Card ganha sombra + leve rotação (único uso de sombra decorativa do produto) e um placeholder tracejado marca onde vai encaixar. **[Revisado 2026-09-18 — remove a mudança de Prioridade por arraste; não existem mais faixas de prioridade como alvo de drop.]** [CAP-6]
+
+UX-DR17 (novo, 2026-09-18): Campo Horário no Modal de Tarefa (`HH:MM`, opcional, criação e edição) e rótulo `task-time` no Card quando definido. [CAP-1, CAP-2, CAP-6]
 
 UX-DR13: Equivalente completo por teclado — toda ação alcançável pelo arraste (ciclar Estado, mudar Prioridade, mudar Dia) também é alcançável via campos do Modal de Tarefa ou sensor de teclado do `@dnd-kit`; foco visível (outline) em todo elemento interativo (Cards, Indicador de Estado, controles do Modal, Alternador de Tema); rótulos explícitos em vez de apenas ícones (ex. "Excluir tarefa"). [CAP-6; Accessibility Floor; AD-6]
 
@@ -104,15 +116,17 @@ UX-DR16: Falha ao salvar (Modal de Tarefa, qualquer modo) — o modal permanece 
 
 | CAP / FR | Épico |
 | --- | --- |
-| CAP-1 (FR-1) Criar tarefa | Epic 2 |
-| CAP-2 (FR-2) Editar tarefa | Epic 2 |
+| CAP-1 (FR-1) Criar tarefa | Epic 2 (original) + Epic 6 (campo Horário) |
+| CAP-2 (FR-2) Editar tarefa | Epic 2 (original) + Epic 6 (campo Horário) |
 | CAP-3 (FR-3) Excluir tarefa | Epic 2 |
 | CAP-4 (FR-4) Alterar estado | Epic 3 (controle rápido) + Epic 2 (parcial: campo Estado no Modal) |
-| CAP-5 (FR-5) Visualizar semana | Epic 1 (vazia) + Epic 2 (populada) |
-| CAP-6 (FR-6) Ordenar/reordenar prioridade | Epic 2 (automático) + Epic 4 (manual/arraste) |
-| CAP-7 (FR-7) Diferenciar concluída | Epic 3 |
-| CAP-8 (NFR-1) Persistência | Epic 1 |
+| CAP-5 (FR-5) Visualizar semana | Epic 1 (vazia, semana fixa — **superado**) + Epic 2 (populada) + **Epic 5 (janela dinâmica ancorada em hoje, substitui a semana fixa)** |
+| CAP-6 (FR-6) Ordenar por horário / mover por arraste | Epic 2 (estrutura original — **ordenação por prioridade superada**) + **Epic 6 (ordenação por horário, substitui)** + Epic 4 revisado (mover entre dias por arraste; reordenação manual **removida**) |
+| CAP-7 (FR-7) Diferenciar concluída | Epic 3 (+ ressalva "dentro da janela visível", Epic 5) |
+| CAP-8 (NFR-1) Persistência | Epic 1 (+ migração de schema, Epic 5) |
 | CAP-9 Tema claro/escuro | Epic 1 |
+| CAP-10 (FR-8) Ciclar prioridade por clique | **Epic 7 (novo, 2026-09-18)** |
+| CAP-11 (FR-9) Rollover automático | **Epic 5 (novo, 2026-09-18)** |
 
 ## Epic List
 
@@ -128,9 +142,21 @@ Isabel cria, edita e exclui tarefas vinculadas a um dia, com validação e confi
 Isabel alterna o Estado de uma tarefa; tarefas concluídas ficam visualmente diferenciadas, nunca escondidas.
 **CAPs cobertas:** CAP-4, CAP-7.
 
-### Epic 4: Reordenar e Mudar por Arraste
-Isabel reordena manualmente dentro do mesmo nível de prioridade e muda prioridade/dia por arraste, com equivalente completo por teclado.
-**CAPs cobertas:** CAP-6 (parcial: manual/arraste).
+### Epic 4: Mover Tarefa Entre Dias por Arraste [REVISADO 2026-09-18]
+Isabel muda a Data de uma tarefa arrastando o card para outra coluna de dia, com equivalente completo por teclado. **Story 4.1 (reordenar manualmente por prioridade) removida — não existe mais reordenação manual, a ordem é sempre derivada do Horário (Epic 6). Story 4.2 revisada — perde a metade "mudar prioridade arrastando para outra faixa" (Prioridade agora só muda pelo Modal ou pelo clique-ciclo do Epic 7).**
+**CAPs cobertas:** CAP-6 (parcial: mover entre dias por arraste).
+
+### Epic 5: Data Real, Janela Dinâmica e Rollover [NOVO 2026-09-18]
+Isabel vê sempre hoje + os 6 dias seguintes (nunca uma semana fixa), a janela avança sozinha quando o dia vira, tarefas não concluídas de dias passados voltam automaticamente para hoje, e os dados existentes (formato antigo por dia-da-semana) são migrados sem perda para o novo formato por data real. **Fundação bloqueante — deve ser implementado antes dos Epics 6, 7 e da revisão do Epic 4.**
+**CAPs cobertas:** CAP-5 (janela dinâmica), CAP-8 (parcial: migração), CAP-11 (rollover).
+
+### Epic 6: Organização por Horário [NOVO 2026-09-18]
+Isabel define um horário opcional ao criar/editar uma tarefa; dentro de cada dia, as tarefas passam a ser ordenadas cronologicamente por esse horário (sem horário primeiro), substituindo a ordenação por prioridade.
+**CAPs cobertas:** CAP-1 (parcial: campo Horário), CAP-2 (parcial: campo Horário), CAP-6 (ordenação por horário).
+
+### Epic 7: Prioridade como Atributo Visual [NOVO 2026-09-18]
+A Tag de Prioridade passa a ser sempre visível no card (mesmo sem prioridade definida), e Isabel pode clicar nela diretamente para ciclar o nível, sem abrir o Modal.
+**CAPs cobertas:** CAP-10.
 
 ## Epic 1: Fundação — App, Persistência, Semana Vazia e Tema
 
@@ -364,67 +390,199 @@ Para que eu veja meu progresso do dia de relance, sem precisar ler o rótulo de 
 
 **And** essa diferenciação visual se mantém consistente tanto no tema claro quanto no escuro (tokens `DESIGN.md`)
 
-## Epic 4: Reordenar e Mudar por Arraste
+## Epic 4: Mover Tarefa Entre Dias por Arraste [REVISADO 2026-09-18]
 
-Isabel reordena tarefas manualmente dentro do mesmo nível de prioridade arrastando o card, e muda prioridade/dia arrastando entre faixas/colunas — com equivalente completo por teclado (sensor do `@dnd-kit`), nunca dependendo exclusivamente do mouse.
+Isabel muda a Data de uma tarefa arrastando o card para a coluna de outro dia — com equivalente completo por teclado (sensor do `@dnd-kit`), nunca dependendo exclusivamente do mouse.
 
-**CAPs cobertas:** CAP-6 (parcial: reordenação manual dentro do nível + mudança de prioridade/dia por arraste).
-**Requisitos adicionais/UX:** AD-4, AD-6, AD-7; UX-DR12, UX-DR13.
+**CAPs cobertas:** CAP-6 (parcial: mover entre dias por arraste).
+**Requisitos adicionais/UX:** AD-4, AD-6; UX-DR12, UX-DR13.
+**Depende de:** Epic 5 (datas reais precisam existir antes de o drop-target ser uma coluna de Data) e Epic 6 (o card precisa entrar já ordenado por Horário no destino).
 
-### Story 4.1: Reordenar tarefas por arraste dentro do mesmo nível de prioridade
+### Story 4.1: [REMOVIDA 2026-09-18]
 
-Como Isabel,
-Eu quero arrastar um card de tarefa para reordená-lo dentro do mesmo nível de prioridade no mesmo dia,
-Para que a ordem reflita meu próprio julgamento além da ordenação automática por nível.
+"Reordenar tarefas por arraste dentro do mesmo nível de prioridade" deixou de existir como capacidade. A ordenação passa a ser sempre derivada do Horário (Epic 6) — não há mais "nível de prioridade" como escopo de agrupamento nem reordenação manual dentro do dia. O código que implementava esta história (`reorderWithinGroup`, `reorderGroupByIndex` em `src/state/selectors.ts`, e o drop-handling por faixa de prioridade) deve ser removido, não mantido como código morto (ver `ARCHITECTURE-SPINE.md` AD-7 obsoleto).
 
-**Acceptance Criteria:**
-
-**Given** duas ou mais tarefas do mesmo dia estão no mesmo nível de Prioridade
-**When** Isabel arrasta um Card para outra posição dentro desse mesmo grupo (mesmo dia, mesmo nível)
-**Then** o Card é reposicionado na nova ordem, e a função pura `reorderWithinGroup` reindexa sequencialmente o `order` dos Cards afetados nesse grupo
-**And** a nova ordem persiste entre sessões (sobrevive a fechar/reabrir o navegador)
-
-**Given** Isabel está arrastando um Card
-**When** o arraste está em andamento
-**Then** o Card arrastado ganha sombra + leve rotação, e um placeholder tracejado marca onde ele vai encaixar no destino
-
-**Given** a reordenação usa `@dnd-kit/react`
-**When** Isabel seleciona um Card via teclado (sensor de teclado do `@dnd-kit`, mesma lógica usada pelo mouse — não uma reimplementação paralela) e o move dentro do mesmo grupo
-**Then** o resultado é idêntico ao arraste por mouse: mesma reindexação, mesma persistência
-**And** o foco permanece visível durante toda a operação
-
-**Given** o drop handler do arraste dispara a reordenação
-**When** a ação é executada
-**Then** ela chama a mesma `useTaskActions.reorderTask` que qualquer outro caminho chamaria — nenhum `dispatch` cru a partir do handler de drag (AD-4)
-
-**Given** Isabel solta o Card numa nova posição
-**When** a escrita em `localStorage` falha
-**Then** o Card volta visualmente à posição original — a reordenação não é aplicada até a escrita ter sucesso
-
-### Story 4.2: Mudar prioridade ou dia arrastando o card
+### Story 4.2: Mudar a Data da tarefa arrastando o card [REVISADO 2026-09-18]
 
 Como Isabel,
-Eu quero arrastar um card de tarefa para outra faixa de prioridade ou para a coluna de outro dia,
-Para que eu ajuste rapidamente prioridade ou dia sem abrir o Modal de Tarefa.
+Eu quero arrastar um card de tarefa para a coluna de outro dia,
+Para que eu ajuste rapidamente a data sem abrir o Modal de Tarefa.
 
 **Acceptance Criteria:**
-
-**Given** uma tarefa está num nível de Prioridade dentro de um dia
-**When** Isabel arrasta o Card para outra faixa de Prioridade dentro do mesmo dia
-**Then** a Prioridade da tarefa muda para a do destino, e ela é posicionada conforme a ordenação automática por nível (AD-7)
-**And** a mudança usa a mesma função de ação (`useTaskActions`) que a edição pelo Modal usaria — nenhuma lógica de mudança de prioridade duplicada
 
 **Given** uma tarefa está na coluna de um dia
-**When** Isabel arrasta o Card para a coluna de outro dia
-**Then** o Dia da Semana da tarefa muda, e ela entra na nova coluna já ordenada pela sua Prioridade atual (`useTaskActions.moveTaskToDay`)
-**And** o Estado da tarefa não é alterado por essa mudança
+**When** Isabel arrasta o Card para a coluna de outro dia da janela atual
+**Then** a Data da tarefa muda para a do dia de destino, e ela entra na nova coluna já ordenada pelo seu Horário atual (`useTaskActions.moveTaskToDate`)
+**And** o Horário, a Prioridade e o Estado da tarefa **não são alterados** por essa mudança — só a Data muda [Revisado: antes também mudava Prioridade se solta numa faixa; essa faixa não existe mais]
 
-**Given** o arraste de prioridade/dia usa `@dnd-kit/react`
+**Given** o arraste de dia usa `@dnd-kit/react`
 **When** Isabel realiza a mesma mudança usando o sensor de teclado do `@dnd-kit` em vez do mouse
 **Then** o resultado é idêntico ao arraste por mouse — mesma função de ação, mesma persistência, foco visível durante toda a operação
-**And** essa é uma via adicional às já existentes (Modal, Story 2.2) — nenhuma delas substitui a outra; toda mudança de Prioridade/Dia possível por arraste também é possível pelo Modal, e vice-versa
+**And** essa é uma via adicional à já existente (Modal, Story 2.2/Epic 5) — nenhuma delas substitui a outra; toda mudança de Data possível por arraste também é possível pelo Modal, e vice-versa
 
-**Given** Isabel solta o Card numa nova faixa de prioridade ou coluna de dia
+**Given** Isabel solta o Card na coluna de outro dia
 **When** a escrita em `localStorage` falha
-**Then** o Card volta visualmente à posição/dia original — a mudança não é aplicada até a escrita ter sucesso
+**Then** o Card volta visualmente ao dia original — a mudança não é aplicada até a escrita ter sucesso
+
+## Epic 5: Data Real, Janela Dinâmica e Rollover [NOVO 2026-09-18]
+
+Isabel vê sempre hoje + os 6 dias seguintes (nunca uma semana fixa Segunda→Domingo), a janela avança automaticamente quando o dia vira (mesmo com o app aberto), tarefas não concluídas de dias que já passaram voltam sozinhas para hoje, e os dados existentes no formato antigo (dia-da-semana) são migrados para o novo formato (data real) sem perder nenhuma tarefa. **Fundação bloqueante para os Epics 6, 7 e a revisão do Epic 4 — deve ser implementado primeiro, começando pela migração (Story 5.1), isolada e testada antes de qualquer mudança visual (recomendação explícita de `sprint-change-proposal-2026-09-18.md` §5).**
+
+**CAPs cobertas:** CAP-5, CAP-8 (parcial: migração), CAP-11.
+**Requisitos adicionais/UX:** AD-2 (migração), AD-4, AD-10, AD-11; UX-DR3 (revisado).
+
+### Story 5.1: Migrar dados existentes para o modelo de data real
+
+Como Isabel,
+Eu quero que minhas tarefas já salvas continuem todas lá depois da atualização,
+Para que a evolução do TaskFlow não me custe nenhum dado.
+
+**Acceptance Criteria:**
+
+**Given** existe uma chave `taskflow:tasks` salva com `schemaVersion: 1` (formato por dia-da-semana)
+**When** o app inicializa
+**Then** cada tarefa é remapeada de `day: DayOfWeek` para `date` (ISO `YYYY-MM-DD`) correspondente àquele dia-da-semana **dentro da primeira janela dinâmica calculada** (hoje..hoje+6) — nunca para uma data já passada
+**And** o campo `order` de cada grupo `(date)` é renumerado sequencialmente após a migração
+**And** o resultado é regravado imediatamente como `schemaVersion: 2`
+**And** nenhuma tarefa é perdida, duplicada, ou cai no caminho de `loadError` por causa desta migração
+**And** a migração roda uma única vez — cargas seguintes já encontram `schemaVersion: 2` e não repetem a migração
+
+**Given** existe uma chave `taskflow:tasks` salva com `schemaVersion` diferente de `1` e diferente de `2`
+**When** o app inicializa
+**Then** o comportamento é o mesmo já existente para dado ilegível (estado vazio + `loadError` — AD-2), sem tentar migrar um formato desconhecido
+
+### Story 5.2: Exibir a janela dinâmica de 7 dias ancorada em hoje
+
+Como Isabel,
+Eu quero ver sempre hoje e os 6 dias seguintes, com a data real de cada um,
+Para que a tela reflita minha semana de verdade, não uma semana de calendário arbitrária.
+
+**Acceptance Criteria:**
+
+**Given** Isabel abre o TaskFlow em qualquer dia
+**When** a página carrega
+**Then** a primeira coluna exibida é sempre hoje, seguida de hoje+1 até hoje+6 — nunca uma semana fixa Segunda→Domingo
+**And** cada coluna mostra o nome do dia da semana e a Data real (ex. "Sexta-feira, 18/09")
+**And** a coluna de hoje mantém o destaque visual `today-background`
+
+### Story 5.3: Avançar a janela automaticamente com o app aberto
+
+Como Isabel,
+Eu quero que a janela avance sozinha quando o dia vira, mesmo sem eu recarregar a página,
+Para que eu nunca veja uma tela "presa" no dia anterior.
+
+**Acceptance Criteria:**
+
+**Given** o TaskFlow está aberto numa aba, sem reload, atravessando a virada de um dia para o outro
+**When** um timer periódico em segundo plano (checagem a cada ~60s) detecta que a data mudou
+**Then** a janela de 7 dias é recalculada e a tela atualizada automaticamente, sem exigir foco na aba nem reload
+**And** o rollover (Story 5.4) roda junto com esse recálculo
+
+### Story 5.4: Rollover automático de tarefas atrasadas
+
+Como Isabel,
+Eu quero que tarefas não concluídas de dias que já passaram apareçam automaticamente em hoje,
+Para que eu nunca perca uma tarefa só porque a janela avançou.
+
+**Acceptance Criteria:**
+
+**Given** uma tarefa tem `state` Pendente ou Em andamento e `date` anterior ao primeiro dia da janela atual
+**When** a janela é calculada (ao carregar, Story 5.2, ou pelo timer, Story 5.3)
+**Then** a `date` da tarefa é reatribuída diretamente para hoje — nunca incrementada dia a dia
+**And** Título, Horário, Prioridade e Estado da tarefa são preservados; a tarefa não é duplicada
+
+**Given** uma tarefa tem `state` Concluída e `date` anterior à janela atual
+**When** a janela é calculada
+**Then** a tarefa **não** sofre rollover — permanece com a `date` original, mesmo que isso a tire da visualização (FR-7)
+
+**Given** o rollover afeta uma ou mais tarefas
+**When** a mutação é aplicada
+**Then** ela persiste em uma única escrita em lote (não uma escrita por tarefa) antes de comitar ao estado React (AD-4)
+**And** se a escrita falhar, nenhuma tarefa exibida muda de data até a escrita ter sucesso
+
+## Epic 6: Organização por Horário [NOVO 2026-09-18]
+
+Isabel define um horário opcional ao criar/editar uma tarefa; dentro de cada dia, as tarefas passam a ser ordenadas cronologicamente por esse horário — tarefas sem horário aparecem primeiro — substituindo por completo a ordenação por prioridade do Epic 2 original.
+
+**CAPs cobertas:** CAP-1 (parcial: campo Horário), CAP-2 (parcial: campo Horário), CAP-6 (ordenação por horário).
+**Requisitos adicionais/UX:** UX-DR17.
+**Depende de:** Epic 5 (datas reais).
+
+### Story 6.1: Definir horário ao criar ou editar tarefa
+
+Como Isabel,
+Eu quero atribuir um horário opcional a uma tarefa,
+Para que ela apareça na posição certa dentro do meu dia.
+
+**Acceptance Criteria:**
+
+**Given** o Modal de Tarefa está aberto (criação ou edição)
+**When** Isabel preenche o campo Horário (`HH:MM`) e confirma
+**Then** a tarefa é salva com esse Horário, e reposicionada imediatamente conforme a ordenação cronológica (Story 6.2)
+
+**Given** o Modal de Tarefa está aberto
+**When** Isabel deixa o campo Horário vazio e confirma
+**Then** a tarefa é salva sem Horário definido — o campo nunca bloqueia o salvamento (mesma regra de Prioridade, UX-DR9)
+
+### Story 6.2: Ordenar tarefas do dia por horário
+
+Como Isabel,
+Eu quero que as tarefas do meu dia apareçam em ordem cronológica,
+Para que eu veja minha agenda na sequência em que as coisas vão acontecer.
+
+**Acceptance Criteria:**
+
+**Given** uma Data tem tarefas com e sem Horário definido
+**When** a coluna é renderizada
+**Then** as tarefas sem Horário aparecem primeiro (em ordem de criação entre si), seguidas das tarefas com Horário em ordem crescente
+**And** a Prioridade de cada tarefa **não** influencia essa ordem em nenhum caso
+
+**Given** duas tarefas da mesma Data têm exatamente o mesmo Horário
+**When** a coluna é renderizada
+**Then** elas mantêm a ordem relativa de criação entre si (`order` como desempate — AD-7 revisado)
+
+## Epic 7: Prioridade como Atributo Visual [NOVO 2026-09-18]
+
+A Tag de Prioridade passa a ser sempre visível no card — mesmo sem prioridade definida, em estado neutro — e Isabel pode clicar nela diretamente para ciclar o nível, sem abrir o Modal e sem alterar o Estado.
+
+**CAPs cobertas:** CAP-10.
+**Requisitos adicionais/UX:** AD-4; UX-DR6 (revisado).
+
+### Story 7.1: Tag de Prioridade sempre visível
+
+Como Isabel,
+Eu quero ver a Tag de Prioridade em todo card, mesmo quando não defini uma prioridade,
+Para que eu tenha sempre um lugar consistente para ajustá-la rapidamente.
+
+**Acceptance Criteria:**
+
+**Given** uma tarefa não tem Prioridade definida
+**When** o Card é renderizado
+**Then** a Tag de Prioridade aparece em estado neutro/discreto (`priority-tag.none`) — nunca ausente por completo [Revoga a regra anterior de UX-DR6]
+
+### Story 7.2: Ciclar prioridade por clique na tag
+
+Como Isabel,
+Eu quero clicar na Tag de Prioridade para alternar o nível rapidamente,
+Para que eu ajuste a prioridade sem abrir o formulário completo.
+
+**Acceptance Criteria:**
+
+**Given** uma tarefa está com Prioridade "Sem prioridade"
+**When** Isabel clica na Tag de Prioridade do Card
+**Then** a Prioridade muda para "Baixa"
+
+**Given** uma tarefa está com Prioridade "Alta"
+**When** Isabel clica na Tag de Prioridade
+**Then** a Prioridade volta para "Sem prioridade" (wraparound: Sem prioridade → Baixa → Média → Alta → Sem prioridade)
+
+**Given** Isabel clica na Tag de Prioridade
+**When** o clique ocorre
+**Then** o Modal de Tarefa **não** abre, e o Estado da tarefa **não** é alterado — mesmo padrão do Indicador de Estado (Story 3.1)
+
+**And** a Tag de Prioridade anuncia o nível atual (inclusive "Sem prioridade") para leitor de tela, e tem foco visível e é acionável por teclado (Enter/Espaço), consistente com o Accessibility Floor já aplicado ao Indicador de Estado
+
+**Given** Isabel aciona o ciclo de Prioridade
+**When** a escrita em `localStorage` falha
+**Then** a Prioridade exibida não muda — consistente com o guard de persistência atômica (AD-4)
 

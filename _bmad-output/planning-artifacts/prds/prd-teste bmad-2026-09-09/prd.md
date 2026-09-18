@@ -2,7 +2,9 @@
 title: TaskFlow
 status: final
 created: 2026-09-09
-updated: 2026-09-09
+updated: 2026-09-18
+changelog:
+  - "2026-09-18: pivô pós-MVP para semana dinâmica ancorada em hoje, ordenação por horário e prioridade como atributo visual. Ver _bmad-output/planning-artifacts/sprint-change-proposal-2026-09-18.md."
 ---
 
 # PRD: TaskFlow
@@ -14,7 +16,7 @@ Este PRD traduz o Product Brief do TaskFlow (`_bmad-output/planning-artifacts/br
 
 ## 1. Vision
 
-O TaskFlow é um organizador semanal de tarefas pessoais. A tela principal mostra os sete dias da semana lado a lado; toda tarefa nasce vinculada a um dia específico, com um estado de progresso (Pendente / Em andamento / Concluída) e, opcionalmente, uma prioridade (Baixa / Média / Alta). A organização por dia da semana não é a única forma cogitada — foi um pivô deliberado a partir de uma ideia inicial mais genérica de gerenciador de tarefas; ver racional completo em `addendum.md` do Product Brief, seção "Evolução do escopo durante a descoberta".
+O TaskFlow é um organizador semanal de tarefas pessoais, com experiência próxima de uma agenda/calendário. A tela principal mostra sete dias lado a lado, sempre ancorados a partir de hoje — hoje + os 6 dias seguintes, avançando automaticamente conforme os dias passam. Toda tarefa nasce vinculada a uma data específica, com um estado de progresso (Pendente / Em andamento / Concluída), opcionalmente um horário (para ordenação cronológica dentro do dia) e opcionalmente uma prioridade (Baixa / Média / Alta) — que é apenas um atributo visual, sem efeito na ordem de exibição. A organização por data não é a única forma cogitada — foi um pivô deliberado a partir de uma ideia inicial mais genérica de gerenciador de tarefas; ver racional completo em `addendum.md` do Product Brief, seção "Evolução do escopo durante a descoberta". Um segundo pivô, pós-MVP, trocou a semana fixa Segunda→Domingo por uma janela dinâmica ancorada em hoje e a ordenação por prioridade pela ordenação por horário — ver `sprint-change-proposal-2026-09-18.md`.
 
 Ele existe para resolver um problema concreto e vivido: hoje as tarefas de estudo, trabalho e vida pessoal de Isabel estão espalhadas entre anotações soltas, mensagens para si mesma no WhatsApp e aplicativos genéricos — o que gera esquecimentos, prazos perdidos e a sensação de não saber por onde começar o dia. O TaskFlow centraliza tudo isso em uma única visão semanal, sem fricção de configuração e sem recursos que não foram pedidos.
 
@@ -39,18 +41,23 @@ Não há personas secundárias no MVP: o público é a própria Isabel, que tamb
   Domingo à noite ou segunda de manhã, Isabel abre o TaskFlow e vê a semana à frente. Ela vai lançando as tarefas de estudo, trabalho e vida pessoal em cada dia, definindo prioridade em algumas (nem todas — só as que já sabe que importam mais). Ao final, tem a semana inteira visível de uma vez, antes de qualquer dia começar. Realiza FR-1, FR-5.
 
 - **UJ-2. Isabel decide por onde começar o dia.**
-  Ao abrir o TaskFlow em qualquer dia, Isabel olha o dia atual e vê o que está pendente, o que já está em andamento e o que foi concluído, com as tarefas de maior prioridade aparecendo primeiro. Ela decide por onde começar, marca uma tarefa como "Em andamento" quando parte para ela, e como "Concluída" quando termina — vendo, ao longo do dia, o progresso se acumular. Realiza FR-4, FR-5, FR-6, FR-7.
+  Ao abrir o TaskFlow em qualquer dia, Isabel olha o dia atual e vê o que está pendente, o que já está em andamento e o que foi concluído, com as tarefas ordenadas cronologicamente pelo horário (as sem horário definido aparecem primeiro, como compromissos flexíveis do dia). Ela decide por onde começar, marca uma tarefa como "Em andamento" quando parte para ela, e como "Concluída" quando termina — vendo, ao longo do dia, o progresso se acumular. Realiza FR-4, FR-5, FR-6, FR-7.
 
 - **UJ-3. Isabel ajusta uma tarefa no meio da semana.**
-  Uma tarefa muda: o prazo muda de dia, a prioridade sobe porque ficou urgente, ou a tarefa deixou de fazer sentido. Isabel edita a tarefa (inclusive movendo-a para outro dia) ou a exclui — com uma confirmação antes de apagar de vez, já que não há desfazer no MVP. O TaskFlow volta a refletir a realidade da semana. Realiza FR-2, FR-3.
+  Uma tarefa muda: o horário muda, a prioridade sobe porque ficou urgente, o prazo muda de dia, ou a tarefa deixou de fazer sentido. Isabel edita a tarefa (inclusive movendo-a para outro dia, ou arrastando o card para outra coluna) ou a exclui — com uma confirmação antes de apagar de vez, já que não há desfazer no MVP. Prioridade também pode ser ajustada rapidamente clicando na própria Tag de Prioridade do card, em ciclo, sem abrir o Modal. O TaskFlow volta a refletir a realidade da semana. Realiza FR-2, FR-3.
+
+- **UJ-4. Isabel reabre o TaskFlow depois de alguns dias sem usar.**
+  Isabel não abriu o TaskFlow há alguns dias. Ao reabrir, a janela de 7 dias já está reancorada em hoje, e toda tarefa não concluída que ficou para trás em dias que já passaram aparece automaticamente em hoje, com seus dados e estado preservados — ela não perde nem precisa procurar nada. Realiza FR-9.
 
 ## 3. Glossário
 
-- **Tarefa** — unidade central do TaskFlow. Pertence a exatamente um Dia da Semana, tem um Estado, e opcionalmente uma Prioridade.
-- **Semana** — unidade de organização da tela principal. Exibida como os 7 Dias da Semana lado a lado. [ASSUMPTION: semana exibida de segunda a domingo — convenção mais comum no contexto de Isabel; poderia ser domingo a sábado.]
-- **Dia da Semana** — um dos 7 dias que compõem a Semana. Toda Tarefa pertence a um Dia da Semana; uma Tarefa pode ser movida de um Dia da Semana para outro por meio de edição.
+- **Tarefa** — unidade central do TaskFlow. Pertence a exatamente uma Data, tem um Estado, opcionalmente um Horário, e opcionalmente uma Prioridade.
+- **Semana / Janela** — unidade de organização da tela principal: uma janela de 7 dias, sempre iniciando em Hoje e avançando automaticamente conforme os dias passam (hoje + próximos 6 dias). **Não é mais uma semana fixa Segunda→Domingo** — essa era uma assumption do PRD original, revogada em 2026-09-18 (ver `sprint-change-proposal-2026-09-18.md`).
+- **Data** — dia real do calendário (ex. `2026-09-23`) ao qual uma Tarefa pertence. Substitui o antigo conceito de "Dia da Semana" abstrato (`mon`..`sun`). Uma Tarefa pode ser movida de uma Data para outra por edição ou por arraste do card para outra coluna.
+- **Horário** — momento do dia (ex. `08:00`) opcionalmente atribuído a uma Tarefa. Determina a ordenação cronológica das Tarefas dentro de uma Data (ver FR-6). Tarefas sem Horário aparecem primeiro na Data, como compromissos flexíveis do dia.
 - **Estado** — progresso de uma Tarefa. Valores possíveis: Pendente (padrão ao criar), Em andamento, Concluída. Os 3 estados (em vez de apenas Pendente/Concluída) foram uma escolha deliberada — ver racional em `addendum.md` do Product Brief, seção "Alternativas consideradas e descartadas".
-- **Prioridade** — sinalização de importância de uma Tarefa dentro do seu dia. Valores possíveis: Baixa, Média, Alta, ou sem prioridade definida (padrão ao criar, se não escolhida explicitamente). Não é um sistema de pontuação — apenas 3 níveis + ausência.
+- **Prioridade** — atributo visual (não ordena mais as Tarefas — ver FR-6) de importância de uma Tarefa. Valores possíveis: Baixa, Média, Alta, ou sem prioridade definida (padrão ao criar, se não escolhida explicitamente). Não é um sistema de pontuação — apenas 3 níveis + ausência. Editável no Modal, ou em ciclo por clique direto na Tag de Prioridade do card (FR-8).
+- **Rollover** — migração automática da Data de uma Tarefa não concluída cuja Data original já saiu da Janela (ficou no passado) para Hoje, preservando título, Horário, Prioridade e Estado, sem duplicar a Tarefa (FR-9).
 
 ## 4. Features
 
@@ -60,13 +67,14 @@ Não há personas secundárias no MVP: o público é a própria Isabel, que tamb
 **Requisitos Funcionais:**
 
 #### FR-1: Criar tarefa
-Isabel pode criar uma Tarefa vinculada a um Dia da Semana específico. Realiza UJ-1.
+Isabel pode criar uma Tarefa vinculada a uma Data específica. Realiza UJ-1.
 
 **Consequências (testáveis):**
-- A Tarefa exige um Título e um Dia da Semana; ambos são obrigatórios para salvar.
+- A Tarefa exige um Título e uma Data; ambos são obrigatórios para salvar.
+- O Horário é opcional na criação; se não escolhido, a Tarefa fica sem Horário definido.
 - A Prioridade é opcional na criação; se não escolhida, a Tarefa fica sem prioridade definida (não há valor padrão atribuído automaticamente).
 - O Estado da Tarefa criada é sempre Pendente.
-- A Tarefa criada aparece imediatamente no Dia da Semana correspondente, na posição correta segundo a ordenação por Prioridade (ver FR-6).
+- A Tarefa criada aparece imediatamente na Data correspondente, na posição correta segundo a ordenação cronológica por Horário (ver FR-6).
 - [ASSUMPTION: não há limite máximo de Tarefas por dia no MVP.]
 
 **Notas:**
@@ -74,12 +82,13 @@ Isabel pode criar uma Tarefa vinculada a um Dia da Semana específico. Realiza U
 - O mecanismo de Prioridade (3 níveis, sem pontuação) foi mantido depois de cogitado remover — ver racional em `addendum.md` do Product Brief, seção "Alternativas consideradas e descartadas".
 
 #### FR-2: Editar tarefa
-Isabel pode editar qualquer campo de uma Tarefa existente: Título, Dia da Semana e Prioridade. Realiza UJ-3.
+Isabel pode editar qualquer campo de uma Tarefa existente: Título, Data, Horário e Prioridade. Realiza UJ-3.
 
 **Consequências (testáveis):**
-- Editar o Dia da Semana move a Tarefa da visualização do dia antigo para a do novo dia.
-- Editar a Prioridade reordena a Tarefa dentro do seu dia conforme FR-6.
-- Título e Dia da Semana continuam obrigatórios na edição, seguindo a mesma regra do FR-1 — não é possível salvar a edição deixando qualquer um dos dois vazio.
+- Editar a Data move a Tarefa da visualização do dia antigo para a do novo dia.
+- Editar o Horário reordena a Tarefa dentro da sua Data conforme FR-6.
+- Editar a Prioridade não altera a posição da Tarefa (Prioridade é só atributo visual — ver FR-6).
+- Título e Data continuam obrigatórios na edição, seguindo a mesma regra do FR-1 — não é possível salvar a edição deixando qualquer um dos dois vazio.
 - O Estado não é alterado por esta ação — alterar Estado é uma ação separada (FR-4). [ASSUMPTION: mudar Estado é uma ação rápida e distinta de abrir o formulário completo de edição.]
 
 **Out of Scope:**
@@ -106,33 +115,53 @@ Isabel pode alterar o Estado de uma Tarefa entre Pendente, Em andamento e Conclu
 - Não há restrição de transição — uma Tarefa pode voltar de Concluída para Em andamento ou Pendente se necessário.
 
 ### 4.3 Visualização Semanal
-**Descrição:** A tela principal do TaskFlow — os 7 dias da semana lado a lado, cada um mostrando suas Tarefas ordenadas por Prioridade e diferenciadas por Estado. É o que resolve diretamente o problema de "não saber por onde começar o dia". Realiza UJ-1, UJ-2.
+**Descrição:** A tela principal do TaskFlow — uma janela de 7 dias, ancorada em hoje e avançando automaticamente, cada um mostrando suas Tarefas ordenadas cronologicamente por Horário e diferenciadas por Estado, com Prioridade como atributo visual secundário. É o que resolve diretamente o problema de "não saber por onde começar o dia". Realiza UJ-1, UJ-2.
 
 **Requisitos Funcionais:**
 
-#### FR-5: Visualizar semana
-Isabel pode ver, em uma única tela, os 7 dias da semana e as Tarefas de cada um. Realiza UJ-1, UJ-2.
+#### FR-5: Visualizar a janela de 7 dias ancorada em hoje
+Isabel pode ver, em uma única tela, 7 dias — hoje e os 6 seguintes — e as Tarefas de cada um. Realiza UJ-1, UJ-2.
 
 **Consequências (testáveis):**
 - Os 7 dias são visíveis simultaneamente, sem precisar navegar entre telas para ver outro dia.
+- O primeiro dia exibido é sempre hoje; os demais são hoje+1 .. hoje+6, cada um rotulado com a Data real e o nome do dia da semana.
+- Quando o dia muda (virada de data), a janela avança automaticamente — inclusive com o app já aberto, sem precisar recarregar a página.
 - Um dia sem Tarefas exibe claramente que está vazio (não é confundido com erro de carregamento).
 
-#### FR-6: Ordenar e sinalizar prioridade dentro do dia
-Dentro de cada Dia da Semana, as Tarefas são ordenadas automaticamente por Prioridade, e o nível de Prioridade de cada Tarefa é visualmente identificável. Realiza UJ-2.
+#### FR-6: Ordenar por horário e sinalizar prioridade dentro do dia
+Dentro de cada Data, as Tarefas são ordenadas automaticamente por Horário (ordem cronológica crescente); Tarefas sem Horário aparecem primeiro. A Prioridade de cada Tarefa é visualmente identificável, mas não determina mais a ordem de exibição. Realiza UJ-2.
 
 **Consequências (testáveis):**
-- Ordem de exibição: Alta → Média → Baixa → sem prioridade definida.
-- Dentro do mesmo nível de Prioridade, a ordem relativa não é especificada pelo MVP. [Ver Questão em Aberto 3.]
-- O nível de Prioridade de cada Tarefa é reconhecível à primeira vista (cor, ícone ou rótulo) — não apenas implícito pela posição na ordenação. Tarefas sem prioridade definida não exibem nenhum indicador.
+- Ordem de exibição dentro da Data: Tarefas sem Horário primeiro (nessa sub-lista, ordem de criação), depois Tarefas com Horário em ordem crescente (`08:00` antes de `14:00`).
+- Prioridade **não** influencia a posição da Tarefa — mudar a Prioridade nunca reordena a lista.
+- O nível de Prioridade de cada Tarefa é reconhecível à primeira vista (cor/rótulo na Tag de Prioridade), inclusive quando não definida (Tag em estado neutro, sempre visível — ver FR-8).
+- Duas Tarefas com o mesmo Horário (ou ambas sem Horário) mantêm a ordem relativa de criação entre si. [Substitui a antiga Questão em Aberto 3, agora sem objeto — não existe mais "nível de prioridade" como critério de ordenação.]
 
 #### FR-7: Diferenciar visualmente tarefas concluídas
-Tarefas com Estado "Concluída" permanecem visíveis no seu dia, mas com uma diferenciação visual clara em relação a Pendente/Em andamento. Realiza UJ-2.
+Tarefas com Estado "Concluída" permanecem visíveis na sua Data, mas com uma diferenciação visual clara em relação a Pendente/Em andamento. Realiza UJ-2.
 
 **Consequências (testáveis):**
 - Uma Tarefa Concluída é reconhecível à primeira vista sem precisar ler o rótulo de Estado.
-- Tarefas Concluídas não são ocultadas nem removidas da visualização do dia no MVP.
+- Tarefas Concluídas não são ocultadas nem removidas da visualização **enquanto sua Data estiver dentro da janela de 7 dias visível**. Uma vez que a Data sai da janela (janela avança e a Data fica no passado), a Tarefa Concluída deixa de aparecer na tela — mas seus dados permanecem salvos (sem tela de Histórico no MVP; ver Non-Goals §6).
 
 **Notas:** *[NOTE FOR PM]* O estilo exato da diferenciação visual (esmaecida, riscada, ícone, ou combinação) é decisão de UX — ver Questão em Aberto 1.
+
+#### FR-8: Ciclar prioridade por clique na tag
+Isabel pode clicar diretamente na Tag de Prioridade de um card para alternar a Prioridade em ciclo, sem abrir o Modal de Tarefa. Realiza UJ-3.
+
+**Consequências (testáveis):**
+- Clique único cicla: Sem prioridade → Baixa → Média → Alta → Sem prioridade (wraparound).
+- O clique na Tag não abre o Modal de Tarefa nem altera o Estado da Tarefa.
+- A Tag de Prioridade é sempre visível no card — inclusive sem Prioridade definida, em estado neutro/discreto — para servir de alvo de clique consistente. [Revoga a regra anterior de "Tag ausente quando sem prioridade".]
+- Prioridade continua editável também pelo Modal de Tarefa (FR-2) — o clique na Tag é um atalho, não substitui essa via.
+
+#### FR-9: Rollover automático de tarefas atrasadas
+Toda Tarefa não concluída cuja Data já saiu da janela de 7 dias (ficou no passado) é movida automaticamente para Hoje. Realiza UJ-4.
+
+**Consequências (testáveis):**
+- Só Tarefas com Estado Pendente ou Em andamento sofrem rollover; Tarefas Concluídas nunca são movidas (permanecem na Data original, mesmo que saiam da visualização — ver FR-7).
+- O rollover move a Tarefa diretamente para Hoje (nunca dia a dia) — preserva Título, Horário, Prioridade e Estado; nunca duplica a Tarefa.
+- O rollover acontece ao abrir o TaskFlow (cobrindo o caso "app fechado por vários dias") e também com o app já aberto, quando a data virar sem que a página seja recarregada.
 
 ## 5. NFRs Transversais
 
@@ -148,17 +177,22 @@ Tarefas com Estado "Concluída" permanecem visíveis no seu dia, mas com uma dif
 - Não haverá dashboard complexo nem relatórios de progresso no MVP.
 - Não haverá inteligência artificial no MVP.
 - Não haverá notificações nem lembretes no MVP.
+- Não haverá tela/superfície de Histórico de tarefas concluídas fora da janela de 7 dias visível no MVP — decisão explícita de 2026-09-18 (ver `sprint-change-proposal-2026-09-18.md`), revisitável se o uso real mostrar necessidade real, não hipotética.
+- Não haverá visualização em grade com eixo de horas (estilo Google Calendar) no MVP — a "experiência de agenda" é resolvida como lista ordenada cronologicamente por Horário, reaproveitando o layout de colunas por dia já existente.
 
 ## 7. MVP Scope
 
 ### 7.1 In Scope
-- Exibir a tela principal com os 7 dias da semana visíveis (FR-5).
-- Criar tarefa vinculada a um dia, com prioridade opcional (FR-1).
-- Editar tarefa, incluindo mudar de dia (FR-2).
+- Exibir a janela de 7 dias ancorada em hoje, avançando automaticamente (FR-5).
+- Criar tarefa vinculada a uma data, com horário e prioridade opcionais (FR-1).
+- Editar tarefa, incluindo mudar de data, horário e prioridade (FR-2).
 - Excluir tarefa, com confirmação (FR-3).
 - Alterar o estado da tarefa: Pendente / Em andamento / Concluída (FR-4).
-- Ordenar tarefas por prioridade dentro do dia (FR-6).
-- Diferenciar visualmente tarefas concluídas (FR-7).
+- Ordenar tarefas por horário dentro do dia; sinalizar prioridade visualmente sem afetar a ordem (FR-6).
+- Diferenciar visualmente tarefas concluídas, enquanto sua data está na janela visível (FR-7).
+- Ciclar prioridade por clique direto na Tag de Prioridade do card (FR-8).
+- Mover tarefa não concluída de um dia passado automaticamente para hoje (rollover, FR-9).
+- Migrar dados existentes (modelo antigo por dia-da-semana) para o novo modelo por data real, sem perda.
 - Persistir os dados entre sessões do navegador, sem login (§5).
 
 ### 7.2 Out of Scope for MVP
@@ -188,14 +222,17 @@ Métricas quantitativas de usuários, retenção ou adoção estão fora do esco
 
 ## 9. Open Questions
 
-1. Qual o estilo exato de diferenciação visual das Tarefas Concluídas (esmaecida, riscada, ícone, combinação)? Decisão de UX, não bloqueia o PRD.
-2. Qual o mecanismo exato de persistência (armazenamento local do navegador vs. backend com identificador implícito)? Decisão de arquitetura — ver §5.
-3. Dentro do mesmo nível de Prioridade, qual a ordem relativa das Tarefas (ordem de criação, alfabética, etc.)? Não especificado no MVP; assumir ordem de criação até decisão em contrário.
+1. Qual o estilo exato de diferenciação visual das Tarefas Concluídas (esmaecida, riscada, ícone, combinação)? Decisão de UX, não bloqueia o PRD. *(Resolvida na implementação original: opacidade + risco no texto.)*
+2. Qual o mecanismo exato de persistência (armazenamento local do navegador vs. backend com identificador implícito)? Decisão de arquitetura — ver §5. *(Resolvida: `localStorage`.)*
+3. ~~Dentro do mesmo nível de Prioridade, qual a ordem relativa das Tarefas?~~ **Moot desde 2026-09-18** — Prioridade não é mais critério de ordenação (FR-6); a pergunta equivalente agora é o desempate entre Tarefas com o mesmo Horário (ou ambas sem Horário), respondida em FR-6 como "ordem de criação".
 4. Há um limite máximo de Tarefas por dia? Assumido que não há limite artificial no MVP (ver Assumptions Index).
-5. Qual o risco real de perda de dados do mecanismo de persistência escolhido, e é necessária alguma mitigação (aviso à usuária, exportação/backup manual)? Decisão de arquitetura — ver §5.
+5. Qual o risco real de perda de dados do mecanismo de persistência escolhido, e é necessária alguma mitigação (aviso à usuária, exportação/backup manual)? Decisão de arquitetura — ver §5. **Nova dimensão desde 2026-09-18:** a migração de schema (dia-da-semana → data real) é uma nova superfície de risco de perda de dados — tratamento explícito exigido na arquitetura, não apenas o aviso estático já existente (AD-3).
+6. O timer periódico que recalcula a janela/dispara o rollover (FR-5, FR-9) roda com que granularidade e por qual mecanismo exato? Decisão de arquitetura — ver `ARCHITECTURE-SPINE.md`.
 
 ## 10. Assumptions Index
 
-- Inline assumption de §3 — a Semana é exibida de segunda a domingo (7 dias).
+- ~~Inline assumption de §3 — a Semana é exibida de segunda a domingo (7 dias).~~ **Revogada em 2026-09-18** — a Semana/Janela agora é sempre hoje + 6 dias seguintes, nunca uma semana de calendário fixa.
 - Inline assumption de §4.1 (FR-2) — alterar Estado é uma ação rápida e distinta da edição completa de campos, não exige abrir o formulário de edição.
 - Inline assumption de §4.1 (FR-1) — sem limite artificial de Tarefas por dia no MVP (relacionado à Questão em Aberto 4).
+- Inline assumption de §4.3 (FR-6), 2026-09-18 — Tarefas sem Horário aparecem antes das Tarefas com Horário dentro da mesma Data (tratadas como compromissos "flexíveis"/dia inteiro).
+- Inline assumption de §4.3 (FR-9), 2026-09-18 — rollover move a Tarefa direto para Hoje, nunca incrementalmente dia a dia, já que dias passados nunca fazem parte da janela visível.

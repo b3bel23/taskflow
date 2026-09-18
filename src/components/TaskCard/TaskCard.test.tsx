@@ -8,7 +8,8 @@ function makeTask(overrides: Partial<Task> = {}): Task {
   return {
     id: 't1',
     title: 'Escrever spec',
-    day: 'mon',
+    date: '2026-09-21',
+    time: null,
     state: 'pending',
     priority: null,
     order: 0,

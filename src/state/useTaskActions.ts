@@ -3,7 +3,7 @@ import { saveTasks } from '../storage/tasksStorage';
 import { closeOrderGap, getNextOrderInGroup, reorderGroupByIndex, reorderWithinGroup } from './selectors';
 import { useTaskContext } from './TaskContext';
 import { unregisterDragHandle } from '../components/WeekView/dragHandleRegistry';
-import type { DayOfWeek, Priority, Task, TaskState } from '../types';
+import type { Priority, Task, TaskState } from '../types';
 
 export type TaskActionResult = { ok: true; task: Task } | { ok: false; error: { message: string } };
 
@@ -14,14 +14,14 @@ export type DeleteTaskResult = { ok: true } | { ok: false; error: { message: str
 
 export interface CreateTaskInput {
   title: string;
-  day: DayOfWeek;
+  date: string;
   priority: Priority | null;
 }
 
 export interface UpdateTaskInput {
   id: string;
   title: string;
-  day: DayOfWeek;
+  date: string;
   priority: Priority | null;
   state: TaskState;
 }
@@ -54,14 +54,17 @@ export function useTaskActions(): TaskActions {
   const { state, dispatch } = useTaskContext();
 
   const createTask = useCallback(
-    ({ title, day, priority }: CreateTaskInput): TaskActionResult => {
+    ({ title, date, priority }: CreateTaskInput): TaskActionResult => {
       const task: Task = {
         id: crypto.randomUUID(),
         title,
-        day,
+        date,
+        // Sempre `null` nesta história (Story 5.1) — sem UI/lógica de
+        // horário ainda, isso é Epic 6.
+        time: null,
         state: 'pending',
         priority,
-        order: getNextOrderInGroup(state.tasks, day, priority),
+        order: getNextOrderInGroup(state.tasks, date, priority),
       };
 
       const result = saveTasks([...state.tasks, task]);
@@ -85,14 +88,14 @@ export function useTaskActions(): TaskActions {
   // `{ ok: false, error }` — nunca lança. Única chamadora do reducer para
   // `update`, igual a `createTask` para `create`.
   const updateTask = useCallback(
-    ({ id, title, day, priority, state: nextState }: UpdateTaskInput): TaskActionResult => {
+    ({ id, title, date, priority, state: nextState }: UpdateTaskInput): TaskActionResult => {
       const exists = state.tasks.some((t) => t.id === id);
       if (!exists) {
         return { ok: false, error: { message: 'Tarefa não encontrada.' } };
       }
 
       const withEdits = state.tasks.map((t) => (t.id === id ? { ...t, title, state: nextState } : t));
-      const reordered = reorderWithinGroup(withEdits, id, day, priority);
+      const reordered = reorderWithinGroup(withEdits, id, date, priority);
 
       const result = saveTasks(reordered);
       if (!result.ok) {
@@ -123,7 +126,7 @@ export function useTaskActions(): TaskActions {
       }
 
       const withoutTask = state.tasks.filter((t) => t.id !== id);
-      const reordered = closeOrderGap(withoutTask, target.day, target.priority);
+      const reordered = closeOrderGap(withoutTask, target.date, target.priority);
 
       const result = saveTasks(reordered);
       if (!result.ok) {
@@ -189,7 +192,7 @@ export function useTaskActions(): TaskActions {
         return { ok: false, error: { message: 'Tarefa não encontrada.' } };
       }
 
-      const reordered = reorderGroupByIndex(state.tasks, id, target.day, target.priority, toIndex);
+      const reordered = reorderGroupByIndex(state.tasks, id, target.date, target.priority, toIndex);
 
       const result = saveTasks(reordered);
       if (!result.ok) {

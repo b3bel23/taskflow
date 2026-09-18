@@ -1,34 +1,37 @@
 import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import type { TaskActionResult } from '../../state/useTaskActions';
-import type { DayOfWeek, Priority, Task } from '../../types';
+import type { Priority, Task } from '../../types';
 
-// Chave estável de grupo `@dnd-kit` para o par `(day, priority)` — usada
+// Chave estável de grupo `@dnd-kit` para o par `(date, priority)` — usada
 // tanto pelo `index`/`group` de `useSortable` (DayColumn) quanto por
 // `resolveWeekDragChange` abaixo para decidir se um `DragEndEvent` cruzou de
 // grupo. Ausência de prioridade usa a chave literal `'none'` (nunca string
 // vazia, mesma convenção de `priority: null` no resto do app).
+//
+// Story 5.1: `date` (ISO real) substitui `day` (`DayOfWeek`) — mesma
+// semântica de agrupamento, só muda o tipo do identificador.
 const NONE_PRIORITY_KEY = 'none';
 
-export function groupKey(day: DayOfWeek, priority: Priority | null): string {
-  return `${day}::${priority ?? NONE_PRIORITY_KEY}`;
+export function groupKey(date: string, priority: Priority | null): string {
+  return `${date}::${priority ?? NONE_PRIORITY_KEY}`;
 }
 
-export function parseGroupKey(key: string): { day: DayOfWeek; priority: Priority | null } {
+export function parseGroupKey(key: string): { date: string; priority: Priority | null } {
   const separatorIndex = key.indexOf('::');
-  const day = key.slice(0, separatorIndex) as DayOfWeek;
+  const date = key.slice(0, separatorIndex);
   const priorityPart = key.slice(separatorIndex + 2);
-  return { day, priority: priorityPart === NONE_PRIORITY_KEY ? null : (priorityPart as Priority) };
+  return { date, priority: priorityPart === NONE_PRIORITY_KEY ? null : (priorityPart as Priority) };
 }
 
 export type WeekDragChange =
   | { kind: 'reorder'; id: string; toIndex: number }
-  | { kind: 'move'; id: string; day: DayOfWeek; priority: Priority | null };
+  | { kind: 'move'; id: string; date: string; priority: Priority | null };
 
 // Formato mínimo lido de `event.active`/`event.over` — o real, em produção,
 // vem do `useSortable`/`useDroppable` (`@dnd-kit/core`+`@dnd-kit/sortable`,
 // migração Epic 4 retro item 11), cujo `data.current.group` é o `groupKey`
-// (`(day,priority)`) passado a cada `useSortable`/`useDroppable` no momento
+// (`(date,priority)`) passado a cada `useSortable`/`useDroppable` no momento
 // do render — NUNCA atualizado ao vivo durante o gesto (decisão consciente:
 // cruzar de grupo só é decidido no soltar, não mostrado como "salto" visual
 // antecipado durante o arraste — ver investigação do item 11: a versão
@@ -50,14 +53,14 @@ interface DragEndPointLike {
 
 // Story 4.2 (Epic 4): único `<DndContext>` para a semana inteira
 // (`WeekView`) — cada `TaskCard` arrastável carrega um `group` (`groupKey`
-// acima, `(day,priority)`) via `data` do `useSortable`/`useDroppable`.
+// acima, `(date,priority)`) via `data` do `useSortable`/`useDroppable`.
 // `active.data.current.group` (grupo de onde a tarefa saiu) e
 // `over.data.current.group` (grupo em que foi solta) são o par que decide
-// tudo aqui: iguais -> mesmo grupo, nunca mudou de Prioridade/Dia (delega à
+// tudo aqui: iguais -> mesmo grupo, nunca mudou de Prioridade/Data (delega à
 // MESMA lógica pura da Story 4.1, escopada só às tarefas desse grupo, agora
 // via `arrayMove` de `@dnd-kit/sortable` em vez de `@dnd-kit/helpers.move`);
 // diferentes -> cruzou grupo, a chamadora (`WeekView`) trata como
-// `updateTask` (Dia e/ou Prioridade, sempre numa única chamada, nunca duas).
+// `updateTask` (Data e/ou Prioridade, sempre numa única chamada, nunca duas).
 export function resolveWeekDragChange(tasks: Task[], event: DragEndEvent): WeekDragChange | null {
   const active = event.active as DragEndPointLike | null;
   if (!active) {
@@ -84,8 +87,8 @@ export function resolveWeekDragChange(tasks: Task[], event: DragEndEvent): WeekD
   }
 
   if (targetGroup !== sourceGroup) {
-    const { day, priority } = parseGroupKey(targetGroup);
-    return { kind: 'move', id: sourceId, day, priority };
+    const { date, priority } = parseGroupKey(targetGroup);
+    return { kind: 'move', id: sourceId, date, priority };
   }
 
   // Mesmo grupo: MESMA computação pura da Story 4.1 (`resolveDragReorder`),
@@ -95,9 +98,9 @@ export function resolveWeekDragChange(tasks: Task[], event: DragEndEvent): WeekD
   // comentário de `WeekView.tsx`). `arrayMove` (`@dnd-kit/sortable`) é pura,
   // só move um item de um índice pro outro num array — a decisão de QUAIS
   // índices já foi tomada acima, lendo `active`/`over`.
-  const { day, priority } = parseGroupKey(sourceGroup);
+  const { date, priority } = parseGroupKey(sourceGroup);
   const ids = tasks
-    .filter((t) => t.day === day && t.priority === priority)
+    .filter((t) => t.date === date && t.priority === priority)
     .sort((a, b) => a.order - b.order)
     .map((t) => t.id);
 
@@ -122,7 +125,7 @@ export interface WeekDragActions {
   updateTask: (input: {
     id: string;
     title: string;
-    day: DayOfWeek;
+    date: string;
     priority: Priority | null;
     state: Task['state'];
   }) => TaskActionResult;
@@ -156,9 +159,9 @@ export function applyWeekDragChange(
     return null;
   }
 
-  // Cruzamento de grupo (Dia e/ou Prioridade mudaram): SEMPRE uma única
+  // Cruzamento de grupo (Data e/ou Prioridade mudaram): SEMPRE uma única
   // chamada a `updateTask` — nunca dois passos, mesmo quando os dois mudam
-  // juntos. Título/Estado atuais preservados (mudar Dia/Prioridade por
+  // juntos. Título/Estado atuais preservados (mudar Data/Prioridade por
   // arraste nunca muda o Estado); `updateTask`+`reorderWithinGroup` (AD-7) já
   // reindexam os dois grupos afetados e colocam a tarefa no fim do grupo
   // novo — nenhuma posição exata via arraste (exclusivo do mesmo grupo,
@@ -166,7 +169,7 @@ export function applyWeekDragChange(
   return actions.updateTask({
     id: task.id,
     title: task.title,
-    day: change.day,
+    date: change.date,
     priority: change.priority,
     state: task.state,
   });

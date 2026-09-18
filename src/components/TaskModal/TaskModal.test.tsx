@@ -1,14 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { formatDayHeading } from '../../constants/week';
 import { TaskProvider } from '../../state/TaskContext';
 import { TASKS_STORAGE_KEY } from '../../storage/tasksStorage';
 import type { Task } from '../../types';
 import { TaskModal } from './TaskModal';
 
+// Story 5.1: a janela de dias exibida pelo Modal (`getWeekWindow()`, campo
+// Dia em modo edição) é `hoje..hoje+6` — fixa o "hoje" em todos os testes
+// deste arquivo para a janela ser determinística. Janela resultante:
+// '2026-09-18'(sex, hoje) .. '2026-09-19'(sáb) .. '2026-09-20'(dom) ..
+// '2026-09-21'(seg) .. '2026-09-22'(ter) .. '2026-09-23'(qua) ..
+// '2026-09-24'(qui).
+const MODAL_DATE = '2026-09-23'; // quarta-feira, mesma coluna usada pelos testes antigos ('wed')
+
 function renderModal(onClose = vi.fn()) {
   render(
     <TaskProvider>
-      <TaskModal day="wed" onClose={onClose} />
+      <TaskModal date={MODAL_DATE} onClose={onClose} />
     </TaskProvider>,
   );
   return onClose;
@@ -18,7 +27,8 @@ function makeTask(overrides: Partial<Task> = {}): Task {
   return {
     id: 't1',
     title: 'Revisar PR',
-    day: 'wed',
+    date: MODAL_DATE,
+    time: null,
     state: 'pending',
     priority: null,
     order: 0,
@@ -31,10 +41,10 @@ function makeTask(overrides: Partial<Task> = {}): Task {
 // renderização, então isto garante que `updateTask` encontre a tarefa em
 // `state.tasks` (mesmo caminho real: editar uma tarefa já persistida).
 function renderEditModal(task: Task, onClose = vi.fn()) {
-  window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify({ schemaVersion: 1, tasks: [task] }));
+  window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify({ schemaVersion: 2, tasks: [task] }));
   render(
     <TaskProvider>
-      <TaskModal day={task.day} task={task} onClose={onClose} />
+      <TaskModal date={task.date} task={task} onClose={onClose} />
     </TaskProvider>,
   );
   return onClose;
@@ -45,10 +55,10 @@ function renderEditModal(task: Task, onClose = vi.fn()) {
 // tarefa (retrospectiva Epic 2, achado 3), mas o modal (que recebeu `task`
 // via prop antes disso acontecer) ainda a exibe normalmente.
 function renderEditModalForMissingTask(task: Task, onClose = vi.fn()) {
-  window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify({ schemaVersion: 1, tasks: [] }));
+  window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify({ schemaVersion: 2, tasks: [] }));
   render(
     <TaskProvider>
-      <TaskModal day={task.day} task={task} onClose={onClose} />
+      <TaskModal date={task.date} task={task} onClose={onClose} />
     </TaskProvider>,
   );
   return onClose;
@@ -61,10 +71,13 @@ function getSavedTasks(): Task[] {
 describe('TaskModal', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-18T12:00:00')); // sexta-feira
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('abre com Nome vazio e em foco, Dia fixo (coluna de origem), nenhuma Prioridade pré-selecionada', () => {
@@ -73,7 +86,7 @@ describe('TaskModal', () => {
     const nameInput = screen.getByLabelText('Nome') as HTMLInputElement;
     expect(document.activeElement).toBe(nameInput);
     expect(nameInput.value).toBe('');
-    expect(screen.getByText('Quarta-feira')).toBeTruthy();
+    expect(screen.getByText(formatDayHeading(MODAL_DATE))).toBeTruthy();
     expect((screen.getByLabelText('Prioridade') as HTMLSelectElement).value).toBe('');
   });
 
@@ -112,7 +125,7 @@ describe('TaskModal', () => {
     expect(saved.tasks).toHaveLength(1);
     expect(saved.tasks[0]).toMatchObject({
       title: 'Revisar PR',
-      day: 'wed',
+      date: MODAL_DATE,
       state: 'pending',
       priority: 'high',
       order: 0,
@@ -130,7 +143,7 @@ describe('TaskModal', () => {
     expect(saved.tasks).toHaveLength(1);
     expect(saved.tasks[0]).toMatchObject({
       title: 'Revisar PR',
-      day: 'wed',
+      date: MODAL_DATE,
       state: 'pending',
       priority: null,
       order: 0,
@@ -224,28 +237,40 @@ describe('TaskModal', () => {
 describe('TaskModal — modo edição (Story 2.2)', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-18T12:00:00')); // sexta-feira
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('abre pré-preenchido com Nome/Dia/Prioridade/Estado atuais, título "Editar tarefa"', () => {
-    const task = makeTask({ title: 'Revisar PR', day: 'wed', priority: 'high', state: 'in_progress' });
+    const task = makeTask({ title: 'Revisar PR', date: MODAL_DATE, priority: 'high', state: 'in_progress' });
     renderEditModal(task);
 
     expect(screen.getByText('Editar tarefa')).toBeTruthy();
     expect((screen.getByLabelText('Nome') as HTMLInputElement).value).toBe('Revisar PR');
-    expect((screen.getByLabelText('Dia') as HTMLSelectElement).value).toBe('wed');
+    expect((screen.getByLabelText('Dia') as HTMLSelectElement).value).toBe(MODAL_DATE);
     expect((screen.getByLabelText('Prioridade') as HTMLSelectElement).value).toBe('high');
     expect((screen.getByLabelText('Estado') as HTMLSelectElement).value).toBe('in_progress');
   });
 
-  it('campo Dia tem as 7 opções da semana; campo Estado tem as 3 opções', () => {
+  it('campo Dia tem as 7 opções da janela atual (hoje..hoje+6); campo Estado tem as 3 opções', () => {
     renderEditModal(makeTask());
 
     const dayOptions = screen.getByLabelText('Dia') as HTMLSelectElement;
     expect(dayOptions.options.length).toBe(7);
+    expect(Array.from(dayOptions.options).map((o) => o.value)).toEqual([
+      '2026-09-18',
+      '2026-09-19',
+      '2026-09-20',
+      '2026-09-21',
+      '2026-09-22',
+      '2026-09-23',
+      '2026-09-24',
+    ]);
 
     const stateOptions = screen.getByLabelText('Estado') as HTMLSelectElement;
     expect(Array.from(stateOptions.options).map((o) => o.value)).toEqual(['pending', 'in_progress', 'done']);
@@ -258,7 +283,7 @@ describe('TaskModal — modo edição (Story 2.2)', () => {
   });
 
   it('edição feliz (só Nome): Nome atualizado, resto inalterado, modal fecha', () => {
-    const task = makeTask({ title: 'Original', day: 'wed', priority: 'medium', state: 'pending' });
+    const task = makeTask({ title: 'Original', date: MODAL_DATE, priority: 'medium', state: 'pending' });
     const onClose = renderEditModal(task);
 
     fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Renomeada' } });
@@ -266,19 +291,19 @@ describe('TaskModal — modo edição (Story 2.2)', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
     const [saved] = getSavedTasks();
-    expect(saved).toMatchObject({ id: task.id, title: 'Renomeada', day: 'wed', priority: 'medium', state: 'pending' });
+    expect(saved).toMatchObject({ id: task.id, title: 'Renomeada', date: MODAL_DATE, priority: 'medium', state: 'pending' });
   });
 
   it('muda o Dia e confirma: tarefa sai da coluna antiga e entra na nova; Estado não muda', () => {
-    const task = makeTask({ day: 'mon', priority: null, state: 'done' });
+    const task = makeTask({ date: '2026-09-21', priority: null, state: 'done' }); // segunda
     const onClose = renderEditModal(task);
 
-    fireEvent.change(screen.getByLabelText('Dia'), { target: { value: 'fri' } });
+    fireEvent.change(screen.getByLabelText('Dia'), { target: { value: '2026-09-18' } }); // sexta (hoje)
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
 
     expect(onClose).toHaveBeenCalledTimes(1);
     const [saved] = getSavedTasks();
-    expect(saved).toMatchObject({ day: 'fri', state: 'done' });
+    expect(saved).toMatchObject({ date: '2026-09-18', state: 'done' });
   });
 
   it('muda a Prioridade e confirma: reposicionada conforme o novo nível', () => {
@@ -306,17 +331,17 @@ describe('TaskModal — modo edição (Story 2.2)', () => {
   });
 
   it('muda Título/Dia/Prioridade sem tocar Estado: Estado permanece o mesmo', () => {
-    const task = makeTask({ day: 'mon', priority: null, state: 'in_progress' });
+    const task = makeTask({ date: '2026-09-21', priority: null, state: 'in_progress' });
     const onClose = renderEditModal(task);
 
     fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Novo nome' } });
-    fireEvent.change(screen.getByLabelText('Dia'), { target: { value: 'tue' } });
+    fireEvent.change(screen.getByLabelText('Dia'), { target: { value: '2026-09-22' } });
     fireEvent.change(screen.getByLabelText('Prioridade'), { target: { value: 'low' } });
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
 
     expect(onClose).toHaveBeenCalledTimes(1);
     const [saved] = getSavedTasks();
-    expect(saved).toMatchObject({ title: 'Novo nome', day: 'tue', priority: 'low', state: 'in_progress' });
+    expect(saved).toMatchObject({ title: 'Novo nome', date: '2026-09-22', priority: 'low', state: 'in_progress' });
   });
 
   it('confirma com Nome vazio: modal aberto, campo sinalizado, nada persistido (tarefa mantém valores antigos)', () => {
@@ -334,7 +359,7 @@ describe('TaskModal — modo edição (Story 2.2)', () => {
   });
 
   it('escrita falha: modal aberto, erro inline, valores preservados, tarefa mantém valores antigos até sucesso', () => {
-    const task = makeTask({ title: 'Original', day: 'wed', priority: 'high', state: 'pending' });
+    const task = makeTask({ title: 'Original', date: MODAL_DATE, priority: 'high', state: 'pending' });
     const onClose = renderEditModal(task);
 
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
@@ -350,7 +375,7 @@ describe('TaskModal — modo edição (Story 2.2)', () => {
 
     vi.restoreAllMocks();
     const [saved] = getSavedTasks();
-    expect(saved).toMatchObject({ title: 'Original', day: 'wed', priority: 'high', state: 'pending' });
+    expect(saved).toMatchObject({ title: 'Original', date: MODAL_DATE, priority: 'high', state: 'pending' });
   });
 
   // Retrospectiva Epic 2 (achado 3): "Tarefa não encontrada." é
@@ -373,10 +398,13 @@ describe('TaskModal — modo edição (Story 2.2)', () => {
 describe('TaskModal — Excluir tarefa com confirmação (Story 2.3)', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-18T12:00:00')); // sexta-feira
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('modo criação: link "Excluir tarefa" não existe', () => {
@@ -543,18 +571,18 @@ describe('TaskModal — Excluir tarefa com confirmação (Story 2.3)', () => {
     expect(getSavedTasks()).toHaveLength(0);
   });
 
-  it('exclui com grupo maior: 3 tarefas no mesmo (day,priority), exclui a do meio, restantes reindexadas sequencialmente (0,1)', () => {
-    const first = makeTask({ id: 'a', title: 'Primeira', day: 'wed', priority: 'high', order: 0 });
-    const middle = makeTask({ id: 'b', title: 'Do meio', day: 'wed', priority: 'high', order: 1 });
-    const last = makeTask({ id: 'c', title: 'Última', day: 'wed', priority: 'high', order: 2 });
+  it('exclui com grupo maior: 3 tarefas no mesmo (date,priority), exclui a do meio, restantes reindexadas sequencialmente (0,1)', () => {
+    const first = makeTask({ id: 'a', title: 'Primeira', date: MODAL_DATE, priority: 'high', order: 0 });
+    const middle = makeTask({ id: 'b', title: 'Do meio', date: MODAL_DATE, priority: 'high', order: 1 });
+    const last = makeTask({ id: 'c', title: 'Última', date: MODAL_DATE, priority: 'high', order: 2 });
     window.localStorage.setItem(
       TASKS_STORAGE_KEY,
-      JSON.stringify({ schemaVersion: 1, tasks: [first, middle, last] }),
+      JSON.stringify({ schemaVersion: 2, tasks: [first, middle, last] }),
     );
     const onClose = vi.fn();
     render(
       <TaskProvider>
-        <TaskModal day="wed" task={middle} onClose={onClose} />
+        <TaskModal date={MODAL_DATE} task={middle} onClose={onClose} />
       </TaskProvider>,
     );
 

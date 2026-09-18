@@ -9,7 +9,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { DAYS_OF_WEEK, getTodayDayOfWeek } from '../../constants/days';
+import { getWeekWindow } from '../../constants/week';
 import { sortTasksInDay } from '../../state/selectors';
 import { useTaskContext } from '../../state/TaskContext';
 import { useTaskActions } from '../../state/useTaskActions';
@@ -54,7 +54,14 @@ import styles from './WeekView.module.css';
 export function WeekView() {
   const { state } = useTaskContext();
   const { reorderTask, updateTask } = useTaskActions();
-  const today = getTodayDayOfWeek();
+  // Story 5.1: janela dinâmica `hoje..hoje+6` (ISO real) substitui
+  // `DAYS_OF_WEEK` estático — calculada uma vez por render/montagem, sem
+  // timer de recálculo automático ainda (Story 5.3, próxima spec). `today` é
+  // sempre `week[0]` (primeiro item da MESMA janela), nunca uma chamada
+  // separada a `getTodayISO()`/`new Date()` — evita duas fontes de "hoje"
+  // divergindo entre si num limite de meia-noite.
+  const week = getWeekWindow();
+  const today = week[0];
 
   // Foco pós-cruzamento de grupo (Boundaries "Foco", Story 4.2): a tarefa
   // movida sai da lista de uma zona/`DayColumn` e entra em outra — o React
@@ -124,8 +131,8 @@ export function WeekView() {
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <main className={styles.grid}>
-        {DAYS_OF_WEEK.map((day) => (
-          <DayColumn key={day} day={day} isToday={day === today} tasks={sortTasksInDay(state.tasks, day)} />
+        {week.map((date) => (
+          <DayColumn key={date} date={date} isToday={date === today} tasks={sortTasksInDay(state.tasks, date)} />
         ))}
       </main>
     </DndContext>

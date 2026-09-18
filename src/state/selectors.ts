@@ -1,4 +1,4 @@
-import type { DayOfWeek, Priority, Task } from '../types';
+import type { Priority, Task } from '../types';
 
 // Ordem de exibição por nível de prioridade (FR-6: Alta->Média->Baixa->sem
 // prioridade). Ausência de prioridade (`null`) sempre ordena por último.
@@ -12,14 +12,18 @@ function priorityRank(priority: Priority | null): number {
   return priority === null ? 3 : PRIORITY_RANK[priority];
 }
 
-// Filtra as tarefas de um único dia e ordena por nível de prioridade
+// Filtra as tarefas de uma única data e ordena por nível de prioridade
 // (Alta->Média->Baixa->sem prioridade); dentro do mesmo grupo
-// `(day, priority)`, ordena por `order` crescente (AD-7). Reordenação manual
+// `(date, priority)`, ordena por `order` crescente (AD-7). Reordenação manual
 // dentro do mesmo nível (`reorderWithinGroup`) é Story 2.2/Epic 4 — esta
 // função só lê o `order` já armazenado, nunca o recalcula.
-export function sortTasksInDay(tasks: Task[], day: DayOfWeek): Task[] {
+//
+// Story 5.1: `date` (ISO real) substitui `day` (`DayOfWeek`) como
+// identificador de coluna — mesma semântica de agrupamento, só muda o tipo
+// do identificador.
+export function sortTasksInDay(tasks: Task[], date: string): Task[] {
   return tasks
-    .filter((task) => task.day === day)
+    .filter((task) => task.date === date)
     .sort((a, b) => {
       const priorityDiff = priorityRank(a.priority) - priorityRank(b.priority);
       if (priorityDiff !== 0) {
@@ -29,21 +33,21 @@ export function sortTasksInDay(tasks: Task[], day: DayOfWeek): Task[] {
     });
 }
 
-// Só contagem: quantas tarefas já existem no grupo `(day, priority)` — a
+// Só contagem: quantas tarefas já existem no grupo `(date, priority)` — a
 // tarefa nova recebe esse valor como `order`, ficando no fim da fila (AD-7).
 // Reindexação completa (`reorderWithinGroup`) só entra na Story 2.2/Epic 4;
 // esta função não reindexa nada existente.
-export function getNextOrderInGroup(tasks: Task[], day: DayOfWeek, priority: Priority | null): number {
-  return tasks.filter((t) => t.day === day && t.priority === priority).length;
+export function getNextOrderInGroup(tasks: Task[], date: string, priority: Priority | null): number {
+  return tasks.filter((t) => t.date === date && t.priority === priority).length;
 }
 
 // Função pura única de reindexação (AD-7): usada tanto pela edição via Modal
 // (Story 2.2) quanto pelo drag (Epic 4) — nenhum caminho reimplementa esta
-// lógica separadamente. `tasks` deve trazer `id` ainda com o `day`/`priority`
+// lógica separadamente. `tasks` deve trazer `id` ainda com o `date`/`priority`
 // *antigos* (título/Estado já podem estar atualizados nele, isso não importa
-// aqui); `day`/`priority` são os valores *novos* desejados.
+// aqui); `date`/`priority` são os valores *novos* desejados.
 //
-// Grupo igual (mesmo `day` e `priority` de antes): no-op, retorna `tasks`
+// Grupo igual (mesmo `date` e `priority` de antes): no-op, retorna `tasks`
 // sem tocar em nada — quem chamou já aplicou título/Estado direto no array
 // recebido. Grupo diferente: fecha o buraco no grupo antigo (reindexa
 // sequencialmente por `order` crescente) e entra no fim do grupo novo (mesmo
@@ -51,32 +55,32 @@ export function getNextOrderInGroup(tasks: Task[], day: DayOfWeek, priority: Pri
 export function reorderWithinGroup(
   tasks: Task[],
   id: string,
-  day: DayOfWeek,
+  date: string,
   priority: Priority | null,
 ): Task[] {
   const target = tasks.find((t) => t.id === id);
-  if (!target || (target.day === day && target.priority === priority)) {
+  if (!target || (target.date === date && target.priority === priority)) {
     return tasks;
   }
 
   const oldOrder = new Map(
     tasks
-      .filter((t) => t.id !== id && t.day === target.day && t.priority === target.priority)
+      .filter((t) => t.id !== id && t.date === target.date && t.priority === target.priority)
       .sort((a, b) => a.order - b.order)
       .map((t, i) => [t.id, i]),
   );
-  const newOrder = tasks.filter((t) => t.id !== id && t.day === day && t.priority === priority).length;
+  const newOrder = tasks.filter((t) => t.id !== id && t.date === date && t.priority === priority).length;
 
   return tasks.map((t) =>
-    t.id === id ? { ...t, day, priority, order: newOrder } : oldOrder.has(t.id) ? { ...t, order: oldOrder.get(t.id)! } : t,
+    t.id === id ? { ...t, date, priority, order: newOrder } : oldOrder.has(t.id) ? { ...t, order: oldOrder.get(t.id)! } : t,
   );
 }
 
 // Função pura de reindexação para arraste dentro do mesmo grupo (Story 4.1,
 // Epic 4): distinta de `reorderWithinGroup` de propósito — aquela existe só
 // para mudança de *grupo* (Dia/Prioridade, Story 2.2/Story 4.2) e é no-op se
-// o grupo não muda; esta função nunca muda `day`/`priority`, só a posição
-// relativa dentro do grupo `(day, priority)` que já é o de `id`. `toIndex` é
+// o grupo não muda; esta função nunca muda `date`/`priority`, só a posição
+// relativa dentro do grupo `(date, priority)` que já é o de `id`. `toIndex` é
 // a posição final desejada dentro do grupo (já reindexado 0..n-1); grupo com
 // 1 tarefa ou `toIndex` igual à posição atual ainda passam por aqui (quem
 // chama, `WeekView` via `dragChange.resolveWeekDragChange`, só invoca isto
@@ -87,11 +91,11 @@ export function reorderWithinGroup(
 export function reorderGroupByIndex(
   tasks: Task[],
   id: string,
-  day: DayOfWeek,
+  date: string,
   priority: Priority | null,
   toIndex: number,
 ): Task[] {
-  const group = tasks.filter((t) => t.day === day && t.priority === priority).sort((a, b) => a.order - b.order);
+  const group = tasks.filter((t) => t.date === date && t.priority === priority).sort((a, b) => a.order - b.order);
   const withoutTarget = group.filter((t) => t.id !== id);
   const target = group.find((t) => t.id === id);
   if (!target) return tasks;
@@ -106,10 +110,10 @@ export function reorderGroupByIndex(
 // poderia colidir com uma tarefa nova. `tasks` já chega SEM a tarefa
 // removida (a remoção acontece antes, em `useTaskActions.deleteTask`); esta
 // função só reindexa sequencialmente (0..n-1, por `order` crescente) as
-// tarefas remanescentes do grupo `(day, priority)` da tarefa removida —
+// tarefas remanescentes do grupo `(date, priority)` da tarefa removida —
 // nenhuma outra tarefa fora do grupo é tocada.
-export function closeOrderGap(tasks: Task[], day: DayOfWeek, priority: Priority | null): Task[] {
-  const group = tasks.filter((t) => t.day === day && t.priority === priority).sort((a, b) => a.order - b.order);
+export function closeOrderGap(tasks: Task[], date: string, priority: Priority | null): Task[] {
+  const group = tasks.filter((t) => t.date === date && t.priority === priority).sort((a, b) => a.order - b.order);
   const newOrder = new Map(group.map((t, i) => [t.id, i]));
   return tasks.map((t) => (newOrder.has(t.id) ? { ...t, order: newOrder.get(t.id)! } : t));
 }

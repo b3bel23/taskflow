@@ -2,15 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { DayColumn } from './DayColumn';
 import styles from './DayColumn.module.css';
+import { formatDayHeading } from '../../constants/week';
 import { TaskProvider } from '../../state/TaskContext';
 import { TASKS_STORAGE_KEY } from '../../storage/tasksStorage';
-import type { DayOfWeek, Task } from '../../types';
+import type { Task } from '../../types';
 
 function makeTask(overrides: Partial<Task> = {}): Task {
   return {
     id: overrides.id ?? 't1',
     title: overrides.title ?? 'Tarefa',
-    day: overrides.day ?? 'mon',
+    date: overrides.date ?? '2026-09-21',
+    time: overrides.time ?? null,
     state: overrides.state ?? 'pending',
     priority: overrides.priority ?? null,
     order: overrides.order ?? 0,
@@ -27,10 +29,10 @@ describe('DayColumn', () => {
   // precisa de `TaskProvider` na árvore mesmo nos testes que não mexem com
   // Estado/persistência. Compartilhado por todos os `describe` abaixo
   // (revisão da Story 3.1: um único helper em vez de duplicado por escopo).
-  function renderInProvider(day: DayOfWeek = 'mon', isToday = false, tasks: Task[] = []) {
+  function renderInProvider(date = '2026-09-21', isToday = false, tasks: Task[] = []) {
     return render(
       <TaskProvider>
-        <DayColumn day={day} isToday={isToday} tasks={tasks} />
+        <DayColumn date={date} isToday={isToday} tasks={tasks} />
       </TaskProvider>,
     );
   }
@@ -40,10 +42,10 @@ describe('DayColumn', () => {
   // ciclo de Estado (Story 3.1), ambos precisando da mesma tarefa já
   // existente em `TaskContext`.
   function renderWithTask(task: Task) {
-    window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify({ schemaVersion: 1, tasks: [task] }));
+    window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify({ schemaVersion: 2, tasks: [task] }));
     return render(
       <TaskProvider>
-        <DayColumn day={task.day} isToday={false} tasks={[task]} />
+        <DayColumn date={task.date} isToday={false} tasks={[task]} />
       </TaskProvider>,
     );
   }
@@ -56,14 +58,14 @@ describe('DayColumn', () => {
   });
 
   it('renderiza um TaskCard por tarefa recebida, em vez de "Nenhuma tarefa"', () => {
-    renderInProvider('mon', false, [makeTask({ title: 'Escrever spec' })]);
+    renderInProvider('2026-09-21', false, [makeTask({ title: 'Escrever spec' })]);
 
     expect(screen.getByText('Escrever spec')).toBeTruthy();
     expect(screen.queryByText('Nenhuma tarefa')).toBeNull();
   });
 
   it('recebe o destaque de hoje quando isToday é true', () => {
-    const { container } = renderInProvider('wed', true);
+    const { container } = renderInProvider('2026-09-23', true);
     const column = container.firstElementChild;
 
     expect(column?.getAttribute('data-today')).toBe('true');
@@ -73,17 +75,17 @@ describe('DayColumn', () => {
   });
 
   it('não recebe o destaque de hoje quando isToday é false', () => {
-    const { container } = renderInProvider('wed', false);
+    const { container } = renderInProvider('2026-09-23', false);
     const column = container.firstElementChild;
 
     expect(column?.getAttribute('data-today')).toBe('false');
     expect(column?.classList.contains(styles.today)).toBe(false);
   });
 
-  it('identifica a coluna pelo nome do dia', () => {
-    renderInProvider('sun');
+  it('identifica a coluna pelo nome do dia + data real (ex. "Domingo, 20/09")', () => {
+    renderInProvider('2026-09-20');
 
-    expect(screen.getByLabelText('Domingo')).toBeTruthy();
+    expect(screen.getByLabelText(formatDayHeading('2026-09-20'))).toBeTruthy();
   });
 
   describe('Modal de Tarefa', () => {
@@ -280,7 +282,7 @@ describe('DayColumn', () => {
 
   // Story 4.2 (Epic 4): as 4 zonas de Prioridade por Dia existem sempre,
   // mesmo vazias — é isso que torna qualquer faixa de qualquer dia um alvo
-  // de arraste válido (cruzar grupo, Prioridade e/ou Dia; a decisão pura
+  // de arraste válido (cruzar grupo, Prioridade e/ou Data; a decisão pura
   // fica em `dragChange.test.ts`, testada por eventos sintéticos, já que
   // simular um gesto físico de arraste não é viável sob jsdom). Aqui só a
   // estrutura renderizada: as 4 zonas continuam presentes independente de
@@ -300,7 +302,7 @@ describe('DayColumn', () => {
 
     it('zona sem tarefa continua presente no DOM (alvo de arraste válido), sem nenhum Card dentro', () => {
       const highTask = makeTask({ id: 'a', priority: 'high' });
-      const { container } = renderInProvider('mon', false, [highTask]);
+      const { container } = renderInProvider('2026-09-21', false, [highTask]);
 
       const mediumZone = container.querySelector('[data-priority-zone="medium"]');
       expect(mediumZone).toBeTruthy();
@@ -316,7 +318,7 @@ describe('DayColumn', () => {
       const highTask = makeTask({ id: 'a', title: 'Tarefa Alta', priority: 'high' });
       const lowTask = makeTask({ id: 'b', title: 'Tarefa Baixa', priority: 'low' });
       const noneTask = makeTask({ id: 'c', title: 'Tarefa Sem Prioridade', priority: null });
-      const { container } = renderInProvider('mon', false, [highTask, lowTask, noneTask]);
+      const { container } = renderInProvider('2026-09-21', false, [highTask, lowTask, noneTask]);
 
       const zone = (priority: string) => container.querySelector(`[data-priority-zone="${priority}"]`) as HTMLElement;
 
@@ -334,7 +336,7 @@ describe('DayColumn', () => {
       // próprio Card (também mostra "Alta") — a checagem precisa ser
       // especificamente sobre o rótulo da zona (`.zoneLabel`), não sobre
       // qualquer texto "Alta" na árvore.
-      const { container } = renderInProvider('mon', false, [makeTask({ priority: 'high' })]);
+      const { container } = renderInProvider('2026-09-21', false, [makeTask({ priority: 'high' })]);
 
       // Sem nenhum arraste em andamento, `useDragOperation().source` é nulo
       // (`DragDropManager` compartilhado por padrão fora de um

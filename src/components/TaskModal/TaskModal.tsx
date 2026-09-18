@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react';
-import { DAY_LABELS, DAYS_OF_WEEK } from '../../constants/days';
+import { formatDayHeading, getWeekWindow } from '../../constants/week';
 import { useTaskActions } from '../../state/useTaskActions';
-import type { DayOfWeek, Priority, Task, TaskState } from '../../types';
+import type { Priority, Task, TaskState } from '../../types';
 import styles from './TaskModal.module.css';
 
 export interface TaskModalProps {
-  day: DayOfWeek;
+  date: string;
   task?: Task;
   onClose: () => void;
 }
@@ -48,18 +48,26 @@ function getFocusable(container: HTMLElement): HTMLElement[] {
 // edição (mesmo efeito de "Cancelar"), pela mesma razão de consistência.
 // `onClose` (chamado pelo `DayColumn`) é quem devolve o foco ao controle que
 // abriu o modal.
-export function TaskModal({ day, task, onClose }: TaskModalProps) {
+export function TaskModal({ date, task, onClose }: TaskModalProps) {
   const { createTask, updateTask, deleteTask } = useTaskActions();
   const isEditMode = task !== undefined;
 
   const [title, setTitle] = useState(task?.title ?? '');
-  const [selectedDay, setSelectedDay] = useState<DayOfWeek>(task?.day ?? day);
+  const [selectedDate, setSelectedDate] = useState<string>(task?.date ?? date);
   const [priority, setPriority] = useState<PrioritySelectValue>(task?.priority ?? '');
   const [state, setState] = useState<TaskState>(task?.state ?? 'pending');
   const [titleError, setTitleError] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Story 5.1: as 7 opções do `<select>` de Dia (modo edição) são as 7 datas
+  // da janela atual — sem timer de recálculo (Story 5.3). Inicializador
+  // preguiçoso do `useState` (nunca chamada direta no corpo do componente):
+  // calcula a janela uma única vez, na montagem, em vez de recalcular (7
+  // construções de `Date`) a cada re-render — inclusive a cada tecla digitada
+  // no campo Nome.
+  const [weekWindow] = useState(() => getWeekWindow());
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -176,8 +184,8 @@ export function TaskModal({ day, task, onClose }: TaskModalProps) {
 
       const result =
         isEditMode && task
-          ? updateTask({ id: task.id, title: trimmedTitle, day: selectedDay, priority: resolvedPriority, state })
-          : createTask({ title: trimmedTitle, day, priority: resolvedPriority });
+          ? updateTask({ id: task.id, title: trimmedTitle, date: selectedDate, priority: resolvedPriority, state })
+          : createTask({ title: trimmedTitle, date, priority: resolvedPriority });
 
       // Escrita falha: modal aberto, erro inline, campos preservados (o
       // estado local não é limpo), nunca retry automático — só um novo
@@ -202,7 +210,7 @@ export function TaskModal({ day, task, onClose }: TaskModalProps) {
 
       onClose();
     },
-    [title, priority, day, selectedDay, state, isEditMode, task, createTask, updateTask, onClose],
+    [title, priority, date, selectedDate, state, isEditMode, task, createTask, updateTask, onClose],
   );
 
   // "Cancelar" na Confirmação (e Esc, tratado no handler de teclado acima):
@@ -338,12 +346,12 @@ export function TaskModal({ day, task, onClose }: TaskModalProps) {
                   <select
                     id={dayId}
                     className={styles.select}
-                    value={selectedDay}
-                    onChange={(event) => setSelectedDay(event.target.value as DayOfWeek)}
+                    value={selectedDate}
+                    onChange={(event) => setSelectedDate(event.target.value)}
                   >
-                    {DAYS_OF_WEEK.map((d) => (
+                    {weekWindow.map((d) => (
                       <option key={d} value={d}>
-                        {DAY_LABELS[d]}
+                        {formatDayHeading(d)}
                       </option>
                     ))}
                   </select>
@@ -351,7 +359,7 @@ export function TaskModal({ day, task, onClose }: TaskModalProps) {
               ) : (
                 <p className={styles.fixedField}>
                   <span className={styles.label}>Dia</span>
-                  <span>{DAY_LABELS[day]}</span>
+                  <span>{formatDayHeading(date)}</span>
                 </p>
               )}
 

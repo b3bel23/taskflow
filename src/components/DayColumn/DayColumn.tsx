@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react
 import { useDndContext, useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { DayOfWeek, Priority, Task } from '../../types';
-import { DAY_LABELS } from '../../constants/days';
+import type { Priority, Task } from '../../types';
+import { formatDayHeading } from '../../constants/week';
 import { useTaskActions } from '../../state/useTaskActions';
 import { groupKey } from '../WeekView/dragChange';
 import { registerDragHandle } from '../WeekView/dragHandleRegistry';
@@ -12,7 +12,7 @@ import { TaskModal } from '../TaskModal/TaskModal';
 import styles from './DayColumn.module.css';
 
 export interface DayColumnProps {
-  day: DayOfWeek;
+  date: string;
   isToday: boolean;
   tasks: Task[];
 }
@@ -57,7 +57,7 @@ interface SortableTaskItemProps {
 // `setActivatorNodeRef`+`attributes`+`listeners` vão só na alça dedicada
 // dentro do `TaskCard` (via `dragHandleProps`) — é isso que faz o sensor de
 // ponteiro/teclado ligar só nela, nunca no Card/StateIndicator (ver
-// comentário do `TaskCard`). Story 4.2: `group` (chave `(day,priority)` de
+// comentário do `TaskCard`). Story 4.2: `group` (chave `(date,priority)` de
 // `dragChange.groupKey`) vai no `data` do `useSortable` — é o que permite
 // `resolveWeekDragChange` (WeekView) distinguir reordenar (mesmo grupo,
 // Story 4.1) de cruzar grupo (Dia e/ou Prioridade mudaram), lido de
@@ -111,7 +111,7 @@ interface EmptyZoneDropTargetProps {
 // Prioridade vazia", Story 4.2): mesmo vazia, a zona precisa continuar sendo
 // um alvo de arraste válido — sem nenhuma tarefa real para carregar
 // `useSortable`, este placeholder (`useDroppable` puro, `@dnd-kit/core` —
-// nunca arrastável, só soltável) é quem registra o grupo `(day,priority)`
+// nunca arrastável, só soltável) é quem registra o grupo `(date,priority)`
 // como alvo de verdade no `DndContext` único da semana (sem isto,
 // `over.data.current.group` nunca existiria ao soltar sobre uma zona vazia —
 // ver comentário de `dragChange.ts`). `aria-hidden`: nunca aparece para
@@ -126,7 +126,7 @@ function EmptyZoneDropTarget({ group }: EmptyZoneDropTargetProps) {
 }
 
 interface PriorityZoneProps {
-  day: DayOfWeek;
+  date: string;
   priority: Priority | null;
   tasks: Task[];
   isDragActive: boolean;
@@ -142,8 +142,8 @@ interface PriorityZoneProps {
 // componente só lê o estado dele), mais evidente (rótulo visível, área de
 // soltar maior na zona vazia) só durante o arraste — decisão de UX
 // confirmada com Isabel, adição desta story, fora de `DESIGN.md`.
-function PriorityZone({ day, priority, tasks, isDragActive, onOpenEdit, onCycleState }: PriorityZoneProps) {
-  const key = groupKey(day, priority);
+function PriorityZone({ date, priority, tasks, isDragActive, onOpenEdit, onCycleState }: PriorityZoneProps) {
+  const key = groupKey(date, priority);
   const labelKey = zoneLabelKey(priority);
   const zoneClassName = isDragActive ? `${styles.zone} ${styles.zoneActive}` : styles.zone;
   // `SortableContext` (`@dnd-kit/sortable`) só é quem dá a reordenação
@@ -196,9 +196,9 @@ function PriorityZone({ day, priority, tasks, isDragActive, onOpenEdit, onCycleS
 // (retorna `active: null`, mesmo default que os testes deste componente já
 // dependiam) — não cria nenhum estado novo aqui, só decide quando mostrar as
 // zonas "mais evidentes".
-export function DayColumn({ day, isToday, tasks }: DayColumnProps) {
+export function DayColumn({ date, isToday, tasks }: DayColumnProps) {
   const columnClassName = isToday ? `${styles.column} ${styles.today}` : styles.column;
-  const labelId = `day-label-${day}`;
+  const labelId = `day-label-${date}`;
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -259,14 +259,14 @@ export function DayColumn({ day, isToday, tasks }: DayColumnProps) {
       aria-labelledby={labelId}
     >
       <h2 id={labelId} className={styles.dayLabel}>
-        {DAY_LABELS[day]}
+        {formatDayHeading(date)}
       </h2>
       {tasks.length === 0 && <p className={styles.emptyState}>Nenhuma tarefa</p>}
       <div className={styles.taskZones}>
         {PRIORITY_ZONES.map((priority) => (
           <PriorityZone
             key={zoneLabelKey(priority)}
-            day={day}
+            date={date}
             priority={priority}
             tasks={tasks.filter((task) => task.priority === priority)}
             isDragActive={isDragActive}
@@ -283,8 +283,8 @@ export function DayColumn({ day, isToday, tasks }: DayColumnProps) {
       >
         + Adicionar tarefa
       </button>
-      {isAddModalOpen && <TaskModal day={day} onClose={closeAddModal} />}
-      {editingTask && <TaskModal key={editingTask.id} day={day} task={editingTask} onClose={closeEditModal} />}
+      {isAddModalOpen && <TaskModal date={date} onClose={closeAddModal} />}
+      {editingTask && <TaskModal key={editingTask.id} date={date} task={editingTask} onClose={closeEditModal} />}
     </section>
   );
 }

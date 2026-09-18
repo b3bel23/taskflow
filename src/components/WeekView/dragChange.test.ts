@@ -1,13 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { applyWeekDragChange, groupKey, parseGroupKey, resolveWeekDragChange } from './dragChange';
-import type { DayOfWeek, Task } from '../../types';
+import type { Task } from '../../types';
 
 function makeTask(overrides: Partial<Task> = {}): Task {
   return {
     id: overrides.id ?? 't1',
     title: overrides.title ?? 'Tarefa',
-    day: overrides.day ?? 'mon',
+    date: overrides.date ?? '2026-09-21',
+    time: overrides.time ?? null,
     state: overrides.state ?? 'pending',
     priority: overrides.priority ?? null,
     order: overrides.order ?? 0,
@@ -42,17 +43,17 @@ function makeDragEndEvent(overrides: {
 }
 
 describe('groupKey / parseGroupKey', () => {
-  it('codifica e decodifica (day, priority) de ida e volta', () => {
-    const days: DayOfWeek[] = ['mon', 'sun'];
-    for (const day of days) {
+  it('codifica e decodifica (date, priority) de ida e volta', () => {
+    const dates = ['2026-09-21', '2026-09-20'];
+    for (const date of dates) {
       for (const priority of ['high', 'medium', 'low', null] as const) {
-        expect(parseGroupKey(groupKey(day, priority))).toEqual({ day, priority });
+        expect(parseGroupKey(groupKey(date, priority))).toEqual({ date, priority });
       }
     }
   });
 
   it('ausência de prioridade usa a chave "none", distinta dos níveis nomeados', () => {
-    expect(groupKey('tue', null)).toBe('tue::none');
+    expect(groupKey('2026-09-22', null)).toBe('2026-09-22::none');
   });
 });
 
@@ -60,11 +61,11 @@ describe('resolveWeekDragChange', () => {
   // Mesmo grupo (initialGroup === group): delega à MESMA lógica pura da
   // Story 4.1 — resultado 'reorder', nunca 'move'.
   describe('mesmo grupo (Story 4.1, sem regressão)', () => {
-    const groupA = groupKey('mon', 'high');
+    const groupA = groupKey('2026-09-21', 'high');
     const tasks = [
-      makeTask({ id: 'a', day: 'mon', priority: 'high', order: 0 }),
-      makeTask({ id: 'b', day: 'mon', priority: 'high', order: 1 }),
-      makeTask({ id: 'c', day: 'mon', priority: 'high', order: 2 }),
+      makeTask({ id: 'a', date: '2026-09-21', priority: 'high', order: 0 }),
+      makeTask({ id: 'b', date: '2026-09-21', priority: 'high', order: 1 }),
+      makeTask({ id: 'c', date: '2026-09-21', priority: 'high', order: 2 }),
     ];
 
     it('reordena dentro do grupo: solta "b" na posição 2', () => {
@@ -90,7 +91,7 @@ describe('resolveWeekDragChange', () => {
     });
 
     it('grupo com 1 tarefa: soltar sobre si mesma não move nada, retorna null', () => {
-      const single = [makeTask({ id: 'only', day: 'mon', priority: 'high' })];
+      const single = [makeTask({ id: 'only', date: '2026-09-21', priority: 'high' })];
       const event = makeDragEndEvent({
         sourceId: 'only',
         sourceGroup: groupA,
@@ -109,56 +110,56 @@ describe('resolveWeekDragChange', () => {
     it('mudar só a Prioridade (mesmo dia): "move" com o novo priority, dia preservado', () => {
       const event = makeDragEndEvent({
         sourceId: 'a',
-        sourceGroup: groupKey('mon', 'high'),
+        sourceGroup: groupKey('2026-09-21', 'high'),
         targetId: 'placeholder',
-        targetGroup: groupKey('mon', 'low'),
+        targetGroup: groupKey('2026-09-21', 'low'),
       });
 
-      expect(resolveWeekDragChange([], event)).toEqual({ kind: 'move', id: 'a', day: 'mon', priority: 'low' });
+      expect(resolveWeekDragChange([], event)).toEqual({ kind: 'move', id: 'a', date: '2026-09-21', priority: 'low' });
     });
 
-    it('mudar só o Dia (mesma faixa de Prioridade): "move" com o novo day, prioridade preservada', () => {
+    it('mudar só o Dia (mesma faixa de Prioridade): "move" com a nova date, prioridade preservada', () => {
       const event = makeDragEndEvent({
         sourceId: 'a',
-        sourceGroup: groupKey('mon', 'medium'),
+        sourceGroup: groupKey('2026-09-21', 'medium'),
         targetId: 'placeholder',
-        targetGroup: groupKey('fri', 'medium'),
+        targetGroup: groupKey('2026-09-18', 'medium'),
       });
 
-      expect(resolveWeekDragChange([], event)).toEqual({ kind: 'move', id: 'a', day: 'fri', priority: 'medium' });
+      expect(resolveWeekDragChange([], event)).toEqual({ kind: 'move', id: 'a', date: '2026-09-18', priority: 'medium' });
     });
 
     it('mudar Dia E Prioridade juntos: "move" único com os dois novos valores', () => {
       const event = makeDragEndEvent({
         sourceId: 'a',
-        sourceGroup: groupKey('mon', 'high'),
+        sourceGroup: groupKey('2026-09-21', 'high'),
         targetId: 'placeholder',
-        targetGroup: groupKey('wed', 'low'),
+        targetGroup: groupKey('2026-09-23', 'low'),
       });
 
-      expect(resolveWeekDragChange([], event)).toEqual({ kind: 'move', id: 'a', day: 'wed', priority: 'low' });
+      expect(resolveWeekDragChange([], event)).toEqual({ kind: 'move', id: 'a', date: '2026-09-23', priority: 'low' });
     });
 
     it('destino é uma zona de Prioridade sem nenhuma tarefa: "move" funciona igual (a zona sempre existe)', () => {
       const event = makeDragEndEvent({
         sourceId: 'a',
-        sourceGroup: groupKey('mon', null),
+        sourceGroup: groupKey('2026-09-21', null),
         targetId: 'empty:sun::high',
-        targetGroup: groupKey('sun', 'high'),
+        targetGroup: groupKey('2026-09-20', 'high'),
       });
 
-      expect(resolveWeekDragChange([], event)).toEqual({ kind: 'move', id: 'a', day: 'sun', priority: 'high' });
+      expect(resolveWeekDragChange([], event)).toEqual({ kind: 'move', id: 'a', date: '2026-09-20', priority: 'high' });
     });
 
     it('destino sem Prioridade nenhuma ("Sem prioridade"): "move" com priority null', () => {
       const event = makeDragEndEvent({
         sourceId: 'a',
-        sourceGroup: groupKey('mon', 'high'),
+        sourceGroup: groupKey('2026-09-21', 'high'),
         targetId: 'placeholder',
-        targetGroup: groupKey('tue', null),
+        targetGroup: groupKey('2026-09-22', null),
       });
 
-      expect(resolveWeekDragChange([], event)).toEqual({ kind: 'move', id: 'a', day: 'tue', priority: null });
+      expect(resolveWeekDragChange([], event)).toEqual({ kind: 'move', id: 'a', date: '2026-09-22', priority: null });
     });
   });
 
@@ -184,7 +185,7 @@ describe('resolveWeekDragChange', () => {
     it('origem válida sem destino (solta fora de toda a grade): retorna null', () => {
       const event = makeDragEndEvent({
         sourceId: 'a',
-        sourceGroup: groupKey('mon', 'high'),
+        sourceGroup: groupKey('2026-09-21', 'high'),
       });
 
       expect(resolveWeekDragChange([], event)).toBeNull();
@@ -214,7 +215,8 @@ describe('applyWeekDragChange', () => {
     return {
       id: overrides.id ?? 't1',
       title: overrides.title ?? 'Tarefa',
-      day: overrides.day ?? 'mon',
+      date: overrides.date ?? '2026-09-21',
+      time: overrides.time ?? null,
       state: overrides.state ?? 'pending',
       priority: overrides.priority ?? null,
       order: overrides.order ?? 0,
@@ -233,11 +235,11 @@ describe('applyWeekDragChange', () => {
   });
 
   it('cruzamento de grupo (kind: move): uma única chamada a updateTask, título/Estado preservados, nunca reorderTask', () => {
-    const task = makeTask({ id: 'a', title: 'Revisar PR', day: 'mon', priority: 'high', state: 'in_progress' });
+    const task = makeTask({ id: 'a', title: 'Revisar PR', date: '2026-09-21', priority: 'high', state: 'in_progress' });
     const reorderTask = vi.fn();
     const updateTask = vi.fn().mockReturnValue({ ok: true, task });
 
-    const result = applyWeekDragChange({ kind: 'move', id: 'a', day: 'fri', priority: 'low' }, [task], {
+    const result = applyWeekDragChange({ kind: 'move', id: 'a', date: '2026-09-18', priority: 'low' }, [task], {
       reorderTask,
       updateTask,
     });
@@ -246,7 +248,7 @@ describe('applyWeekDragChange', () => {
     expect(updateTask).toHaveBeenCalledWith({
       id: 'a',
       title: 'Revisar PR',
-      day: 'fri',
+      date: '2026-09-18',
       priority: 'low',
       state: 'in_progress',
     });
@@ -258,7 +260,7 @@ describe('applyWeekDragChange', () => {
     const reorderTask = vi.fn();
     const updateTask = vi.fn();
 
-    const result = applyWeekDragChange({ kind: 'move', id: 'inexistente', day: 'fri', priority: null }, [], {
+    const result = applyWeekDragChange({ kind: 'move', id: 'inexistente', date: '2026-09-18', priority: null }, [], {
       reorderTask,
       updateTask,
     });
@@ -273,7 +275,7 @@ describe('applyWeekDragChange', () => {
     const updateTask = vi.fn().mockReturnValue({ ok: false, error: { message: 'quota exceeded' } });
 
     const result = applyWeekDragChange(
-      { kind: 'move', id: 'a', day: 'fri', priority: 'low' },
+      { kind: 'move', id: 'a', date: '2026-09-18', priority: 'low' },
       [task],
       { reorderTask: vi.fn(), updateTask },
     );

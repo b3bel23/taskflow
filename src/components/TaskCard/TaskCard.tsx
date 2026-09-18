@@ -9,7 +9,7 @@ export interface TaskCardProps {
   onClick: (event: MouseEvent<HTMLButtonElement>) => void;
   onCycleState: () => void;
   // Story 4.1 (Epic 4): `DayColumn` é quem monta o contexto `@dnd-kit`
-  // (`useSortable`) escopado ao grupo `(day, priority)` — `TaskCard` só
+  // (`useSortable`) escopado ao grupo `(date, priority)` — `TaskCard` só
   // recebe e planta o `dragHandleRef` na alça (a lib liga o sensor de
   // ponteiro/teclado a este elemento DOM) e o booleano `isDragging` para o
   // visual "levantado". Migração Epic 4 retro item 11 (`@dnd-kit/core`+

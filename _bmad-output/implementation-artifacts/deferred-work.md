@@ -102,3 +102,15 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-mudar-prioridade-ou-dia-arrastando-o-card.md`
   summary: `resolveWeekDragChange` decide "cruzou grupo" comparando `source.group` com `source.initialGroup`, campos mantidos ao vivo pelo `OptimisticSortingPlugin` do `@dnd-kit` durante o arraste — esse comportamento exato (o que `source.group` reflete no instante do drop após um gesto físico real, incluindo casos como soltar rapidamente ou cancelar no meio) não foi verificado manualmente num navegador real, só via eventos sintéticos em teste.
   evidence: Achado do blind-hunter da Story 4.2, mitigado (não eliminado) pelo guard de `target` ausente adicionado na revisão; mesma classe de limitação já aceita para todo o resto da interação de arraste (jsdom não simula gestos físicos) — recomenda-se uma checagem manual quando houver oportunidade de testar num navegador real.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-5-1-migrar-dados-existentes-para-o-modelo-de-data-real.md`
+  summary: No Modal de Tarefa (modo edição), o `<select>` de Dia pode não ter uma `<option>` correspondente à data atual da tarefa, se essa data já saiu da janela dinâmica de 7 dias (visualmente confuso, embora o estado React interno continue correto e o salvamento não corrompa nada).
+  evidence: Achado do blind-hunter review da Story 5.1; consequência direta de ainda não existir rollover automático (Story 5.4) — só é alcançável para uma tarefa não concluída deixada aberta por vários dias sem edição; deve deixar de ser possível assim que a Story 5.4 (rollover) for implementada.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-5-1-migrar-dados-existentes-para-o-modelo-de-data-real.md`
+  summary: O cabeçalho de cada Coluna do Dia ficou mais longo (`"Sexta-feira, 18/09"` em vez de `"Sexta-feira"`) e nenhum `.module.css` foi revisado para confirmar que a coluna de largura fixa ainda acomoda o texto sem quebrar/cortar.
+  evidence: Achado do blind-hunter review da Story 5.1; requer inspeção visual num navegador real, não verificável neste ambiente; `DayColumn.module.css` não estava no Code Map desta história.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-5-1-migrar-dados-existentes-para-o-modelo-de-data-real.md`
+  summary: `parseISODateLocal`/`getWeekdayIndex`/`formatDayHeading` (`src/constants/week.ts`) não validam o formato da string de entrada — uma data malformada produziria `Invalid Date`/`NaN` e um rótulo de dia-da-semana `undefined`, em vez de falhar de forma previsível.
+  evidence: Achado do blind-hunter/edge-case-hunter review da Story 5.1; risco baixo hoje porque todo chamador atual passa strings ISO já bem-formadas (via `toISODate` ou dados validados na carga do storage); vale um guard se um novo chamador for adicionado depois.

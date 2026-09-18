@@ -31,7 +31,7 @@ describe('useTaskActions', () => {
 
     let actionResult: TaskActionResult | undefined;
     act(() => {
-      actionResult = result.current.createTask({ title: 'Escrever spec', day: 'mon', priority: 'high' });
+      actionResult = result.current.createTask({ title: 'Escrever spec', date: '2026-09-21', priority: 'high' });
     });
 
     expect(actionResult?.ok).toBe(true);
@@ -40,7 +40,7 @@ describe('useTaskActions', () => {
     const [task] = result.current.state.tasks;
     expect(task).toMatchObject({
       title: 'Escrever spec',
-      day: 'mon',
+      date: '2026-09-21',
       state: 'pending',
       priority: 'high',
       order: 0,
@@ -52,14 +52,14 @@ describe('useTaskActions', () => {
     expect(saved.tasks).toEqual([task]);
   });
 
-  it('2ª tarefa no mesmo grupo (day+priority) recebe order maior que a 1ª e ids distintos', () => {
+  it('2ª tarefa no mesmo grupo (date+priority) recebe order maior que a 1ª e ids distintos', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Primeira', day: 'tue', priority: null });
+      result.current.createTask({ title: 'Primeira', date: '2026-09-22', priority: null });
     });
     act(() => {
-      result.current.createTask({ title: 'Segunda', day: 'tue', priority: null });
+      result.current.createTask({ title: 'Segunda', date: '2026-09-22', priority: null });
     });
 
     const tasks = result.current.state.tasks;
@@ -67,17 +67,17 @@ describe('useTaskActions', () => {
     expect(tasks[0].id).not.toBe(tasks[1].id);
   });
 
-  it('tarefa em grupo (day+priority) diferente começa seu próprio grupo em order=0', () => {
+  it('tarefa em grupo (date+priority) diferente começa seu próprio grupo em order=0', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Alta na segunda', day: 'mon', priority: 'high' });
+      result.current.createTask({ title: 'Alta na segunda', date: '2026-09-21', priority: 'high' });
     });
     act(() => {
-      result.current.createTask({ title: 'Baixa na segunda', day: 'mon', priority: 'low' });
+      result.current.createTask({ title: 'Baixa na segunda', date: '2026-09-21', priority: 'low' });
     });
     act(() => {
-      result.current.createTask({ title: 'Alta na terça', day: 'tue', priority: 'high' });
+      result.current.createTask({ title: 'Alta na terça', date: '2026-09-22', priority: 'high' });
     });
 
     expect(result.current.state.tasks.map((t) => t.order)).toEqual([0, 0, 0]);
@@ -93,7 +93,7 @@ describe('useTaskActions', () => {
     let actionResult: TaskActionResult | undefined;
     expect(() => {
       act(() => {
-        actionResult = result.current.createTask({ title: 'Falha', day: 'wed', priority: null });
+        actionResult = result.current.createTask({ title: 'Falha', date: '2026-09-23', priority: null });
       });
     }).not.toThrow();
 
@@ -116,7 +116,7 @@ describe('updateTask', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Original', day: 'mon', priority: 'high' });
+      result.current.createTask({ title: 'Original', date: '2026-09-21', priority: 'high' });
     });
     const [created] = result.current.state.tasks;
 
@@ -125,7 +125,7 @@ describe('updateTask', () => {
       actionResult = result.current.updateTask({
         id: created.id,
         title: 'Renomeada',
-        day: created.day,
+        date: created.date,
         priority: created.priority,
         state: created.state,
       });
@@ -136,7 +136,7 @@ describe('updateTask', () => {
     expect(result.current.state.tasks[0]).toMatchObject({
       id: created.id,
       title: 'Renomeada',
-      day: 'mon',
+      date: '2026-09-21',
       priority: 'high',
       state: 'pending',
       order: 0,
@@ -150,13 +150,13 @@ describe('updateTask', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Fica em mon', day: 'mon', priority: 'high' });
+      result.current.createTask({ title: 'Fica em mon', date: '2026-09-21', priority: 'high' });
     });
     act(() => {
-      result.current.createTask({ title: 'Muda de dia', day: 'mon', priority: 'high' });
+      result.current.createTask({ title: 'Muda de dia', date: '2026-09-21', priority: 'high' });
     });
     act(() => {
-      result.current.createTask({ title: 'Já em tue', day: 'tue', priority: 'high' });
+      result.current.createTask({ title: 'Já em tue', date: '2026-09-22', priority: 'high' });
     });
     const moving = result.current.state.tasks[1];
 
@@ -164,7 +164,7 @@ describe('updateTask', () => {
       result.current.updateTask({
         id: moving.id,
         title: moving.title,
-        day: 'tue',
+        date: '2026-09-22',
         priority: moving.priority,
         state: moving.state,
       });
@@ -175,19 +175,19 @@ describe('updateTask', () => {
     const moved = tasks.find((t) => t.id === moving.id)!;
     const alreadyThere = tasks.find((t) => t.title === 'Já em tue')!;
 
-    expect(stayed).toMatchObject({ day: 'mon', order: 0 });
-    expect(moved).toMatchObject({ day: 'tue', priority: 'high', state: 'pending', order: 1 });
-    expect(alreadyThere).toMatchObject({ day: 'tue', order: 0 });
+    expect(stayed).toMatchObject({ date: '2026-09-21', order: 0 });
+    expect(moved).toMatchObject({ date: '2026-09-22', priority: 'high', state: 'pending', order: 1 });
+    expect(alreadyThere).toMatchObject({ date: '2026-09-22', order: 0 });
   });
 
   it('muda a Prioridade (mesmo dia): reposicionada no grupo novo, grupo antigo sem buraco', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Alta 1', day: 'wed', priority: 'high' });
+      result.current.createTask({ title: 'Alta 1', date: '2026-09-23', priority: 'high' });
     });
     act(() => {
-      result.current.createTask({ title: 'Alta 2 (vai virar baixa)', day: 'wed', priority: 'high' });
+      result.current.createTask({ title: 'Alta 2 (vai virar baixa)', date: '2026-09-23', priority: 'high' });
     });
     const changing = result.current.state.tasks[1];
 
@@ -195,7 +195,7 @@ describe('updateTask', () => {
       result.current.updateTask({
         id: changing.id,
         title: changing.title,
-        day: 'wed',
+        date: '2026-09-23',
         priority: 'low',
         state: changing.state,
       });
@@ -203,14 +203,14 @@ describe('updateTask', () => {
 
     const tasks = result.current.state.tasks;
     expect(tasks.find((t) => t.title === 'Alta 1')).toMatchObject({ priority: 'high', order: 0 });
-    expect(tasks.find((t) => t.id === changing.id)).toMatchObject({ priority: 'low', order: 0, day: 'wed' });
+    expect(tasks.find((t) => t.id === changing.id)).toMatchObject({ priority: 'low', order: 0, date: '2026-09-23' });
   });
 
   it('muda o Estado: novo Estado persistido, Dia/Prioridade/Nome inalterados', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Tarefa', day: 'thu', priority: null });
+      result.current.createTask({ title: 'Tarefa', date: '2026-09-24', priority: null });
     });
     const [created] = result.current.state.tasks;
 
@@ -218,7 +218,7 @@ describe('updateTask', () => {
       result.current.updateTask({
         id: created.id,
         title: created.title,
-        day: created.day,
+        date: created.date,
         priority: created.priority,
         state: 'in_progress',
       });
@@ -226,7 +226,7 @@ describe('updateTask', () => {
 
     expect(result.current.state.tasks[0]).toMatchObject({
       title: 'Tarefa',
-      day: 'thu',
+      date: '2026-09-24',
       priority: null,
       state: 'in_progress',
     });
@@ -236,7 +236,7 @@ describe('updateTask', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Original', day: 'fri', priority: 'medium' });
+      result.current.createTask({ title: 'Original', date: '2026-09-18', priority: 'medium' });
     });
     const [created] = result.current.state.tasks;
 
@@ -250,7 +250,7 @@ describe('updateTask', () => {
         actionResult = result.current.updateTask({
           id: created.id,
           title: 'Não deveria salvar',
-          day: 'sat',
+          date: '2026-09-19',
           priority: 'low',
           state: 'done',
         });
@@ -265,7 +265,7 @@ describe('updateTask', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Existente', day: 'mon', priority: null });
+      result.current.createTask({ title: 'Existente', date: '2026-09-21', priority: null });
     });
 
     let actionResult: TaskActionResult | undefined;
@@ -274,7 +274,7 @@ describe('updateTask', () => {
         actionResult = result.current.updateTask({
           id: 'id-que-nao-existe',
           title: 'Não deveria salvar',
-          day: 'tue',
+          date: '2026-09-22',
           priority: 'high',
           state: 'done',
         });
@@ -305,7 +305,7 @@ describe('deleteTask', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Vai sumir', day: 'mon', priority: 'high' });
+      result.current.createTask({ title: 'Vai sumir', date: '2026-09-21', priority: 'high' });
     });
     const [created] = result.current.state.tasks;
 
@@ -321,17 +321,17 @@ describe('deleteTask', () => {
     expect(saved.tasks).toEqual([]);
   });
 
-  it('grupo (day,priority) com 3 tarefas, exclui a do meio: as 2 remanescentes reindexadas sequencialmente (0,1), sem buraco', () => {
+  it('grupo (date,priority) com 3 tarefas, exclui a do meio: as 2 remanescentes reindexadas sequencialmente (0,1), sem buraco', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Primeira', day: 'wed', priority: 'medium' });
+      result.current.createTask({ title: 'Primeira', date: '2026-09-23', priority: 'medium' });
     });
     act(() => {
-      result.current.createTask({ title: 'Do meio (vai ser excluída)', day: 'wed', priority: 'medium' });
+      result.current.createTask({ title: 'Do meio (vai ser excluída)', date: '2026-09-23', priority: 'medium' });
     });
     act(() => {
-      result.current.createTask({ title: 'Última', day: 'wed', priority: 'medium' });
+      result.current.createTask({ title: 'Última', date: '2026-09-23', priority: 'medium' });
     });
     const middle = result.current.state.tasks[1];
 
@@ -350,14 +350,14 @@ describe('deleteTask', () => {
     expect(saved.tasks).toEqual(tasks);
   });
 
-  it('tarefas de outros grupos (day,priority) não são afetadas pela exclusão', () => {
+  it('tarefas de outros grupos (date,priority) não são afetadas pela exclusão', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Grupo A', day: 'mon', priority: 'high' });
+      result.current.createTask({ title: 'Grupo A', date: '2026-09-21', priority: 'high' });
     });
     act(() => {
-      result.current.createTask({ title: 'Outro grupo', day: 'tue', priority: 'low' });
+      result.current.createTask({ title: 'Outro grupo', date: '2026-09-22', priority: 'low' });
     });
     const [toDelete] = result.current.state.tasks;
 
@@ -367,14 +367,14 @@ describe('deleteTask', () => {
 
     const remaining = result.current.state.tasks;
     expect(remaining).toHaveLength(1);
-    expect(remaining[0]).toMatchObject({ title: 'Outro grupo', day: 'tue', priority: 'low', order: 0 });
+    expect(remaining[0]).toMatchObject({ title: 'Outro grupo', date: '2026-09-22', priority: 'low', order: 0 });
   });
 
   it('escrita falha: confirmação continua íntegra — retorna {ok:false,error}, nunca lança, tarefa não some do estado nem dos dados', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Não deve sumir', day: 'thu', priority: null });
+      result.current.createTask({ title: 'Não deve sumir', date: '2026-09-24', priority: null });
     });
     const [created] = result.current.state.tasks;
 
@@ -398,7 +398,7 @@ describe('deleteTask', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Existente', day: 'mon', priority: null });
+      result.current.createTask({ title: 'Existente', date: '2026-09-21', priority: null });
     });
 
     let actionResult: DeleteTaskResult | undefined;
@@ -430,7 +430,7 @@ describe('cycleState', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Tarefa', day: 'mon', priority: 'high' });
+      result.current.createTask({ title: 'Tarefa', date: '2026-09-21', priority: 'high' });
     });
     const [created] = result.current.state.tasks;
     // Ajusta diretamente o Estado inicial via updateTask (reaproveitado já
@@ -440,7 +440,7 @@ describe('cycleState', () => {
       result.current.updateTask({
         id: created.id,
         title: created.title,
-        day: created.day,
+        date: created.date,
         priority: created.priority,
         state: from,
       });
@@ -455,7 +455,7 @@ describe('cycleState', () => {
     expect(result.current.state.tasks[0]).toMatchObject({
       id: created.id,
       title: 'Tarefa',
-      day: 'mon',
+      date: '2026-09-21',
       priority: 'high',
       state: to,
       order: 0,
@@ -469,7 +469,7 @@ describe('cycleState', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Tarefa', day: 'mon', priority: null });
+      result.current.createTask({ title: 'Tarefa', date: '2026-09-21', priority: null });
     });
     const [created] = result.current.state.tasks;
 
@@ -493,7 +493,7 @@ describe('cycleState', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Tarefa', day: 'fri', priority: 'medium' });
+      result.current.createTask({ title: 'Tarefa', date: '2026-09-18', priority: 'medium' });
     });
     const [created] = result.current.state.tasks;
 
@@ -516,7 +516,7 @@ describe('cycleState', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Existente', day: 'mon', priority: null });
+      result.current.createTask({ title: 'Existente', date: '2026-09-21', priority: null });
     });
 
     let actionResult: TaskActionResult | undefined;
@@ -541,17 +541,17 @@ describe('reorderTask (Story 4.1)', () => {
     vi.restoreAllMocks();
   });
 
-  it('reposiciona dentro do mesmo grupo (day,priority): reindexa sequencialmente, salva antes de despachar', () => {
+  it('reposiciona dentro do mesmo grupo (date,priority): reindexa sequencialmente, salva antes de despachar', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Primeira', day: 'mon', priority: 'high' });
+      result.current.createTask({ title: 'Primeira', date: '2026-09-21', priority: 'high' });
     });
     act(() => {
-      result.current.createTask({ title: 'Segunda', day: 'mon', priority: 'high' });
+      result.current.createTask({ title: 'Segunda', date: '2026-09-21', priority: 'high' });
     });
     act(() => {
-      result.current.createTask({ title: 'Terceira', day: 'mon', priority: 'high' });
+      result.current.createTask({ title: 'Terceira', date: '2026-09-21', priority: 'high' });
     });
     const [first] = result.current.state.tasks;
 
@@ -564,7 +564,7 @@ describe('reorderTask (Story 4.1)', () => {
     const tasks = result.current.state.tasks;
     expect(tasks.find((t) => t.title === 'Segunda')).toMatchObject({ order: 0 });
     expect(tasks.find((t) => t.title === 'Terceira')).toMatchObject({ order: 1 });
-    expect(tasks.find((t) => t.title === 'Primeira')).toMatchObject({ order: 2, day: 'mon', priority: 'high' });
+    expect(tasks.find((t) => t.title === 'Primeira')).toMatchObject({ order: 2, date: '2026-09-21', priority: 'high' });
 
     const saved = JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}');
     expect(saved.tasks).toEqual(tasks);
@@ -574,17 +574,17 @@ describe('reorderTask (Story 4.1)', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Tarefa', day: 'wed', priority: 'low' });
+      result.current.createTask({ title: 'Tarefa', date: '2026-09-23', priority: 'low' });
     });
     act(() => {
-      result.current.createTask({ title: 'Outra', day: 'wed', priority: 'low' });
+      result.current.createTask({ title: 'Outra', date: '2026-09-23', priority: 'low' });
     });
     const [created] = result.current.state.tasks;
     act(() => {
       result.current.updateTask({
         id: created.id,
         title: created.title,
-        day: created.day,
+        date: created.date,
         priority: created.priority,
         state: 'in_progress',
       });
@@ -595,20 +595,20 @@ describe('reorderTask (Story 4.1)', () => {
     });
 
     const moved = result.current.state.tasks.find((t) => t.id === created.id);
-    expect(moved).toMatchObject({ title: 'Tarefa', day: 'wed', priority: 'low', state: 'in_progress', order: 1 });
+    expect(moved).toMatchObject({ title: 'Tarefa', date: '2026-09-23', priority: 'low', state: 'in_progress', order: 1 });
   });
 
-  it('outros grupos (day,priority) permanecem intocados', () => {
+  it('outros grupos (date,priority) permanecem intocados', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Grupo A - 1', day: 'mon', priority: 'high' });
+      result.current.createTask({ title: 'Grupo A - 1', date: '2026-09-21', priority: 'high' });
     });
     act(() => {
-      result.current.createTask({ title: 'Grupo A - 2', day: 'mon', priority: 'high' });
+      result.current.createTask({ title: 'Grupo A - 2', date: '2026-09-21', priority: 'high' });
     });
     act(() => {
-      result.current.createTask({ title: 'Outro grupo', day: 'tue', priority: 'low' });
+      result.current.createTask({ title: 'Outro grupo', date: '2026-09-22', priority: 'low' });
     });
     const [first] = result.current.state.tasks;
 
@@ -617,17 +617,17 @@ describe('reorderTask (Story 4.1)', () => {
     });
 
     const untouched = result.current.state.tasks.find((t) => t.title === 'Outro grupo');
-    expect(untouched).toMatchObject({ day: 'tue', priority: 'low', order: 0 });
+    expect(untouched).toMatchObject({ date: '2026-09-22', priority: 'low', order: 0 });
   });
 
   it('escrita falha: retorna {ok:false,error}, nunca lança, ordem em memória permanece a original (Card volta à posição)', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Primeira', day: 'thu', priority: null });
+      result.current.createTask({ title: 'Primeira', date: '2026-09-24', priority: null });
     });
     act(() => {
-      result.current.createTask({ title: 'Segunda', day: 'thu', priority: null });
+      result.current.createTask({ title: 'Segunda', date: '2026-09-24', priority: null });
     });
     const [first, second] = result.current.state.tasks;
 
@@ -650,7 +650,7 @@ describe('reorderTask (Story 4.1)', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 
     act(() => {
-      result.current.createTask({ title: 'Existente', day: 'mon', priority: null });
+      result.current.createTask({ title: 'Existente', date: '2026-09-21', priority: null });
     });
 
     let actionResult: TaskActionResult | undefined;

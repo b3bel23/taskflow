@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { WeekView } from './WeekView';
 import { formatDayHeading, getWeekWindow } from '../../constants/week';
 import dayColumnStyles from '../DayColumn/DayColumn.module.css';
+import taskCardStyles from '../TaskCard/TaskCard.module.css';
 import { TaskProvider } from '../../state/TaskContext';
 import { TASKS_STORAGE_KEY } from '../../storage/tasksStorage';
 import type { Task } from '../../types';
@@ -207,6 +208,26 @@ describe('WeekView', () => {
       fireEvent.click(within(column).getByRole('button', { name: 'Concluída' }));
 
       expect(within(column).getByRole('button', { name: 'Pendente' })).toBeTruthy();
+    });
+
+    it('Card cicla até Concluída e volta a Pendente: as classes completed/titleCompleted aparecem e depois somem', () => {
+      renderWeekView();
+      const column = createTask(formatDayHeading('2026-09-21'), 'Tarefa');
+      const card = () => within(column).getByRole('button', { name: /Editar tarefa: Tarefa/ });
+      const title = () => within(column).getByText('Tarefa');
+
+      expect(card().className).not.toContain(taskCardStyles.completed);
+
+      fireEvent.click(within(column).getByRole('button', { name: 'Pendente' }));
+      fireEvent.click(within(column).getByRole('button', { name: 'Em andamento' }));
+
+      expect(card().className).toContain(taskCardStyles.completed);
+      expect(title().className).toContain(taskCardStyles.titleCompleted);
+
+      fireEvent.click(within(column).getByRole('button', { name: 'Concluída' }));
+
+      expect(card().className).not.toContain(taskCardStyles.completed);
+      expect(title().className).not.toContain(taskCardStyles.titleCompleted);
     });
 
     it('Indicador em foco: Enter e Espaço ciclam o Estado como o clique', () => {

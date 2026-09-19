@@ -381,6 +381,27 @@ describe('deleteTask', () => {
     expect(tasks.find((t) => t.title === 'Última')).toMatchObject({ order: 1 });
   });
 
+  it('Data com 3 tarefas, exclui a do meio e cria uma 4ª: order único e sequencial (0,1,2), sem colisão', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    for (const title of ['Primeira', 'Do meio', 'Última']) {
+      act(() => {
+        result.current.createTask({ title, date: '2026-09-23', time: null, priority: null });
+      });
+    }
+    const middle = result.current.state.tasks[1];
+    act(() => {
+      result.current.deleteTask(middle.id);
+    });
+    act(() => {
+      result.current.createTask({ title: 'Quarta', date: '2026-09-23', time: null, priority: null });
+    });
+
+    const orders = result.current.state.tasks.map((t) => t.order).sort();
+    expect(orders).toEqual([0, 1, 2]);
+    expect(result.current.state.tasks.find((t) => t.title === 'Quarta')?.order).toBe(2);
+  });
+
   it('escrita falha: retorna {ok:false,error}, nunca lança, tarefa não some do estado nem dos dados', () => {
     const { result } = renderHook(() => useProbe(), { wrapper });
 

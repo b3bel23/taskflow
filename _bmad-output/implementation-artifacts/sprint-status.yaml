@@ -87,6 +87,15 @@ development_status:
   # review (/code-review) rodado sobre o conjunto; achados de rollover
   # (order duplicado, falha de escrita silenciosa) e de validação (time,
   # ano < 100) corrigidos. Arraste verificado manualmente no navegador.
+# 2026-09-19: itens fechados após o pivô e o code review do Epic 4-7 —
+#   feitos: e2-4 (teste 3 tarefas/exclui meio/cria 4ª), e3-8 (teste ciclo até
+#   Concluída e volta), e4-12 (WeekView.drag.test.tsx exercita o handleDragEnd
+#   real), e4-19 (mesmo teste), e1-22 (useLayoutEffect no tema), e1-25 (ids
+#   duplicados em loadTasks -> loadError).
+#   obsoletos (código removido no pivô): e4-13 e e4-15 (PriorityZone/
+#   EmptyZoneDropTarget), e4-18 (funções de reindex por grupo), e3-9 (não há
+#   mais predicado duplicado: StateIndicator usa mapa por estado, TaskCard é o
+#   único `=== 'done'`), e1-24 (resolvido pela Story 5.3, timer de virada do dia).
 action_items:
   - id: "epic-2-retro-item-1-corrigir-a-corrida-de-foco-em-closeeditm"
     epic: 2
@@ -115,7 +124,7 @@ action_items:
     action: "Adicionar teste cobrindo criar 3 tarefas no mesmo grupo, excluir a do
       meio, criar uma 4a e verificar order unico e sequencial"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-14.md"
   - id: "epic-2-retro-item-5-adicionar-teste-daycolumn-weekview-monta"
     epic: 2
@@ -146,14 +155,14 @@ action_items:
       e de volta a Pendente e verifica que as classes completed/titleCompleted do
       TaskCard desaparecem"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-14.md"
   - id: "epic-3-retro-item-9-extrair-um-predicado-mapa-unico-para-tas"
     epic: 3
     action: "Extrair um predicado/mapa unico para task.state === done, hoje duplicado
       entre TaskCard.tsx e StateIndicator.tsx"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-14.md"
   - id: "epic-3-retro-item-10-antes-da-story-4-1-decidir-explicitament"
     epic: 3
@@ -179,7 +188,7 @@ action_items:
       cobrindo reorderTask/updateTask chamados corretamente e o foco restaurado na
       alca remontada apos um cruzamento de grupo bem-sucedido"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-15.md"
   - id: "epic-4-retro-item-13-adicionar-teste-que-mocka-usedragoperati"
     epic: 4
@@ -187,7 +196,7 @@ action_items:
       e verificar que o rotulo da zona (.zoneLabel) e a classe .zoneActive aparecem
       em PriorityZone — hoje so o ramo sem arraste e testado"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-15.md"
   - id: "epic-4-retro-item-14-deferred-work-md-pointersensor-do-dragdr"
     epic: 4
@@ -202,7 +211,7 @@ action_items:
       vazia e um alvo de soltar inalcancavel para leitor de tela/teclado durante um
       arraste"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-15.md"
   - id: "epic-4-retro-item-16-deferred-work-md-arraste-interrompido-pe"
     epic: 4
@@ -226,7 +235,7 @@ action_items:
       compartilham a mesma forma sem helper comum — baixo risco hoje, mas uma 4a funcao
       futura poderia esquecer uma guarda que as outras tres ja aprenderam"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-15.md"
   - id: "epic-4-retro-item-19-ao-extrair-uma-funcao-pura-de-decisao-de"
     epic: 4
@@ -235,7 +244,7 @@ action_items:
       mockados), em vez de assumir que testar so a funcao extraida cobre a fiacao
       real"
     owner: "process"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-15.md"
   - id: "epic-1-retro-item-20-fortalecer-as-checagens-ad-8-ad-9-de-arc"
     epic: 1
@@ -261,7 +270,7 @@ action_items:
       de um quadro entre o icone do ThemeToggle e as cores via CSS tokens ao alternar
       o tema"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
   - id: "epic-1-retro-item-23-deferred-work-md-nenhum-dos-dois-dominio"
     epic: 1
@@ -277,7 +286,7 @@ action_items:
       — destaque de hoje pode ficar preso no dia anterior se a aba ficar aberta atravessando
       a meia-noite"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
   - id: "epic-1-retro-item-25-deferred-work-md-isvalidtask-nao-checa-i"
     epic: 1
@@ -285,7 +294,7 @@ action_items:
       array em loadTasks — um payload corrompido-mas-com-forma-valida pode carregar
       com ids repetidos"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
   - id: "epic-1-retro-item-26-tratar-testes-auto-aplicaveis-de-arquite"
     epic: 1

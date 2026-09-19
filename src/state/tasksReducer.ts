@@ -18,11 +18,12 @@ export interface TaskStoreState {
 // nem tenta persistir nada — só aplica a mutação já validada ao estado em
 // memória.
 //
-// `update` (Story 2.2): `useTaskActions.updateTask` já calculou o array
-// inteiro (título/Estado aplicados + `reorderWithinGroup` se Dia/Prioridade
-// mudou) e já confirmou a persistência antes de despachar — este reducer só
-// substitui o array por inteiro, sem decidir nada sozinho, mesmo padrão de
-// `create`.
+// `update` (Story 2.2, revisado Epic 4/6/7): `useTaskActions.updateTask`
+// (Modal), `moveTaskToDate` (arraste) e `cyclePriority`/`cycleState`
+// (Cards) já calcularam o array inteiro (título/Horário/Estado aplicados +
+// `reassignDate` se a Data mudou) e já confirmaram a persistência antes de
+// despachar — este reducer só substitui o array por inteiro, sem decidir
+// nada sozinho, mesmo padrão de `create`.
 //
 // `delete` (Story 2.3): `useTaskActions.deleteTask` já filtrou a tarefa e
 // reindexou o grupo dela via `closeOrderGap`, e já confirmou a persistência

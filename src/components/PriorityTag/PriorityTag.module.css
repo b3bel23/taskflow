@@ -1,7 +1,9 @@
 /* DESIGN.md `priority-tag`: elemento pequeno e discreto (pílula compacta),
    cor = nível de prioridade. Nunca ocupa mais do que uma fração pequena do
    card — texto sempre em `fontWeight: 600` (mesma mitigação de contraste dos
-   botões, DESIGN.md Colors). */
+   botões, DESIGN.md Colors). Revisada Story 7.1/7.2: sempre visível (mesmo
+   sem Prioridade definida, `.none`) e seu próprio ponto de interação
+   (clicável/focável), mesmo padrão de `StateIndicator`. */
 
 .tag {
   display: inline-flex;
@@ -13,6 +15,12 @@
   font-size: var(--font-size-meta);
   font-weight: 600;
   color: var(--color-surface-raised);
+  cursor: pointer;
+}
+
+.tag:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .high {
@@ -25,4 +33,13 @@
 
 .low {
   background-color: var(--color-priority-low);
+}
+
+/* Estado neutro/discreto (Story 7.1): sem Prioridade definida — nunca
+   ausente por completo. Fundo/texto discretos (mesma paleta de
+   "ink-secondary" usada em metadados no resto do app), distinto dos 3 níveis
+   nomeados que usam cor saturada + texto claro. */
+.none {
+  background-color: var(--color-border-hairline);
+  color: var(--color-ink-secondary);
 }

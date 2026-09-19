@@ -1,119 +1,79 @@
-import type { Priority, Task } from '../types';
+import type { Task } from '../types';
 
-// Ordem de exibição por nível de prioridade (FR-6: Alta->Média->Baixa->sem
-// prioridade). Ausência de prioridade (`null`) sempre ordena por último.
-const PRIORITY_RANK: Record<Priority, number> = {
-  high: 0,
-  medium: 1,
-  low: 2,
-};
-
-function priorityRank(priority: Priority | null): number {
-  return priority === null ? 3 : PRIORITY_RANK[priority];
-}
-
-// Filtra as tarefas de uma única data e ordena por nível de prioridade
-// (Alta->Média->Baixa->sem prioridade); dentro do mesmo grupo
-// `(date, priority)`, ordena por `order` crescente (AD-7). Reordenação manual
-// dentro do mesmo nível (`reorderWithinGroup`) é Story 2.2/Epic 4 — esta
-// função só lê o `order` já armazenado, nunca o recalcula.
-//
-// Story 5.1: `date` (ISO real) substitui `day` (`DayOfWeek`) como
-// identificador de coluna — mesma semântica de agrupamento, só muda o tipo
-// do identificador.
+// Story 6.2 (FR-6 revisado, Epic 6): ordena por Horário — Prioridade nunca
+// mais influencia a posição (Epic 7, AD-7 obsoleto). Tarefas sem Horário
+// (`time === null`) sempre primeiro, em ordem de criação entre si; depois as
+// com Horário definido, em ordem crescente (`'HH:mm'` compara
+// lexicograficamente igual a cronologicamente). `order` só desempata quando
+// as duas tarefas comparadas têm exatamente o mesmo Horário (ou nenhuma das
+// duas tem) — nunca perde para a Prioridade, que não participa desta
+// ordenação em nenhum caso.
 export function sortTasksInDay(tasks: Task[], date: string): Task[] {
   return tasks
     .filter((task) => task.date === date)
     .sort((a, b) => {
-      const priorityDiff = priorityRank(a.priority) - priorityRank(b.priority);
-      if (priorityDiff !== 0) {
-        return priorityDiff;
+      const aHasTime = a.time !== null;
+      const bHasTime = b.time !== null;
+      if (aHasTime !== bHasTime) {
+        return aHasTime ? 1 : -1;
+      }
+      if (aHasTime && bHasTime && a.time !== b.time) {
+        return (a.time as string) < (b.time as string) ? -1 : 1;
       }
       return a.order - b.order;
     });
 }
 
-// Só contagem: quantas tarefas já existem no grupo `(date, priority)` — a
-// tarefa nova recebe esse valor como `order`, ficando no fim da fila (AD-7).
-// Reindexação completa (`reorderWithinGroup`) só entra na Story 2.2/Epic 4;
-// esta função não reindexa nada existente.
-export function getNextOrderInGroup(tasks: Task[], date: string, priority: Priority | null): number {
-  return tasks.filter((t) => t.date === date && t.priority === priority).length;
+// Só contagem: quantas tarefas já existem na Data — a tarefa nova recebe
+// esse valor como `order`, servindo de desempate de criação (AD-7 revisado
+// 2026-09-18: escopo passa de `(day, priority)` para `(date)` — Prioridade
+// deixou de agrupar/ordenar qualquer coisa, virou puro atributo visual,
+// Epic 7).
+export function getNextOrderInGroup(tasks: Task[], date: string): number {
+  return tasks.filter((t) => t.date === date).length;
 }
 
-// Função pura única de reindexação (AD-7): usada tanto pela edição via Modal
-// (Story 2.2) quanto pelo drag (Epic 4) — nenhum caminho reimplementa esta
-// lógica separadamente. `tasks` deve trazer `id` ainda com o `date`/`priority`
-// *antigos* (título/Estado já podem estar atualizados nele, isso não importa
-// aqui); `date`/`priority` são os valores *novos* desejados.
+// Substitui `reorderWithinGroup` (removida — AD-7 obsoleto, Story 4.1
+// "[REMOVIDA 2026-09-18]"): única dimensão de grupo agora é `date`
+// (Prioridade nunca mais afeta posição/agrupamento). `tasks` deve trazer
+// `id` ainda com a `date` *antiga* (título/Horário/Prioridade/Estado já
+// podem estar atualizados nele, isso não importa aqui); `date` é o valor
+// *novo* desejado.
 //
-// Grupo igual (mesmo `date` e `priority` de antes): no-op, retorna `tasks`
-// sem tocar em nada — quem chamou já aplicou título/Estado direto no array
-// recebido. Grupo diferente: fecha o buraco no grupo antigo (reindexa
-// sequencialmente por `order` crescente) e entra no fim do grupo novo (mesmo
-// cálculo de `getNextOrderInGroup`).
-export function reorderWithinGroup(
-  tasks: Task[],
-  id: string,
-  date: string,
-  priority: Priority | null,
-): Task[] {
+// Data igual à de antes: no-op, retorna `tasks` sem tocar em nada. Data
+// diferente: fecha o buraco na Data antiga (reindexa sequencialmente por
+// `order` crescente) e entra no fim do grupo da Data nova (mesmo cálculo de
+// `getNextOrderInGroup`) — usada tanto por `updateTask` (Modal, Story
+// 2.2/6.1) quanto por `moveTaskToDate` (arraste, Story 4.2 revisada); nesta
+// última, é a ÚNICA mutação que o arraste aplica (nunca título/Horário/
+// Prioridade/Estado).
+export function reassignDate(tasks: Task[], id: string, date: string): Task[] {
   const target = tasks.find((t) => t.id === id);
-  if (!target || (target.date === date && target.priority === priority)) {
+  if (!target || target.date === date) {
     return tasks;
   }
 
   const oldOrder = new Map(
     tasks
-      .filter((t) => t.id !== id && t.date === target.date && t.priority === target.priority)
+      .filter((t) => t.id !== id && t.date === target.date)
       .sort((a, b) => a.order - b.order)
       .map((t, i) => [t.id, i]),
   );
-  const newOrder = tasks.filter((t) => t.id !== id && t.date === date && t.priority === priority).length;
+  const newOrder = tasks.filter((t) => t.id !== id && t.date === date).length;
 
   return tasks.map((t) =>
-    t.id === id ? { ...t, date, priority, order: newOrder } : oldOrder.has(t.id) ? { ...t, order: oldOrder.get(t.id)! } : t,
+    t.id === id ? { ...t, date, order: newOrder } : oldOrder.has(t.id) ? { ...t, order: oldOrder.get(t.id)! } : t,
   );
 }
 
-// Função pura de reindexação para arraste dentro do mesmo grupo (Story 4.1,
-// Epic 4): distinta de `reorderWithinGroup` de propósito — aquela existe só
-// para mudança de *grupo* (Dia/Prioridade, Story 2.2/Story 4.2) e é no-op se
-// o grupo não muda; esta função nunca muda `date`/`priority`, só a posição
-// relativa dentro do grupo `(date, priority)` que já é o de `id`. `toIndex` é
-// a posição final desejada dentro do grupo (já reindexado 0..n-1); grupo com
-// 1 tarefa ou `toIndex` igual à posição atual ainda passam por aqui (quem
-// chama, `WeekView` via `dragChange.resolveWeekDragChange`, só invoca isto
-// quando `arrayMove` (`@dnd-kit/sortable`) já confirmou que a posição
-// projetada mudou — I/O "Grupo com 1 tarefa" nunca chega a chamar
-// `reorderTask`). `id` inexistente: no-op, retorna `tasks` sem tocar em
-// nada.
-export function reorderGroupByIndex(
-  tasks: Task[],
-  id: string,
-  date: string,
-  priority: Priority | null,
-  toIndex: number,
-): Task[] {
-  const group = tasks.filter((t) => t.date === date && t.priority === priority).sort((a, b) => a.order - b.order);
-  const withoutTarget = group.filter((t) => t.id !== id);
-  const target = group.find((t) => t.id === id);
-  if (!target) return tasks;
-  withoutTarget.splice(toIndex, 0, target);
-  const newOrder = new Map(withoutTarget.map((t, i) => [t.id, i]));
-  return tasks.map((t) => (newOrder.has(t.id) ? { ...t, order: newOrder.get(t.id)! } : t));
-}
-
-// Função pura de reindexação para exclusão (Story 2.3, AD-7): fecha o risco
-// latente registrado em `deferred-work.md` para `getNextOrderInGroup` — sem
-// isto, um buraco no `order` do grupo (após remover uma tarefa do meio)
-// poderia colidir com uma tarefa nova. `tasks` já chega SEM a tarefa
-// removida (a remoção acontece antes, em `useTaskActions.deleteTask`); esta
-// função só reindexa sequencialmente (0..n-1, por `order` crescente) as
-// tarefas remanescentes do grupo `(date, priority)` da tarefa removida —
-// nenhuma outra tarefa fora do grupo é tocada.
-export function closeOrderGap(tasks: Task[], date: string, priority: Priority | null): Task[] {
-  const group = tasks.filter((t) => t.date === date && t.priority === priority).sort((a, b) => a.order - b.order);
+// Função pura de reindexação para exclusão (Story 2.3, AD-7 revisado): fecha
+// o risco latente de um buraco no `order` da Data colidir com uma tarefa
+// nova. `tasks` já chega SEM a tarefa removida (a remoção acontece antes, em
+// `useTaskActions.deleteTask`); esta função só reindexa sequencialmente
+// (0..n-1, por `order` crescente) as tarefas remanescentes da MESMA `date`
+// da tarefa removida — escopo `(date)`, sem mais a dimensão de Prioridade.
+export function closeOrderGap(tasks: Task[], date: string): Task[] {
+  const group = tasks.filter((t) => t.date === date).sort((a, b) => a.order - b.order);
   const newOrder = new Map(group.map((t, i) => [t.id, i]));
   return tasks.map((t) => (newOrder.has(t.id) ? { ...t, order: newOrder.get(t.id)! } : t));
 }

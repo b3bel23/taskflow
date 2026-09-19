@@ -8,16 +8,22 @@ export interface TaskCardProps {
   task: Task;
   onClick: (event: MouseEvent<HTMLButtonElement>) => void;
   onCycleState: () => void;
-  // Story 4.1 (Epic 4): `DayColumn` é quem monta o contexto `@dnd-kit`
-  // (`useSortable`) escopado ao grupo `(date, priority)` — `TaskCard` só
-  // recebe e planta o `dragHandleRef` na alça (a lib liga o sensor de
-  // ponteiro/teclado a este elemento DOM) e o booleano `isDragging` para o
-  // visual "levantado". Migração Epic 4 retro item 11 (`@dnd-kit/core`+
-  // `@dnd-kit/sortable`): diferente da versão anterior, o sensor de
-  // ponteiro/teclado clássico do `@dnd-kit` precisa de `attributes`+
-  // `listeners` (do `useSortable`) espalhados como props DOM na própria alça
-  // — `dragHandleProps` carrega esse par pronto, num tipo opaco (`Record`)
-  // pra `TaskCard` continuar sem importar nenhum tipo do `@dnd-kit`.
+  // Story 7.2 (Epic 7): a Tag de Prioridade (`PriorityTag`, sempre visível
+  // desde a Story 7.1) é seu próprio ponto de interação, mesmo padrão de
+  // `StateIndicator`/`onCycleState` (Story 3.1) — clique/Enter/Espaço ciclam
+  // a Prioridade sem abrir o Modal do Card nem tocar o Estado.
+  onCyclePriority: () => void;
+  // Story 4.2 revisada (Epic 4, 2026-09-18): `DayColumn` é quem monta o
+  // contexto `@dnd-kit` (`useDraggable`, coluna inteira do Dia como único
+  // alvo soltável — não há mais zonas de Prioridade nem `useSortable`/
+  // reordenação dentro do dia, AD-7 obsoleto) — `TaskCard` só recebe e
+  // planta o `dragHandleRef` na alça (a lib liga o sensor de ponteiro/
+  // teclado a este elemento DOM) e o booleano `isDragging` para o visual
+  // "levantado". O sensor de ponteiro/teclado do `@dnd-kit/core` precisa de
+  // `attributes`+`listeners` (do `useDraggable`) espalhados como props DOM
+  // na própria alça — `dragHandleProps` carrega esse par pronto, num tipo
+  // opaco (`Record`) pra `TaskCard` continuar sem importar nenhum tipo do
+  // `@dnd-kit`.
   dragHandleRef?: (element: Element | null) => void;
   dragHandleProps?: Record<string, unknown>;
   isDragging?: boolean;
@@ -47,6 +53,7 @@ export function TaskCard({
   task,
   onClick,
   onCycleState,
+  onCyclePriority,
   dragHandleRef,
   dragHandleProps,
   isDragging = false,
@@ -96,7 +103,7 @@ export function TaskCard({
           )}
           <StateIndicator state={task.state} onCycle={onCycleState} />
         </div>
-        <PriorityTag priority={task.priority} />
+        <PriorityTag priority={task.priority} onCycle={onCyclePriority} />
       </div>
       <p className={isCompleted ? `${styles.title} ${styles.titleCompleted}` : styles.title}>
         {task.title}

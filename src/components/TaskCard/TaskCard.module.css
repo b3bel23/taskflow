@@ -50,7 +50,7 @@
 /* Story 4.1 (Epic 4 context): único uso deliberado de sombra decorativa do
    produto — reforça visualmente que o Card está "levantado" durante o
    arraste (mouse ou teclado). Aplicada via prop `isDragging` (repassada por
-   `DayColumn`/`useSortable`), não via seletor de atributo do `@dnd-kit` —
+   `DayColumn`/`useDraggable`), não via seletor de atributo do `@dnd-kit` —
    mesma convenção de `.completed` (classe condicional no componente, não
    estado escondido no DOM). */
 .dragging {

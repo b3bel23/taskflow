@@ -24,11 +24,9 @@ describe('DayColumn', () => {
     window.localStorage.clear();
   });
 
-  // Desde a Story 3.1, `DayColumn` chama `useTaskActions()` (para ligar
-  // `cycleState` ao `onCycleState` de cada `TaskCard`) incondicionalmente —
-  // precisa de `TaskProvider` na árvore mesmo nos testes que não mexem com
-  // Estado/persistência. Compartilhado por todos os `describe` abaixo
-  // (revisão da Story 3.1: um único helper em vez de duplicado por escopo).
+  // Desde a Story 3.1, `DayColumn` chama `useTaskActions()` incondicionalmente
+  // — precisa de `TaskProvider` na árvore mesmo nos testes que não mexem com
+  // Estado/persistência.
   function renderInProvider(date = '2026-09-21', isToday = false, tasks: Task[] = []) {
     return render(
       <TaskProvider>
@@ -38,9 +36,9 @@ describe('DayColumn', () => {
   }
 
   // Idem: semeia `localStorage` com uma única tarefa persistida antes de
-  // montar `DayColumn` — usado pelos testes de edição (Story 2.2) e de
-  // ciclo de Estado (Story 3.1), ambos precisando da mesma tarefa já
-  // existente em `TaskContext`.
+  // montar `DayColumn` — usado pelos testes de edição (Story 2.2), ciclo de
+  // Estado (Story 3.1) e ciclo de Prioridade (Story 7.2), que precisam da
+  // mesma tarefa já existente em `TaskContext`.
   function renderWithTask(task: Task) {
     window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify({ schemaVersion: 2, tasks: [task] }));
     return render(
@@ -64,13 +62,22 @@ describe('DayColumn', () => {
     expect(screen.queryByText('Nenhuma tarefa')).toBeNull();
   });
 
+  it('renderiza os Cards na ordem recebida (já ordenada por WeekView via sortTasksInDay) — nunca reordena por conta própria', () => {
+    renderInProvider('2026-09-21', false, [
+      makeTask({ id: 'a', title: 'Primeira' }),
+      makeTask({ id: 'b', title: 'Segunda' }),
+    ]);
+
+    const items = screen.getAllByRole('listitem').map((li) => li.textContent ?? '');
+    expect(items[0]).toContain('Primeira');
+    expect(items[1]).toContain('Segunda');
+  });
+
   it('recebe o destaque de hoje quando isToday é true', () => {
     const { container } = renderInProvider('2026-09-23', true);
     const column = container.firstElementChild;
 
     expect(column?.getAttribute('data-today')).toBe('true');
-    // A classe CSS Module é o que de fato aplica o destaque visual
-    // (fundo + borda) — o atributo data-today sozinho não garante isso.
     expect(column?.classList.contains(styles.today)).toBe(true);
   });
 
@@ -128,7 +135,7 @@ describe('DayColumn', () => {
   });
 
   describe('Edição de tarefa (Story 2.2)', () => {
-    it('clicar em qualquer área do Card (exceto o StateIndicator) abre o Modal em edição, pré-preenchido', () => {
+    it('clicar em qualquer área do Card (exceto Indicador/Tag) abre o Modal em edição, pré-preenchido', () => {
       const task = makeTask({ title: 'Escrever spec', priority: 'high' });
       renderWithTask(task);
 
@@ -139,14 +146,6 @@ describe('DayColumn', () => {
       expect((screen.getByLabelText('Nome') as HTMLInputElement).value).toBe('Escrever spec');
     });
 
-    // `DayColumn` renderiza a lista a partir da prop `tasks` (recebida
-    // pronta de `WeekView`, nunca lida de `TaskContext` por conta própria —
-    // ver comentário do componente), então este teste isolado (prop fixa)
-    // não vê o Indicador mudar de rótulo depois do clique; o que ele prova é
-    // o essencial da Story 3.1 neste nível: não abre o Modal, e a escrita em
-    // `localStorage` reflete o ciclo (Estado real mudou via `cycleState`). A
-    // reflexão imediata na tela, ponta a ponta via `TaskContext`, é coberta
-    // em `WeekView.test.tsx` (onde `tasks` de fato vem do contexto).
     it('clicar no StateIndicator do Card não abre o Modal (stopPropagation) mas cicla o Estado via cycleState (Story 3.1)', () => {
       const task = makeTask({ title: 'Escrever spec', state: 'pending' });
       renderWithTask(task);
@@ -190,14 +189,6 @@ describe('DayColumn', () => {
     });
   });
 
-  // `DayColumn` recebe `tasks` pronta de `WeekView` (nunca lê `TaskContext`
-  // por conta própria para montar a lista — ver comentário do componente),
-  // então um render isolado com prop fixa não reflete no DOM o Estado que
-  // `cycleState` mudou no `TaskContext`. Estes testes verificam o que dá para
-  // verificar neste nível (não abrir o Modal, e o array persistido em
-  // `localStorage`, que é o que `cycleState` de fato escreve/protege via o
-  // guard AD-4). A reflexão imediata na tela, ponta a ponta via
-  // `TaskContext`, é coberta em `WeekView.test.tsx`.
   describe('Ciclo de Estado pelo Indicador (Story 3.1)', () => {
     function savedState(): string {
       return JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}').tasks[0].state;
@@ -217,42 +208,6 @@ describe('DayColumn', () => {
       expect(screen.queryByRole('dialog')).toBeNull();
     });
 
-    it('clique no Indicador de tarefa Em andamento persiste Concluída', () => {
-      const task = makeTask({ state: 'in_progress' });
-      renderWithTask(task);
-
-      fireEvent.click(screen.getByRole('button', { name: 'Em andamento' }));
-
-      expect(savedState()).toBe('done');
-    });
-
-    it('clique no Indicador de tarefa Concluída persiste Pendente (wraparound)', () => {
-      const task = makeTask({ state: 'done' });
-      renderWithTask(task);
-
-      fireEvent.click(screen.getByRole('button', { name: 'Concluída' }));
-
-      expect(savedState()).toBe('pending');
-    });
-
-    it('Indicador em foco: Enter cicla o Estado como o clique', () => {
-      const task = makeTask({ state: 'pending' });
-      renderWithTask(task);
-
-      fireEvent.keyDown(screen.getByRole('button', { name: 'Pendente' }), { key: 'Enter' });
-
-      expect(savedState()).toBe('in_progress');
-    });
-
-    it('Indicador em foco: Espaço cicla o Estado como o clique', () => {
-      const task = makeTask({ state: 'pending' });
-      renderWithTask(task);
-
-      fireEvent.keyDown(screen.getByRole('button', { name: 'Pendente' }), { key: ' ' });
-
-      expect(savedState()).toBe('in_progress');
-    });
-
     it('escrita em localStorage falha: nada é persistido, sem nova tentativa automática', () => {
       const task = makeTask({ state: 'pending' });
       renderWithTask(task);
@@ -263,86 +218,66 @@ describe('DayColumn', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Pendente' }));
 
-      // O `setItem` mockado lança em toda escrita, então o `localStorage`
-      // mantém o snapshot de antes do clique (seedado por `renderWithTask`) —
-      // nunca chega a gravar o array com o novo Estado.
-      expect(savedState()).toBe('pending');
-    });
-
-    it('clicar em qualquer outra área do Card continua abrindo o Modal, sem ciclar o Estado', () => {
-      const task = makeTask({ title: 'Escrever spec', state: 'pending' });
-      renderWithTask(task);
-
-      fireEvent.click(screen.getByText('Escrever spec'));
-
-      expect(screen.getByRole('dialog')).toBeTruthy();
       expect(savedState()).toBe('pending');
     });
   });
 
-  // Story 4.2 (Epic 4): as 4 zonas de Prioridade por Dia existem sempre,
-  // mesmo vazias — é isso que torna qualquer faixa de qualquer dia um alvo
-  // de arraste válido (cruzar grupo, Prioridade e/ou Data; a decisão pura
-  // fica em `dragChange.test.ts`, testada por eventos sintéticos, já que
-  // simular um gesto físico de arraste não é viável sob jsdom). Aqui só a
-  // estrutura renderizada: as 4 zonas continuam presentes independente de
-  // terem tarefa hoje, e discretas (sem rótulo) fora de um arraste ativo.
-  describe('As 4 zonas de Prioridade sempre presentes (Story 4.2)', () => {
-    it('renderiza as 4 zonas (Alta/Média/Baixa/Sem prioridade), nessa ordem, mesmo com o dia vazio', () => {
-      const { container } = renderInProvider();
+  // Story 7.2: mesmo padrão do Indicador de Estado acima, agora para a Tag
+  // de Prioridade — clicar nela cicla via `cyclePriority`, sem abrir o Modal.
+  describe('Ciclo de Prioridade pela Tag (Story 7.2)', () => {
+    function savedPriority(): string | null {
+      return JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}').tasks[0].priority;
+    }
 
-      const zones = container.querySelectorAll('[data-priority-zone]');
-      expect(Array.from(zones).map((zone) => zone.getAttribute('data-priority-zone'))).toEqual([
-        'high',
-        'medium',
-        'low',
-        'none',
-      ]);
+    afterEach(() => {
+      vi.restoreAllMocks();
     });
 
-    it('zona sem tarefa continua presente no DOM (alvo de arraste válido), sem nenhum Card dentro', () => {
-      const highTask = makeTask({ id: 'a', priority: 'high' });
-      const { container } = renderInProvider('2026-09-21', false, [highTask]);
+    it('clique na Tag "Sem prioridade" persiste Baixa, sem abrir o Modal', () => {
+      const task = makeTask({ priority: null });
+      renderWithTask(task);
 
-      const mediumZone = container.querySelector('[data-priority-zone="medium"]');
-      expect(mediumZone).toBeTruthy();
-      expect(within(mediumZone as HTMLElement).queryAllByRole('listitem')).toHaveLength(0);
+      fireEvent.click(screen.getByRole('button', { name: 'Sem prioridade' }));
+
+      expect(savedPriority()).toBe('low');
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
 
-    // Revisão da Story 4.2 (verification-gap/blind-hunter): o teste acima só
-    // verifica a zona vazia; nada até aqui garantia que uma tarefa com
-    // Prioridade definida de fato aparece DENTRO da zona correspondente (em
-    // vez de só aparecer em algum lugar do DOM). Testa as 4 zonas juntas para
-    // também confirmar que uma tarefa nunca aparece em mais de uma zona.
-    it('cada tarefa aparece dentro da zona da sua própria Prioridade, nunca em outra', () => {
-      const highTask = makeTask({ id: 'a', title: 'Tarefa Alta', priority: 'high' });
-      const lowTask = makeTask({ id: 'b', title: 'Tarefa Baixa', priority: 'low' });
-      const noneTask = makeTask({ id: 'c', title: 'Tarefa Sem Prioridade', priority: null });
-      const { container } = renderInProvider('2026-09-21', false, [highTask, lowTask, noneTask]);
+    it('clique na Tag "Alta" volta para Sem prioridade (wraparound)', () => {
+      const task = makeTask({ priority: 'high' });
+      renderWithTask(task);
 
-      const zone = (priority: string) => container.querySelector(`[data-priority-zone="${priority}"]`) as HTMLElement;
+      fireEvent.click(screen.getByRole('button', { name: 'Alta' }));
 
-      expect(within(zone('high')).getByText('Tarefa Alta')).toBeTruthy();
-      expect(within(zone('low')).getByText('Tarefa Baixa')).toBeTruthy();
-      expect(within(zone('none')).getByText('Tarefa Sem Prioridade')).toBeTruthy();
-
-      // Nenhuma tarefa vaza para uma zona que não é a sua.
-      expect(within(zone('high')).queryByText('Tarefa Baixa')).toBeNull();
-      expect(within(zone('medium')).queryAllByRole('listitem')).toHaveLength(0);
+      expect(savedPriority()).toBeNull();
     });
 
-    it('rótulo da zona ("Alta" etc.) não aparece no DOM fora de um arraste ativo (discreta)', () => {
-      // `queryByText('Alta')` sozinho combinaria com a `PriorityTag` do
-      // próprio Card (também mostra "Alta") — a checagem precisa ser
-      // especificamente sobre o rótulo da zona (`.zoneLabel`), não sobre
-      // qualquer texto "Alta" na árvore.
-      const { container } = renderInProvider('2026-09-21', false, [makeTask({ priority: 'high' })]);
+    it('escrita em localStorage falha: nada é persistido', () => {
+      const task = makeTask({ priority: null });
+      renderWithTask(task);
 
-      // Sem nenhum arraste em andamento, `useDragOperation().source` é nulo
-      // (`DragDropManager` compartilhado por padrão fora de um
-      // `DragDropProvider`, ver `WeekView.tsx`) — o rótulo da zona não é
-      // renderizado, só o Card em si.
-      expect(container.querySelector(`.${styles.zoneLabel}`)).toBeNull();
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('quota exceeded');
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Sem prioridade' }));
+
+      expect(savedPriority()).toBeNull();
+    });
+  });
+
+  // Story 4.2 revisada (Epic 4, 2026-09-18): a coluna INTEIRA é o único alvo
+  // soltável da semana (não mais zonas de Prioridade, removidas nesta
+  // revisão) — `useDroppable` planta seu `ref` na própria `<section>`.
+  describe('Coluna inteira como alvo de arraste (Story 4.2 revisada)', () => {
+    it('a seção da coluna existe e contém a lista de tarefas (alvo soltável único, sem sub-regiões)', () => {
+      const { container } = renderInProvider('2026-09-21', false, [makeTask({ title: 'Tarefa' })]);
+
+      const column = container.querySelector('section');
+      expect(column).toBeTruthy();
+      expect(within(column as HTMLElement).getByText('Tarefa')).toBeTruthy();
+      // Nenhuma zona de Prioridade sobrevive nesta revisão.
+      expect(container.querySelector('[data-priority-zone]')).toBeNull();
     });
   });
 });

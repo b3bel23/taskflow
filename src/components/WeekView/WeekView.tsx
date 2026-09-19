@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   DndContext,
   KeyboardSensor,
@@ -9,7 +9,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { getWeekWindow } from '../../constants/week';
+import { getTodayISO, getWeekWindow } from '../../constants/week';
 import { sortTasksInDay } from '../../state/selectors';
 import { useTaskContext } from '../../state/TaskContext';
 import { useTaskActions } from '../../state/useTaskActions';
@@ -18,68 +18,46 @@ import { applyWeekDragChange, resolveWeekDragChange } from './dragChange';
 import { getDragHandle, isDragHandleFocused } from './dragHandleRegistry';
 import styles from './WeekView.module.css';
 
-// Grade das 7 Colunas do Dia, Segunda->Domingo, todas simultâneas, sem
-// navegação. Lê `TaskContext` e entrega a cada `DayColumn` só as tarefas do
-// seu próprio dia, já ordenadas por prioridade (`sortTasksInDay`, AD-7) —
-// `DayColumn` só renderiza o que recebe, nunca filtra/ordena por conta
-// própria.
+// Story 5.3 (AD-10): "checagem a cada ~60s é suficiente — não precisa de
+// precisão de segundo".
+const WINDOW_RECHECK_INTERVAL_MS = 60_000;
+
+// Grade das 7 Colunas do Dia, hoje..hoje+6 (Story 5.2, AD-10), todas
+// simultâneas, sem navegação. Lê `TaskContext` e entrega a cada `DayColumn`
+// só as tarefas da sua própria Data, já ordenadas por Horário
+// (`sortTasksInDay`, Story 6.2) — `DayColumn` só renderiza o que recebe,
+// nunca filtra/ordena por conta própria.
 //
-// Story 4.2 (Epic 4): único `<DndContext>` para a semana inteira —
-// substitui os providers isolados por grupo `(day,priority)` da Story 4.1
-// (um por `TaskPriorityGroup` dentro de cada `DayColumn`). Isso é o que
-// permite um arraste alcançar QUALQUER zona de Prioridade de QUALQUER dia:
-// as 28 zonas (7 dias x 4 níveis) agora compartilham a mesma instância de
-// contexto, então cruzar grupo é só uma colisão normal contra outro alvo
-// soltável registrado nele — nunca estruturalmente impossível como na 4.1.
-// `resolveWeekDragChange` (`./dragChange`) decide se o `DragEndEvent`
-// resultante ficou no mesmo grupo (delega a `reorderTask`, MESMA função da
-// 4.1, comportamento intocado) ou cruzou grupo (Dia e/ou Prioridade mudaram
-// juntos, sempre numa ÚNICA chamada a `updateTask` — a mesma função que o
-// Modal usa, nunca uma função de ação nova).
-//
-// Migração Epic 4 retro item 11: `@dnd-kit/core`+`@dnd-kit/sortable`
-// (pacotes clássicos/estáveis) no lugar de `@dnd-kit/react`+`@dnd-kit/dom`
-// (pre-1.0) — decisão registrada em
-// `_bmad-output/implementation-artifacts/epic-4-item-11-investigation-2026-09-16.md`.
-// `sortableKeyboardCoordinates` (`@dnd-kit/sortable`) não é limitado ao
-// grupo atual: considera TODOS os alvos soltáveis registrados, filtrados por
-// direção — é isso que permite a seta do teclado alcançar a zona de
-// Prioridade/Dia vizinha, não só reordenar dentro do mesmo `<ul>`. Sem
-// `<DragOverlay>` (decisão consciente, "menor migração possível" + só decide
-// grupo no soltar — ver comentário de `dragChange.ts`): o próprio Card
-// arrastado recebe o `transform` do `useSortable` e flutua no lugar (visual
-// de sombra+rotação já vinha de `.dragging` em `TaskCard.module.css`, via
-// `isDragging` — nenhuma mutação imperativa de DOM em nenhum dos dois casos,
-// só CSS transform).
+// Story 4.2 revisada (Epic 4): único `<DndContext>` para a semana inteira —
+// cada `DayColumn` é agora o único alvo soltável (coluna inteira, não mais
+// zonas de Prioridade por dia — AD-7 obsoleto). Arrastar um Card para
+// qualquer lugar de outra coluna muda só a Data (`moveTaskToDate`), nunca
+// Horário/Prioridade/Estado. `sortableKeyboardCoordinates`
+// (`@dnd-kit/sortable`) continua sendo o `coordinateGetter` do sensor de
+// teclado mesmo sem `useSortable`/`SortableContext`: ele já opera de forma
+// genérica sobre TODOS os alvos soltáveis registrados no `DndContext`
+// (`droppableContainers`), filtrados por direção — não é exclusivo de listas
+// sortable, é o que permite a seta do teclado alcançar a coluna vizinha.
 export function WeekView() {
   const { state } = useTaskContext();
-  const { reorderTask, updateTask } = useTaskActions();
-  // Story 5.1: janela dinâmica `hoje..hoje+6` (ISO real) substitui
-  // `DAYS_OF_WEEK` estático — calculada uma vez por render/montagem, sem
-  // timer de recálculo automático ainda (Story 5.3, próxima spec). `today` é
-  // sempre `week[0]` (primeiro item da MESMA janela), nunca uma chamada
-  // separada a `getTodayISO()`/`new Date()` — evita duas fontes de "hoje"
-  // divergindo entre si num limite de meia-noite.
-  const week = getWeekWindow();
+  const { moveTaskToDate, applyRollover } = useTaskActions();
+
+  // Story 5.3: a janela vira estado React (inicializada uma vez por
+  // montagem via inicializador preguiçoso) para poder ser recalculada pelo
+  // timer abaixo sem depender de nada externo forçando um re-render.
+  const [week, setWeek] = useState<string[]>(() => getWeekWindow());
   const today = week[0];
 
-  // Foco pós-cruzamento de grupo (Boundaries "Foco", Story 4.2): a tarefa
-  // movida sai da lista de uma zona/`DayColumn` e entra em outra — o React
-  // desmonta o nó DOM antigo da alça e monta um novo (possivelmente numa
-  // instância de `DayColumn` diferente, outro dia). Se essa alça tinha o
-  // foco no instante do drop (arraste por teclado), o desmonte derruba o
-  // foco para `<body>` antes do próximo render aplicar o nó novo. Este ref
-  // só guarda o id quando a alça movida de fato tinha o foco — nunca no caso
-  // de mouse sem foco nela — e o efeito abaixo, disparado pela mudança de
-  // `state.tasks` que a própria ação (`reorderTask`/`updateTask`) provoca,
-  // decide o foco só depois que o React já commitou o próximo render (mesmo
-  // padrão do efeito pós-render de `DayColumn.tsx`, retro Epic 2 achado 1).
+  // Foco pós-mudança de Data (Boundaries "Foco", Story 4.2): a tarefa
+  // movida sai da lista de uma coluna e entra em outra — o React desmonta o
+  // nó DOM antigo da alça e monta um novo. Se essa alça tinha o foco no
+  // instante do drop (arraste por teclado), o desmonte derruba o foco para
+  // `<body>` antes do próximo render aplicar o nó novo. Este ref só guarda o
+  // id quando a alça movida de fato tinha o foco, e o efeito abaixo, disparado
+  // pela mudança de `state.tasks`, decide o foco só depois que o React já
+  // commitou o próximo render.
   const focusRestoreTaskIdRef = useRef<string | null>(null);
 
-  // Sensor de ponteiro (mouse/touch) + sensor de teclado com o mesmo
-  // detector de colisão do resto da lib (`closestCenter`, padrão oficial
-  // para listas sortable) — AD-6 ("sensor de teclado é a mesma lógica usada
-  // pelo mouse") continua valendo: os dois passam pelo mesmo `onDragEnd`.
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -87,33 +65,19 @@ export function WeekView() {
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
-      const change = resolveWeekDragChange(state.tasks, event);
+      const change = resolveWeekDragChange(event);
       if (!change) {
         return;
       }
 
-      // A checagem de foco acontece ANTES de chamar a ação — nesse instante
-      // nada ainda foi desmontado (mesmo raciocínio de timing da retro Epic
-      // 2, achado 1: nunca checar depois que uma mutação já foi disparada).
-      // Só interessa no caminho de cruzamento de grupo (`move`): mesmo grupo
-      // (`reorder`, Story 4.1) nunca desmonta a alça, o nó DOM é reordenado
-      // no lugar.
-      const wasHandleFocused = change.kind === 'move' && isDragHandleFocused(change.id);
+      const wasHandleFocused = isDragHandleFocused(change.id);
+      const result = applyWeekDragChange(change, { moveTaskToDate });
 
-      const result = applyWeekDragChange(change, state.tasks, { reorderTask, updateTask });
-
-      // Revisão da Story 4.2 (blind-hunter/edge-case-hunter): só agenda a
-      // restauração de foco quando a ação de fato confirmou sucesso
-      // (`result?.ok`) — nunca antes de saber isso. Numa falha de escrita
-      // (guard AD-4: `updateTask` não muda `state.tasks`, o efeito abaixo
-      // nem chega a rodar de novo por essa causa), nada é agendado, então
-      // não sobra nenhuma referência obsoleta esperando a próxima mudança
-      // não relacionada de `state.tasks` para "roubar" o foco de volta.
-      if (wasHandleFocused && result?.ok) {
+      if (wasHandleFocused && result.ok) {
         focusRestoreTaskIdRef.current = change.id;
       }
     },
-    [state.tasks, reorderTask, updateTask],
+    [moveTaskToDate],
   );
 
   useEffect(() => {
@@ -122,14 +86,59 @@ export function WeekView() {
       return;
     }
     focusRestoreTaskIdRef.current = null;
-    // Fallback seguro se a alça remontada não for encontrada: `?.focus()`
-    // simplesmente não faz nada, nunca lança nem força o foco para outro
-    // lugar arbitrário.
     getDragHandle(taskId)?.focus();
   }, [state.tasks]);
 
+  // Story 5.4 (AD-11): toda vez que a janela é (re)calculada — ao montar e
+  // sempre que o timer abaixo detecta virada de dia (`today` muda) — roda
+  // uma passada de rollover. Depende só de `today`, nunca de `applyRollover`
+  // em si: a identidade desse callback muda a cada `state.tasks` novo
+  // (inclusive o que o próprio rollover acabou de produzir), e a função já é
+  // um no-op quando não há nada a rolar (compara referência, não escreve à
+  // toa) — incluí-la nas deps só causaria reexecuções redundantes sem mudar
+  // o resultado.
+  //
+  // Se a escrita falhar (`saveTasks` → `{ ok: false }`, ex. cota cheia), as
+  // tarefas atrasadas continuam com a `date` antiga — fora da janela, ou seja,
+  // invisíveis em qualquer coluna. Por isso o resultado não é ignorado:
+  // `rolloverFailed` mostra um aviso e o timer abaixo repete a tentativa a
+  // cada tick até dar certo. `applyRolloverRef` evita que o `setInterval`
+  // enxergue um `state.tasks` velho (a identidade do callback muda a cada
+  // atualização de tarefas, mas o intervalo só é recriado quando `today` ou
+  // `rolloverFailed` mudam).
+  const [rolloverFailed, setRolloverFailed] = useState(false);
+  const applyRolloverRef = useRef(applyRollover);
+  useEffect(() => {
+    applyRolloverRef.current = applyRollover;
+  }, [applyRollover]);
+
+  useEffect(() => {
+    setRolloverFailed(!applyRolloverRef.current(today).ok);
+  }, [today]);
+
+  // Story 5.3 (AD-10): timer periódico (~60s) comparando a data corrente com
+  // a usada para calcular `week` — só recomputa (e portanto só re-renderiza)
+  // quando a data efetivamente mudou, nunca a cada tick. Sem virada de dia,
+  // só repete o rollover quando a tentativa anterior falhou.
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      if (getTodayISO() !== today) {
+        setWeek(getWeekWindow());
+      } else if (rolloverFailed) {
+        setRolloverFailed(!applyRolloverRef.current(today).ok);
+      }
+    }, WINDOW_RECHECK_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [today, rolloverFailed]);
+
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      {rolloverFailed && (
+        <p className={styles.rolloverError} role="alert">
+          Não foi possível mover as tarefas atrasadas para hoje. Vamos tentar de novo em instantes.
+        </p>
+      )}
       <main className={styles.grid}>
         {week.map((date) => (
           <DayColumn key={date} date={date} isToday={date === today} tasks={sortTasksInDay(state.tasks, date)} />

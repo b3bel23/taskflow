@@ -19,7 +19,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
 
 describe('TaskCard', () => {
   it('mostra o nome, o StateIndicator e a PriorityTag quando definida', () => {
-    render(<TaskCard task={makeTask({ priority: 'high' })} onClick={vi.fn()} onCycleState={vi.fn()} />);
+    render(<TaskCard task={makeTask({ priority: 'high' })} onClick={vi.fn()} onCycleState={vi.fn()} onCyclePriority={vi.fn()} />);
 
     expect(screen.getByText('Escrever spec')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Pendente' })).toBeTruthy();
@@ -27,7 +27,7 @@ describe('TaskCard', () => {
   });
 
   it('sem prioridade: PriorityTag ausente por completo', () => {
-    render(<TaskCard task={makeTask({ priority: null })} onClick={vi.fn()} onCycleState={vi.fn()} />);
+    render(<TaskCard task={makeTask({ priority: null })} onClick={vi.fn()} onCycleState={vi.fn()} onCyclePriority={vi.fn()} />);
 
     expect(screen.queryByText('Alta')).toBeNull();
     expect(screen.queryByText('Média')).toBeNull();
@@ -35,7 +35,7 @@ describe('TaskCard', () => {
   });
 
   it('é um <button> focável por teclado, com foco visível via CSS (Story 2.2)', () => {
-    render(<TaskCard task={makeTask()} onClick={vi.fn()} onCycleState={vi.fn()} />);
+    render(<TaskCard task={makeTask()} onClick={vi.fn()} onCycleState={vi.fn()} onCyclePriority={vi.fn()} />);
 
     const card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
     expect(card.tagName).toBe('BUTTON');
@@ -49,7 +49,7 @@ describe('TaskCard', () => {
       <TaskCard
         task={makeTask({ title: 'Escrever spec', priority: 'high' })}
         onClick={vi.fn()}
-        onCycleState={vi.fn()}
+        onCycleState={vi.fn()} onCyclePriority={vi.fn()}
       />,
     );
 
@@ -69,7 +69,7 @@ describe('TaskCard', () => {
   // `TaskModal` na Story 2.1) — o teste abaixo (`tagName === 'BUTTON'`) é o
   // proxy correto e verificável nesta suíte.
   it('é um <button> nativo — garante ativação por teclado (Enter/Espaço) sem handler próprio', () => {
-    render(<TaskCard task={makeTask()} onClick={vi.fn()} onCycleState={vi.fn()} />);
+    render(<TaskCard task={makeTask()} onClick={vi.fn()} onCycleState={vi.fn()} onCyclePriority={vi.fn()} />);
 
     const card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
     expect(card.tagName).toBe('BUTTON');
@@ -77,7 +77,7 @@ describe('TaskCard', () => {
 
   it('clicar em qualquer área do Card (exceto o StateIndicator) chama onClick — abre edição', () => {
     const onClick = vi.fn();
-    render(<TaskCard task={makeTask()} onClick={onClick} onCycleState={vi.fn()} />);
+    render(<TaskCard task={makeTask()} onClick={onClick} onCycleState={vi.fn()} onCyclePriority={vi.fn()} />);
 
     fireEvent.click(screen.getByText('Escrever spec'));
 
@@ -87,7 +87,7 @@ describe('TaskCard', () => {
   it('clicar no StateIndicator não aciona o onClick do Card (stopPropagation) mas chama onCycleState (Story 3.1)', () => {
     const onClick = vi.fn();
     const onCycleState = vi.fn();
-    render(<TaskCard task={makeTask()} onClick={onClick} onCycleState={onCycleState} />);
+    render(<TaskCard task={makeTask()} onClick={onClick} onCycleState={onCycleState} onCyclePriority={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Pendente' }));
 
@@ -100,7 +100,7 @@ describe('TaskCard', () => {
   // uma sem a outra, e só quando task.state === 'done'.
   describe('Diferenciação visual de tarefa Concluída (Story 3.2)', () => {
     it('tarefa Concluída (done): Card com opacidade e nome com line-through, juntos', () => {
-      render(<TaskCard task={makeTask({ state: 'done' })} onClick={vi.fn()} onCycleState={vi.fn()} />);
+      render(<TaskCard task={makeTask({ state: 'done' })} onClick={vi.fn()} onCycleState={vi.fn()} onCyclePriority={vi.fn()} />);
 
       const card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
       const title = screen.getByText('Escrever spec');
@@ -110,7 +110,7 @@ describe('TaskCard', () => {
     });
 
     it('tarefa Pendente: nenhuma das duas mudanças aparece', () => {
-      render(<TaskCard task={makeTask({ state: 'pending' })} onClick={vi.fn()} onCycleState={vi.fn()} />);
+      render(<TaskCard task={makeTask({ state: 'pending' })} onClick={vi.fn()} onCycleState={vi.fn()} onCyclePriority={vi.fn()} />);
 
       const card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
       const title = screen.getByText('Escrever spec');
@@ -120,7 +120,7 @@ describe('TaskCard', () => {
     });
 
     it('tarefa Em andamento: nenhuma das duas mudanças aparece', () => {
-      render(<TaskCard task={makeTask({ state: 'in_progress' })} onClick={vi.fn()} onCycleState={vi.fn()} />);
+      render(<TaskCard task={makeTask({ state: 'in_progress' })} onClick={vi.fn()} onCycleState={vi.fn()} onCyclePriority={vi.fn()} />);
 
       const card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
       const title = screen.getByText('Escrever spec');
@@ -132,7 +132,7 @@ describe('TaskCard', () => {
     // Regressão: nenhuma lógica hoje filtra/oculta/remove por Estado — a
     // tarefa Concluída continua presente e visível no DOM, nunca escondida.
     it('tarefa Concluída permanece visível/presente no DOM — nunca oculta ou removida', () => {
-      render(<TaskCard task={makeTask({ state: 'done' })} onClick={vi.fn()} onCycleState={vi.fn()} />);
+      render(<TaskCard task={makeTask({ state: 'done' })} onClick={vi.fn()} onCycleState={vi.fn()} onCyclePriority={vi.fn()} />);
 
       const card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
 
@@ -144,7 +144,7 @@ describe('TaskCard', () => {
     it('a diferenciação de Concluída independe de tema: mesmas classes com data-theme="dark"', () => {
       document.documentElement.setAttribute('data-theme', 'dark');
       try {
-        render(<TaskCard task={makeTask({ state: 'done' })} onClick={vi.fn()} onCycleState={vi.fn()} />);
+        render(<TaskCard task={makeTask({ state: 'done' })} onClick={vi.fn()} onCycleState={vi.fn()} onCyclePriority={vi.fn()} />);
 
         const card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
         const title = screen.getByText('Escrever spec');
@@ -163,7 +163,7 @@ describe('TaskCard', () => {
     it('tarefa Concluída continua clicável e com o Indicador ciclável, igual a qualquer outra', () => {
       const onClick = vi.fn();
       const onCycleState = vi.fn();
-      render(<TaskCard task={makeTask({ state: 'done' })} onClick={onClick} onCycleState={onCycleState} />);
+      render(<TaskCard task={makeTask({ state: 'done' })} onClick={onClick} onCycleState={onCycleState} onCyclePriority={vi.fn()} />);
 
       fireEvent.click(screen.getByText('Escrever spec'));
       expect(onClick).toHaveBeenCalledTimes(1);
@@ -199,7 +199,7 @@ describe('TaskCard', () => {
         <TaskCard
           task={makeTask({ state: 'done' })}
           onClick={vi.fn()}
-          onCycleState={vi.fn()}
+          onCycleState={vi.fn()} onCyclePriority={vi.fn()}
           dragHandleRef={vi.fn()}
         />,
       );
@@ -223,7 +223,7 @@ describe('TaskCard', () => {
         <TaskCard
           task={makeTask({ title: 'Escrever spec' })}
           onClick={vi.fn()}
-          onCycleState={vi.fn()}
+          onCycleState={vi.fn()} onCyclePriority={vi.fn()}
           dragHandleRef={vi.fn()}
         />,
       );
@@ -241,7 +241,7 @@ describe('TaskCard', () => {
         <TaskCard
           task={makeTask({ title: 'Escrever spec' })}
           onClick={vi.fn()}
-          onCycleState={vi.fn()}
+          onCycleState={vi.fn()} onCyclePriority={vi.fn()}
           dragHandleRef={vi.fn()}
         />,
       );
@@ -256,7 +256,7 @@ describe('TaskCard', () => {
       const onClick = vi.fn();
       const onCycleState = vi.fn();
       render(
-        <TaskCard task={makeTask()} onClick={onClick} onCycleState={onCycleState} dragHandleRef={vi.fn()} />,
+        <TaskCard task={makeTask()} onClick={onClick} onCycleState={onCycleState} onCyclePriority={vi.fn()} dragHandleRef={vi.fn()} />,
       );
 
       fireEvent.click(screen.getByRole('button', { name: 'Arrastar tarefa: Escrever spec' }));
@@ -267,7 +267,7 @@ describe('TaskCard', () => {
 
     it('planta o dragHandleRef recebido no elemento da alça (@dnd-kit liga o sensor a este nó)', () => {
       const dragHandleRef = vi.fn();
-      render(<TaskCard task={makeTask()} onClick={vi.fn()} onCycleState={vi.fn()} dragHandleRef={dragHandleRef} />);
+      render(<TaskCard task={makeTask()} onClick={vi.fn()} onCycleState={vi.fn()} onCyclePriority={vi.fn()} dragHandleRef={dragHandleRef} />);
 
       const handle = screen.getByRole('button', { name: 'Arrastar tarefa: Escrever spec' });
       expect(dragHandleRef).toHaveBeenCalledWith(handle);
@@ -275,12 +275,12 @@ describe('TaskCard', () => {
 
     it('isDragging aplica o visual "levantado" (sombra+rotação) só ao Card, sem afetar a alça', () => {
       const { rerender } = render(
-        <TaskCard task={makeTask()} onClick={vi.fn()} onCycleState={vi.fn()} isDragging={false} />,
+        <TaskCard task={makeTask()} onClick={vi.fn()} onCycleState={vi.fn()} onCyclePriority={vi.fn()} isDragging={false} />,
       );
       let card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
       expect(card.classList.contains(styles.dragging)).toBe(false);
 
-      rerender(<TaskCard task={makeTask()} onClick={vi.fn()} onCycleState={vi.fn()} isDragging />);
+      rerender(<TaskCard task={makeTask()} onClick={vi.fn()} onCycleState={vi.fn()} onCyclePriority={vi.fn()} isDragging />);
       card = screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' });
       expect(card.classList.contains(styles.dragging)).toBe(true);
     });
@@ -290,9 +290,35 @@ describe('TaskCard', () => {
     // nenhum sensor de fato ligado a ele (ex. um TaskCard fora do contexto
     // de arraste de `DayColumn`, como em outros testes desta suíte).
     it('sem dragHandleRef: a alça de arraste não é renderizada', () => {
-      render(<TaskCard task={makeTask()} onClick={vi.fn()} onCycleState={vi.fn()} />);
+      render(<TaskCard task={makeTask()} onClick={vi.fn()} onCycleState={vi.fn()} onCyclePriority={vi.fn()} />);
 
       expect(screen.queryByRole('button', { name: /Arrastar tarefa/ })).toBeNull();
+    });
+  });
+
+  // Story 7.1/7.2 (Epic 7): a Tag de Prioridade é sempre renderizada (nunca
+  // ausente, mesmo sem prioridade) e é seu próprio ponto de interação —
+  // `TaskCard` só repassa `onCyclePriority` para ela, sem lógica própria.
+  describe('Tag de Prioridade sempre visível e clicável (Story 7.1/7.2)', () => {
+    it('sem prioridade: a Tag aparece em estado neutro, nunca ausente', () => {
+      render(<TaskCard task={makeTask({ priority: null })} onClick={vi.fn()} onCycleState={vi.fn()} onCyclePriority={vi.fn()} />);
+
+      expect(screen.getByText('Sem prioridade')).toBeTruthy();
+    });
+
+    it('clicar na Tag chama onCyclePriority, não onClick nem onCycleState', () => {
+      const onClick = vi.fn();
+      const onCycleState = vi.fn();
+      const onCyclePriority = vi.fn();
+      render(
+        <TaskCard task={makeTask({ priority: 'low' })} onClick={onClick} onCycleState={onCycleState} onCyclePriority={onCyclePriority} />,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Baixa' }));
+
+      expect(onCyclePriority).toHaveBeenCalledTimes(1);
+      expect(onClick).not.toHaveBeenCalled();
+      expect(onCycleState).not.toHaveBeenCalled();
     });
   });
 });

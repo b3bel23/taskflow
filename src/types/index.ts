@@ -21,14 +21,17 @@ export type TaskState = 'pending' | 'in_progress' | 'done';
 export type Priority = 'high' | 'medium' | 'low';
 
 // Formato completo de uma Tarefa (Epic 2 introduz as ações que as criam/
-// mutam; esta história só precisa do tipo para o envelope de persistência).
+// mutam; Story 1.2 só precisava do tipo para o envelope de persistência).
 //
 // Story 5.1: `date` (ISO real, ex. '2026-09-18') substitui `day`
-// (`DayOfWeek`) como identificador de coluna — mesma semântica de
-// agrupamento usada por `sortTasksInDay`/`PriorityZone`/`groupKey`, só muda
-// o tipo do identificador. `time` existe desde já (sempre `null` nesta
-// história, inclusive vindo da migração) para o Epic 6 (ordenação por
-// horário) reaproveitar o campo sem precisar de outra migração de schema.
+// (`DayOfWeek`) como identificador de coluna. Story 6.1/6.2: `time`
+// (`'HH:mm'` ou `null`) passa a ser editável no Modal e a única base de
+// ordenação dentro do dia (`sortTasksInDay`) — `order` sobrevive só como
+// desempate de criação entre tarefas com o mesmo Horário (ou ambas sem).
+// Epic 7 (Stories 7.1/7.2): `priority` vira puro atributo visual, sem efeito
+// posicional nenhum — nunca mais participa de agrupamento/ordenação (AD-7
+// obsoleto, `PriorityZone`/`groupKey` por prioridade removidos no Epic 4
+// revisado).
 export interface Task {
   id: string;
   title: string;

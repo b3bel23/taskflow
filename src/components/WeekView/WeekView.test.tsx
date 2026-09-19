@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { WeekView } from './WeekView';
 import { formatDayHeading, getWeekWindow } from '../../constants/week';
 import dayColumnStyles from '../DayColumn/DayColumn.module.css';
 import { TaskProvider } from '../../state/TaskContext';
+import { TASKS_STORAGE_KEY } from '../../storage/tasksStorage';
+import type { Task } from '../../types';
 
 function renderWeekView() {
   return render(
@@ -25,11 +27,18 @@ function openModalForDay(dayLabel: string): HTMLElement {
   return column;
 }
 
-function createTask(dayLabel: string, title: string, priority?: 'high' | 'medium' | 'low') {
+function createTask(
+  dayLabel: string,
+  title: string,
+  options?: { priority?: 'high' | 'medium' | 'low'; time?: string },
+) {
   const column = openModalForDay(dayLabel);
   fireEvent.change(screen.getByLabelText('Nome'), { target: { value: title } });
-  if (priority) {
-    fireEvent.change(screen.getByLabelText('Prioridade'), { target: { value: priority } });
+  if (options?.priority) {
+    fireEvent.change(screen.getByLabelText('Prioridade'), { target: { value: options.priority } });
+  }
+  if (options?.time) {
+    fireEvent.change(screen.getByLabelText('Horário'), { target: { value: options.time } });
   }
   fireEvent.click(screen.getByRole('button', { name: 'Adicionar tarefa' }));
   return column;
@@ -47,6 +56,7 @@ describe('WeekView', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
@@ -86,7 +96,7 @@ describe('WeekView', () => {
   it('criação feliz: tarefa aparece imediatamente na coluna certa, com Estado pending, e o modal fecha', () => {
     renderWeekView();
 
-    const column = createTask(formatDayHeading('2026-09-20'), 'Revisar PR', 'high');
+    const column = createTask(formatDayHeading('2026-09-20'), 'Revisar PR', { priority: 'high' });
 
     expect(within(column).getByText('Revisar PR')).toBeTruthy();
     expect(within(column).getByRole('button', { name: 'Pendente' })).toBeTruthy();
@@ -95,23 +105,26 @@ describe('WeekView', () => {
     expect(within(column).queryByText('Nenhuma tarefa')).toBeNull();
   });
 
-  it('ordena as tarefas do dia por prioridade Alta->Média->Baixa->sem prioridade', () => {
+  // Story 6.2 (Epic 6): ordenação por Horário substitui a antiga ordenação
+  // por Prioridade — tarefas sem Horário primeiro, depois em ordem
+  // crescente; Prioridade nunca influencia a posição.
+  it('ordena as tarefas do dia por Horário — sem Horário primeiro, depois crescente; Prioridade não influencia', () => {
     renderWeekView();
     const heading = formatDayHeading('2026-09-24');
 
-    createTask(heading, 'T-sem');
-    createTask(heading, 'T-baixa', 'low');
-    createTask(heading, 'T-alta', 'high');
-    const column = createTask(heading, 'T-media', 'medium');
+    createTask(heading, 'T-sem-horario');
+    createTask(heading, 'T-tarde', { time: '18:00', priority: 'low' });
+    const column = createTask(heading, 'T-manha', { time: '08:00', priority: 'high' });
 
     const items = within(column)
       .getAllByRole('listitem')
       .map((li) => li.textContent ?? '');
     const orderIndex = (title: string) => items.findIndex((text) => text.includes(title));
 
-    expect(orderIndex('T-alta')).toBeLessThan(orderIndex('T-media'));
-    expect(orderIndex('T-media')).toBeLessThan(orderIndex('T-baixa'));
-    expect(orderIndex('T-baixa')).toBeLessThan(orderIndex('T-sem'));
+    expect(orderIndex('T-sem-horario')).toBeLessThan(orderIndex('T-manha'));
+    // T-manha (08:00, Alta) vem antes de T-tarde (18:00, Baixa) — Horário
+    // manda, mesmo com a Prioridade "invertida".
+    expect(orderIndex('T-manha')).toBeLessThan(orderIndex('T-tarde'));
   });
 
   it('2ª tarefa no mesmo dia+prioridade recebe order maior e aparece depois da 1ª', () => {
@@ -229,6 +242,114 @@ describe('WeekView', () => {
 
       expect(within(column).getByRole('button', { name: 'Pendente' })).toBeTruthy();
       expect(within(column).queryByRole('button', { name: 'Em andamento' })).toBeNull();
+    });
+  });
+
+  // Story 5.3 (AD-10): timer periódico (~60s) recomputa a janela quando a
+  // data efetivamente muda, mesmo sem reload/foco na aba.
+  describe('Janela avança automaticamente (Story 5.3)', () => {
+    it('timer detecta virada de dia (~60s depois da meia-noite) e recalcula a janela — hoje passa a ser o novo dia', () => {
+      vi.setSystemTime(new Date('2026-09-18T23:59:30'));
+      renderWeekView();
+
+      expect(screen.getByRole('heading', { name: formatDayHeading('2026-09-18') })).toBeTruthy();
+
+      act(() => {
+        vi.setSystemTime(new Date('2026-09-19T00:00:31'));
+        vi.advanceTimersByTime(60_000);
+      });
+
+      expect(screen.getByRole('heading', { name: formatDayHeading('2026-09-19') })).toBeTruthy();
+      expect(screen.queryByRole('heading', { name: formatDayHeading('2026-09-18') })).toBeNull();
+    });
+
+    it('tick do timer sem virada de dia: janela não recalcula (nenhuma mudança visível)', () => {
+      renderWeekView();
+      const before = screen.getAllByRole('heading', { level: 2 }).map((el) => el.textContent);
+
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+
+      const after = screen.getAllByRole('heading', { level: 2 }).map((el) => el.textContent);
+      expect(after).toEqual(before);
+    });
+  });
+
+  // Story 5.4 (AD-11): toda vez que a janela é (re)calculada — ao montar,
+  // aqui — roda uma passada de rollover.
+  describe('Rollover automático de tarefas atrasadas (Story 5.4)', () => {
+    function seedTask(overrides: Partial<Task>) {
+      const task: Task = {
+        id: overrides.id ?? 'atrasada',
+        title: overrides.title ?? 'Tarefa atrasada',
+        date: overrides.date ?? '2026-09-10',
+        time: overrides.time ?? null,
+        state: overrides.state ?? 'pending',
+        priority: overrides.priority ?? null,
+        order: overrides.order ?? 0,
+      };
+      window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify({ schemaVersion: 2, tasks: [task] }));
+      return task;
+    }
+
+    it('tarefa pendente com date anterior à janela aparece na coluna de hoje ao montar', () => {
+      seedTask({ title: 'Ficou pra trás', date: '2026-09-01', state: 'pending' });
+
+      renderWeekView();
+
+      const todayColumn = screen.getByRole('heading', { name: formatDayHeading('2026-09-18') }).closest('section');
+      expect(within(todayColumn as HTMLElement).getByText('Ficou pra trás')).toBeTruthy();
+
+      const saved = JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}').tasks;
+      expect(saved[0].date).toBe('2026-09-18');
+    });
+
+    it('tarefa concluída com date anterior à janela NUNCA sofre rollover — não aparece em nenhuma coluna visível', () => {
+      seedTask({ title: 'Concluída antiga', date: '2026-09-01', state: 'done' });
+
+      renderWeekView();
+
+      expect(screen.queryByText('Concluída antiga')).toBeNull();
+      const saved = JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}').tasks;
+      expect(saved[0].date).toBe('2026-09-01');
+    });
+
+    it('escrita falha: mostra aviso, tarefa segue fora da janela, e o timer repete a tentativa até dar certo', () => {
+      seedTask({ title: 'Ficou pra trás', date: '2026-09-01', state: 'pending' });
+      const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('quota exceeded');
+      });
+
+      renderWeekView();
+
+      expect(screen.getByRole('alert').textContent).toMatch(/atrasadas/);
+      expect(screen.queryByText('Ficou pra trás')).toBeNull();
+
+      // Ainda falhando no tick seguinte: aviso permanece, nada quebra.
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      expect(screen.getByRole('alert')).toBeTruthy();
+
+      setItem.mockRestore();
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+
+      expect(screen.queryByRole('alert')).toBeNull();
+      const todayColumn = screen.getByRole('heading', { name: formatDayHeading('2026-09-18') }).closest('section');
+      expect(within(todayColumn as HTMLElement).getByText('Ficou pra trás')).toBeTruthy();
+      const saved = JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}').tasks;
+      expect(saved[0].date).toBe('2026-09-18');
+    });
+
+    it('rollover com sucesso: nenhum aviso é mostrado', () => {
+      seedTask({ title: 'Ficou pra trás', date: '2026-09-01', state: 'pending' });
+
+      renderWeekView();
+
+      expect(screen.queryByRole('alert')).toBeNull();
     });
   });
 });

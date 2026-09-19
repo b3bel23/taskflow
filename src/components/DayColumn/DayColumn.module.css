@@ -6,6 +6,8 @@
   border-radius: var(--radius-lg);
   background-color: transparent;
   border-top: 3px solid transparent;
+  outline: 2px dashed transparent;
+  outline-offset: -2px;
 }
 
 /* Destaque do dia atual: fundo suave (~8% do accent) + borda superior
@@ -14,6 +16,16 @@
 .today {
   background-color: color-mix(in srgb, var(--color-accent) 8%, transparent);
   border-top-color: var(--color-accent);
+}
+
+/* Story 4.2 revisada (Epic 4, 2026-09-18): a coluna INTEIRA é o único alvo
+   soltável da semana (não mais zonas de Prioridade) — este é o único
+   feedback visual de "solte aqui" durante um arraste, aplicado via
+   `useDroppable().isOver` (só a coluna sob o ponteiro/foco no momento, nunca
+   todas de uma vez). */
+.dropActive {
+  outline-color: var(--color-border-hairline);
+  background-color: color-mix(in srgb, var(--color-accent) 4%, transparent);
 }
 
 .dayLabel {
@@ -34,72 +46,17 @@
   color: var(--color-ink-secondary);
 }
 
-/* Story 4.2 (Epic 4): container das 4 zonas de Prioridade fixas do dia
-   (`PRIORITY_ZONES`) — substitui o único `<ul class="taskList">` plano da
-   Story 4.1 (cada zona agora tem seu próprio `<ul class="zoneList">` interno,
-   ver abaixo), já que as 4 zonas existem sempre, mesmo vazias. */
-.taskZones {
+/* Lista de Cards do dia (Story 6.2: ordem sempre derivada do Horário, nunca
+   de um gesto de arraste/zona de Prioridade — substituídas nesta revisão do
+   Epic 4). */
+.taskList {
   display: flex;
   flex: 1;
-  flex-direction: column;
-  gap: var(--spacing-3);
-}
-
-/* Uma zona de Prioridade (Boundaries, Story 4.2): discreta fora de um
-   arraste ativo (sem borda/rótulo, só o espaçamento entre Cards) — a borda
-   tracejada + fundo suave + rótulo (`.zoneLabel`, só renderizado quando
-   `isDragActive`) entram junto com `.zoneActive`, tornando a zona "mais
-   evidente" enquanto uma tarefa está sendo arrastada em qualquer lugar da
-   semana (decisão de UX confirmada com Isabel, fora de `DESIGN.md`). */
-.zone {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-1);
-  border: 1px dashed transparent;
-  border-radius: var(--radius-md);
-  padding: 1px;
-}
-
-.zoneActive {
-  border-color: var(--color-border-hairline);
-  background-color: color-mix(in srgb, var(--color-accent) 4%, transparent);
-  padding: var(--spacing-1);
-}
-
-.zoneLabel {
-  margin: 0;
-  font-family: var(--font-family-base);
-  font-size: var(--font-size-meta);
-  font-weight: var(--font-weight-meta);
-  color: var(--color-ink-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.zoneList {
-  display: flex;
   flex-direction: column;
   gap: var(--spacing-2);
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-/* Placeholder de uma zona sem nenhuma tarefa hoje (Story 4.2): invisível e
-   sem altura fora de um arraste ativo (não ocupa espaço visual à toa); ganha
-   altura mínima + borda tracejada só durante o arraste (`.zoneActive`), pra
-   ter uma área de fato soltável pelo mouse — sem isto, uma zona vazia teria
-   altura zero e nunca seria alcançável fisicamente, mesmo já registrada como
-   alvo válido no `DragDropManager`. */
-.emptyZonePlaceholder {
-  list-style: none;
-  min-height: 2px;
-}
-
-.zoneActive .emptyZonePlaceholder {
-  min-height: 40px;
-  border: 2px dashed var(--color-border-hairline);
-  border-radius: var(--radius-md);
 }
 
 .addTaskButton {

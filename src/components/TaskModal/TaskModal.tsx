@@ -54,6 +54,10 @@ export function TaskModal({ date, task, onClose }: TaskModalProps) {
 
   const [title, setTitle] = useState(task?.title ?? '');
   const [selectedDate, setSelectedDate] = useState<string>(task?.date ?? date);
+  // Story 6.1: Horário opcional (`'HH:mm'` via `<input type="time">` nativo,
+  // ou string vazia = sem Horário definido — mesma convenção de campo
+  // opcional que Prioridade, UX-DR9: nunca bloqueia o salvamento).
+  const [time, setTime] = useState<string>(task?.time ?? '');
   const [priority, setPriority] = useState<PrioritySelectValue>(task?.priority ?? '');
   const [state, setState] = useState<TaskState>(task?.state ?? 'pending');
   const [titleError, setTitleError] = useState(false);
@@ -75,6 +79,7 @@ export function TaskModal({ date, task, onClose }: TaskModalProps) {
   const deleteLinkRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const dayId = useId();
+  const timeId = useId();
   const priorityId = useId();
   const stateId = useId();
 
@@ -181,11 +186,19 @@ export function TaskModal({ date, task, onClose }: TaskModalProps) {
       setSaveError(null);
 
       const resolvedPriority = priority === '' ? null : priority;
+      const resolvedTime = time === '' ? null : time;
 
       const result =
         isEditMode && task
-          ? updateTask({ id: task.id, title: trimmedTitle, date: selectedDate, priority: resolvedPriority, state })
-          : createTask({ title: trimmedTitle, date, priority: resolvedPriority });
+          ? updateTask({
+              id: task.id,
+              title: trimmedTitle,
+              date: selectedDate,
+              time: resolvedTime,
+              priority: resolvedPriority,
+              state,
+            })
+          : createTask({ title: trimmedTitle, date, time: resolvedTime, priority: resolvedPriority });
 
       // Escrita falha: modal aberto, erro inline, campos preservados (o
       // estado local não é limpo), nunca retry automático — só um novo
@@ -210,7 +223,7 @@ export function TaskModal({ date, task, onClose }: TaskModalProps) {
 
       onClose();
     },
-    [title, priority, date, selectedDate, state, isEditMode, task, createTask, updateTask, onClose],
+    [title, priority, time, date, selectedDate, state, isEditMode, task, createTask, updateTask, onClose],
   );
 
   // "Cancelar" na Confirmação (e Esc, tratado no handler de teclado acima):
@@ -362,6 +375,19 @@ export function TaskModal({ date, task, onClose }: TaskModalProps) {
                   <span>{formatDayHeading(date)}</span>
                 </p>
               )}
+
+              <div className={styles.field}>
+                <label htmlFor={timeId} className={styles.label}>
+                  Horário
+                </label>
+                <input
+                  id={timeId}
+                  type="time"
+                  className={styles.input}
+                  value={time}
+                  onChange={(event) => setTime(event.target.value)}
+                />
+              </div>
 
               <div className={styles.field}>
                 <label htmlFor={priorityId} className={styles.label}>

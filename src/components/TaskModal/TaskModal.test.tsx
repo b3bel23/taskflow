@@ -635,3 +635,70 @@ describe('TaskModal — Excluir tarefa com confirmação (Story 2.3)', () => {
     expect(screen.queryByText('Não foi possível excluir a tarefa. Tente novamente.')).toBeNull();
   });
 });
+
+describe('TaskModal — Horário (Story 6.1)', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-18T12:00:00'));
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('criação: preenche Horário e confirma — tarefa salva com esse Horário', () => {
+    const onClose = renderModal();
+
+    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Revisar PR' } });
+    fireEvent.change(screen.getByLabelText('Horário'), { target: { value: '09:30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar tarefa' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    const [saved] = getSavedTasks();
+    expect(saved).toMatchObject({ title: 'Revisar PR', time: '09:30' });
+  });
+
+  it('criação: deixa Horário vazio e confirma — salva sem Horário, campo nunca bloqueia o salvamento', () => {
+    const onClose = renderModal();
+
+    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Sem horário' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar tarefa' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    const [saved] = getSavedTasks();
+    expect(saved).toMatchObject({ title: 'Sem horário', time: null });
+  });
+
+  it('edição: abre pré-preenchido com o Horário atual da tarefa', () => {
+    const task = makeTask({ time: '14:45' });
+    renderEditModal(task);
+
+    expect((screen.getByLabelText('Horário') as HTMLInputElement).value).toBe('14:45');
+  });
+
+  it('edição: muda o Horário e confirma — reposicionada conforme a nova ordenação cronológica', () => {
+    const task = makeTask({ time: '08:00' });
+    const onClose = renderEditModal(task);
+
+    fireEvent.change(screen.getByLabelText('Horário'), { target: { value: '22:00' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    const [saved] = getSavedTasks();
+    expect(saved).toMatchObject({ time: '22:00' });
+  });
+
+  it('edição: apaga o Horário e confirma — volta a sem Horário definido', () => {
+    const task = makeTask({ time: '08:00' });
+    const onClose = renderEditModal(task);
+
+    fireEvent.change(screen.getByLabelText('Horário'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    const [saved] = getSavedTasks();
+    expect(saved).toMatchObject({ time: null });
+  });
+});

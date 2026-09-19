@@ -66,11 +66,12 @@ export function TaskModal({ date, task, onClose }: TaskModalProps) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Story 5.1: as 7 opções do `<select>` de Dia (modo edição) são as 7 datas
-  // da janela atual — sem timer de recálculo (Story 5.3). Inicializador
-  // preguiçoso do `useState` (nunca chamada direta no corpo do componente):
-  // calcula a janela uma única vez, na montagem, em vez de recalcular (7
-  // construções de `Date`) a cada re-render — inclusive a cada tecla digitada
-  // no campo Nome.
+  // da janela atual, calculadas UMA vez na montagem do modal — ele não
+  // acompanha o timer de virada de dia que `WeekView` usa (Story 5.3): um
+  // modal deixado aberto atravessando a meia-noite mantém a janela antiga.
+  // Inicializador preguiçoso do `useState` (nunca chamada direta no corpo do
+  // componente) evita recalcular (7 construções de `Date`) a cada re-render —
+  // inclusive a cada tecla digitada no campo Nome.
   const [weekWindow] = useState(() => getWeekWindow());
 
   const dialogRef = useRef<HTMLDivElement>(null);

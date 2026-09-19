@@ -1,9 +1,9 @@
 // Substitui `src/constants/days.ts` (Story 5.1): a semana deixa de ser 7
 // dias-da-semana abstratos (`DayOfWeek`, fixos Segunda->Domingo) e passa a
-// ser uma janela dinâmica de 7 datas reais, `hoje..hoje+6`. Nenhum timer de
-// recálculo automático ainda (Story 5.3, próxima spec) — `getWeekWindow()` é
-// chamada direto no corpo de render de `WeekView`, recalculada a cada
-// render/montagem, sem `useEffect`/estado próprio.
+// ser uma janela dinâmica de 7 datas reais, `hoje..hoje+6`. `getWeekWindow()`
+// é pura e não guarda estado: quem a mantém atual é `WeekView`, que guarda o
+// resultado em estado React e o recalcula pelo timer de ~60s quando a data
+// muda (Story 5.3, AD-10).
 //
 // Datas são sempre strings ISO (`'YYYY-MM-DD'`) em horário LOCAL — nunca
 // `date.toISOString()` (UTC) nem `new Date(iso)` para reconstruir uma data a

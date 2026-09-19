@@ -146,6 +146,19 @@ describe('applyRollover', () => {
       expect(result[0]).toBe(hoje);
     });
 
+    it('hoje com buraco no order (0 e 5): atrasadas entram DEPOIS do 5 e o grupo é renumerado 0..n-1', () => {
+      const tasks = [
+        makeTask({ id: 'hoje-0', date: TODAY, order: 0 }),
+        makeTask({ id: 'hoje-5', date: TODAY, order: 5 }),
+        makeTask({ id: 'atrasada', date: '2026-09-10', order: 0 }),
+      ];
+
+      const result = applyRollover(tasks, TODAY);
+
+      const orderById = Object.fromEntries(result.map((t) => [t.id, t.order]));
+      expect(orderById).toEqual({ 'hoje-0': 0, 'hoje-5': 1, atrasada: 2 });
+    });
+
     it('tarefa concluída no passado não ocupa order em hoje', () => {
       const tasks = [
         makeTask({ id: 'feita', date: '2026-09-10', state: 'done', order: 0 }),

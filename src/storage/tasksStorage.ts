@@ -1,4 +1,5 @@
 import { getWeekWindow, getWeekdayIndex, parseISODateLocal, toISODate } from '../constants/week';
+import { closeOrderGap } from '../state/selectors';
 import type { DayOfWeek, Priority, Task, TaskState } from '../types';
 
 // Única chave de `localStorage` para tarefas (AD-2). `taskflow:theme`
@@ -162,23 +163,10 @@ function migrateFromV1(tasksV1: TaskV1[]): Task[] {
     order: task.order,
   }));
 
-  const groups = new Map<string, Task[]>();
-  for (const task of migrated) {
-    const group = groups.get(task.date);
-    if (group) {
-      group.push(task);
-    } else {
-      groups.set(task.date, [task]);
-    }
-  }
-  for (const group of groups.values()) {
-    group.sort((a, b) => a.order - b.order);
-    group.forEach((task, index) => {
-      task.order = index;
-    });
-  }
-
-  return migrated;
+  // Mesma regra de renumeração do resto do app (`closeOrderGap`), aplicada a
+  // cada Data distinta — não reimplementa o laço aqui.
+  const dates = new Set(migrated.map((task) => task.date));
+  return [...dates].reduce((tasks, date) => closeOrderGap(tasks, date), migrated);
 }
 
 // Único módulo do app que toca `window.localStorage` para tarefas (AD-8).

@@ -53,27 +53,29 @@ export function reassignDate(tasks: Task[], id: string, date: string): Task[] {
     return tasks;
   }
 
-  const oldOrder = new Map(
-    tasks
-      .filter((t) => t.id !== id && t.date === target.date)
-      .sort((a, b) => a.order - b.order)
-      .map((t, i) => [t.id, i]),
-  );
   const newOrder = tasks.filter((t) => t.id !== id && t.date === date).length;
+  const moved = tasks.map((t) => (t.id === id ? { ...t, date, order: newOrder } : t));
 
-  return tasks.map((t) =>
-    t.id === id ? { ...t, date, order: newOrder } : oldOrder.has(t.id) ? { ...t, order: oldOrder.get(t.id)! } : t,
-  );
+  // A tarefa já mudou de Data em `moved`, então reindexar a Data antiga só
+  // enxerga as que ficaram — o buraco fecha sem lógica própria aqui.
+  return closeOrderGap(moved, target.date);
 }
 
-// Função pura de reindexação para exclusão (Story 2.3, AD-7 revisado): fecha
-// o risco latente de um buraco no `order` da Data colidir com uma tarefa
-// nova. `tasks` já chega SEM a tarefa removida (a remoção acontece antes, em
-// `useTaskActions.deleteTask`); esta função só reindexa sequencialmente
-// (0..n-1, por `order` crescente) as tarefas remanescentes da MESMA `date`
-// da tarefa removida — escopo `(date)`, sem mais a dimensão de Prioridade.
+// ÚNICA implementação da regra de numeração de `order` (AD-7 revisado:
+// sequencial 0..n-1 dentro de cada `date`, por `order` crescente; empate de
+// `order` mantém a posição relativa no array). Todo lugar que precisa
+// renumerar um grupo passa por aqui — `deleteTask` (fecha o buraco da tarefa
+// removida, Story 2.3), `reassignDate` (fecha o buraco da Data de origem),
+// `applyRollover` (integra as tarefas que rolaram ao fim de hoje) e
+// `migrateFromV1` (rede de segurança na migração) — em vez de cada um
+// reimplementar o mesmo laço (retro Epics 5-7, F2/A1: a 4ª cópia esqueceu a
+// invariante e duplicou `order`). Só toca as tarefas da `date` informada;
+// tarefa que já está com o `order` certo mantém a mesma referência de objeto.
 export function closeOrderGap(tasks: Task[], date: string): Task[] {
   const group = tasks.filter((t) => t.date === date).sort((a, b) => a.order - b.order);
   const newOrder = new Map(group.map((t, i) => [t.id, i]));
-  return tasks.map((t) => (newOrder.has(t.id) ? { ...t, order: newOrder.get(t.id)! } : t));
+  return tasks.map((t) => {
+    const order = newOrder.get(t.id);
+    return order === undefined || order === t.order ? t : { ...t, order };
+  });
 }

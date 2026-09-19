@@ -173,6 +173,30 @@ describe('closeOrderGap', () => {
     expect(result.find((t) => t.id === 'other-day')).toMatchObject({ date: '2026-09-22', order: 5 });
   });
 
+  it('tarefa que já está com o order certo mantém a mesma referência de objeto; a que muda, não', () => {
+    const certa = makeTask({ id: 'certa', date: '2026-09-21', order: 0 });
+    const errada = makeTask({ id: 'errada', date: '2026-09-21', order: 4 });
+
+    const result = closeOrderGap([certa, errada], '2026-09-21');
+
+    expect(result[0]).toBe(certa);
+    expect(result[1]).not.toBe(errada);
+    expect(result[1]).toMatchObject({ id: 'errada', order: 1 });
+    expect(errada.order).toBe(4);
+  });
+
+  it('empate de order mantém a posição relativa no array (ordenação estável)', () => {
+    const tasks = [
+      makeTask({ id: 'primeira', date: '2026-09-21', order: 1 }),
+      makeTask({ id: 'segunda', date: '2026-09-21', order: 1 }),
+    ];
+
+    const result = closeOrderGap(tasks, '2026-09-21');
+
+    expect(result.find((t) => t.id === 'primeira')?.order).toBe(0);
+    expect(result.find((t) => t.id === 'segunda')?.order).toBe(1);
+  });
+
   it('não reordena nada além do order: título/estado/prioridade/horário preservados', () => {
     const tasks = [
       makeTask({ id: 'a', date: '2026-09-21', order: 5, title: 'Original', state: 'done', time: '10:00' }),

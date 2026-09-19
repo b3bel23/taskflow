@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-10-2026 17:30
-last_updated: 09-19-2026 15:54
+last_updated: 09-19-2026 15:59
 project: TaskFlow
 project_key: NOKEY
 tracking_system: file-system
@@ -57,6 +57,14 @@ development_status:
   # 2026-09-18: capacidade deixou de existir (sem mais reordenação manual por
   # prioridade). Ver sprint-change-proposal-2026-09-18.md e epics.md Epic 4.
   4-2-mudar-prioridade-ou-dia-arrastando-o-card: done
+  # 2026-09-19 (retro Epics 5-7, A9) — verificação manual do arraste: Isabel
+  # arrastou cards entre dias num navegador real (Chrome, dev server local) e
+  # confirmou que funciona ("perfeito"). O método (mouse, teclado ou ambos)
+  # NÃO foi registrado, então a AC de teclado da 4.2 segue sem confirmação
+  # manual específica. Tentativas automatizadas no navegador (mouse e teclado)
+  # não moveram o card — limitação da ferramenta, não evidência de defeito.
+  # Cobertura automatizada: WeekView.drag.test.tsx chama o onDragEnd real com
+  # eventos sintéticos (jsdom não simula o gesto físico).
   epic-4-retrospective: done
 
   # 2026-09-18: pivô para semana dinâmica/horário/prioridade visual — ver
@@ -91,11 +99,13 @@ development_status:
 #   feitos: e2-4 (teste 3 tarefas/exclui meio/cria 4ª), e3-8 (teste ciclo até
 #   Concluída e volta), e4-12 (WeekView.drag.test.tsx exercita o handleDragEnd
 #   real), e4-19 (mesmo teste), e1-22 (useLayoutEffect no tema), e1-25 (ids
-#   duplicados em loadTasks -> loadError).
+#   duplicados em loadTasks -> loadError), e4-18 (fechado depois, pelo A1 da
+#   retro Epics 5-7: só existe uma implementação da renumeração de order).
 #   obsoletos (código removido no pivô): e4-13 e e4-15 (PriorityZone/
-#   EmptyZoneDropTarget), e4-18 (funções de reindex por grupo), e3-9 (não há
-#   mais predicado duplicado: StateIndicator usa mapa por estado, TaskCard é o
-#   único `=== 'done'`), e1-24 (resolvido pela Story 5.3, timer de virada do dia).
+#   EmptyZoneDropTarget), e1-24 (resolvido pela Story 5.3, timer de virada do dia).
+#   e3-9 foi fechado como "obsoleto" por engano e REABERTO em 2026-09-19: o risco
+#   (TaskCard e StateIndicator precisam ser editados juntos ao surgir um novo
+#   estado "parecido com concluído") ainda existe.
 action_items:
   - id: "epic-2-retro-item-1-corrigir-a-corrida-de-foco-em-closeeditm"
     epic: 2
@@ -162,7 +172,7 @@ action_items:
     action: "Extrair um predicado/mapa unico para task.state === done, hoje duplicado
       entre TaskCard.tsx e StateIndicator.tsx"
     owner: "dev"
-    status: done
+    status: open
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-14.md"
   - id: "epic-3-retro-item-10-antes-da-story-4-1-decidir-explicitament"
     epic: 3
@@ -235,7 +245,7 @@ action_items:
       compartilham a mesma forma sem helper comum — baixo risco hoje, mas uma 4a funcao
       futura poderia esquecer uma guarda que as outras tres ja aprenderam"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-15.md"
   - id: "epic-4-retro-item-19-ao-extrair-uma-funcao-pura-de-decisao-de"
     epic: 4
@@ -343,7 +353,7 @@ action_items:
       prioridade/OptimisticSortingPlugin da Story 4.2 original e reavaliar a da largura
       do cabecalho de coluna (F6)"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
   - id: "epic-5-retro-item-32-a6-reconciliar-epics-md-4-2-dnd-kit-core"
     epic: 5
@@ -352,26 +362,26 @@ action_items:
       escrita) e restricoes de dados de 5.1/6.1 (time HH:mm, ids unicos, ano < 100)
       (F9)"
     owner: "spec"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
   - id: "epic-5-retro-item-33-a7-ao-entregar-varias-stories-no-mesmo-c"
     epic: 5
     action: "A7 - Ao entregar varias stories no mesmo conjunto de arquivos, fazer
       commit por story ou micro-spec com ACs e como verifiquei (F1)"
     owner: "process"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
   - id: "epic-5-retro-item-34-a8-ao-fechar-um-item-de-retro-como-obsol"
     epic: 5
     action: "A8 - Ao fechar um item de retro como obsoleto, exigir que o padrao de
       risco descrito (nao so o codigo citado) tenha sido eliminado (F2)"
     owner: "process"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
   - id: "epic-5-retro-item-35-a9-registrar-a-verificacao-manual-do-arr"
     epic: 5
     action: "A9 - Registrar a verificacao manual do arraste (data, mouse e/ou teclado,
       o que foi testado) no sprint-status ou na spec da 4.2"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"

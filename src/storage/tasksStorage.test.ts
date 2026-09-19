@@ -109,6 +109,32 @@ describe('tasksStorage', () => {
       expect(loadTasks()).toEqual({ tasks: [], loadError: true });
     });
 
+    it('`date` com ano abaixo de 100 (ex. "0099-01-01") é uma data real: carrega normalmente, sem descartar o array', () => {
+      const tasks = [{ ...sampleTask, date: '0099-01-01' }];
+      window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify({ schemaVersion: 2, tasks }));
+
+      expect(loadTasks()).toEqual({ tasks, loadError: false });
+    });
+
+    it.each(['09:30', '00:00', '23:59'])('`time` válido "%s" carrega normalmente', (time) => {
+      const tasks = [{ ...sampleTask, time }];
+      window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify({ schemaVersion: 2, tasks }));
+
+      expect(loadTasks()).toEqual({ tasks, loadError: false });
+    });
+
+    it.each(['', 'abc', '9:30', '24:00', '12:60', '09:30:15'])(
+      'dado corrompido: `time` malformado "%s" cai no estado vazio com loadError',
+      (time) => {
+        window.localStorage.setItem(
+          TASKS_STORAGE_KEY,
+          JSON.stringify({ schemaVersion: 2, tasks: [{ ...sampleTask, time }] }),
+        );
+
+        expect(loadTasks()).toEqual({ tasks: [], loadError: true });
+      },
+    );
+
     it('dado corrompido: getItem lança cai no estado vazio com loadError, sem propagar', () => {
       // jsdom expõe `getItem`/`setItem` via `Storage.prototype`, não como
       // propriedade própria da instância — `vi.spyOn(window.localStorage, ...)`
@@ -278,7 +304,7 @@ describe('tasksStorage', () => {
         expect(loadTasks()).toEqual({ tasks: [], loadError: true });
       });
 
-      it('order renumerado sequencialmente por grupo (date, priority) após a migração', () => {
+      it('order renumerado sequencialmente por grupo (date) após a migração — escopo (date, priority) obsoleto, AD-7 revisado', () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-09-18T12:00:00'));
 
@@ -298,6 +324,30 @@ describe('tasksStorage', () => {
 
         expect(byId.get('primeira')).toMatchObject({ order: 0 });
         expect(byId.get('segunda')).toMatchObject({ order: 1 });
+
+        vi.useRealTimers();
+      });
+
+      it('renumeração agrupa só por date — duas tarefas do mesmo dia com Prioridades diferentes dividem a mesma sequência de order', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-09-18T12:00:00'));
+
+        window.localStorage.setItem(
+          TASKS_STORAGE_KEY,
+          JSON.stringify({
+            schemaVersion: 1,
+            tasks: [
+              { id: 'alta', title: 'Alta', day: 'mon', state: 'pending', priority: 'high', order: 5 },
+              { id: 'baixa', title: 'Baixa', day: 'mon', state: 'pending', priority: 'low', order: 9 },
+            ],
+          }),
+        );
+
+        const result = loadTasks();
+        const byId = new Map(result.tasks.map((t) => [t.id, t]));
+
+        expect(byId.get('alta')).toMatchObject({ order: 0 });
+        expect(byId.get('baixa')).toMatchObject({ order: 1 });
 
         vi.useRealTimers();
       });

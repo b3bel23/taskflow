@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { formatDayHeading, getTodayISO, getWeekWindow, getWeekdayIndex, getWeekdayLabel } from './week';
+import {
+  formatDayHeading,
+  getTodayISO,
+  getWeekWindow,
+  getWeekdayIndex,
+  getWeekdayLabel,
+  parseISODateLocal,
+  toISODate,
+} from './week';
 
 // Mesmo espírito do antigo `days.test.ts` (Story 5.1 deletou-o): todo
 // "esperado" aqui é um literal fixo, escrito à mão, NUNCA construído
@@ -122,5 +130,20 @@ describe('getTodayISO', () => {
     vi.setSystemTime(new Date('2026-01-05T00:00:01'));
 
     expect(getTodayISO()).toBe('2026-01-05');
+  });
+});
+
+describe('parseISODateLocal / toISODate', () => {
+  it('round-trip idêntico para uma data comum', () => {
+    expect(toISODate(parseISODateLocal('2026-09-18'))).toBe('2026-09-18');
+  });
+
+  it('ano abaixo de 100 não vira 19xx: "0099-01-01" faz round-trip idêntico', () => {
+    expect(parseISODateLocal('0099-01-01').getFullYear()).toBe(99);
+    expect(toISODate(parseISODateLocal('0099-01-01'))).toBe('0099-01-01');
+  });
+
+  it('data inexistente continua não fazendo round-trip ("2026-02-30" rola para março)', () => {
+    expect(toISODate(parseISODateLocal('2026-02-30'))).toBe('2026-03-02');
   });
 });

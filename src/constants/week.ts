@@ -34,12 +34,18 @@ function pad2(value: number): string {
 // normaliza o overflow para o dia seguinte), o que expõe a
 // inconsistência sem precisar de outra lib de datas.
 export function toISODate(date: Date): string {
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+  const year = String(date.getFullYear()).padStart(4, '0');
+  return `${year}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 }
 
+// `new Date(year, ...)` trata anos 0..99 como 1900..1999 — `setFullYear`
+// não, então `'0099-01-01'` faz o round-trip idêntico em vez de virar
+// `'1999-01-01'` (o que faria `isValidTask` descartar o array inteiro).
 export function parseISODateLocal(dateISO: string): Date {
   const [year, month, day] = dateISO.split('-').map(Number);
-  return new Date(year, month - 1, day);
+  const date = new Date(2000, 0, 1);
+  date.setFullYear(year, month - 1, day);
+  return date;
 }
 
 // Data de hoje em ISO local (`'YYYY-MM-DD'`) — âncora padrão de

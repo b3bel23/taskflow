@@ -41,6 +41,9 @@ const VALID_TASK_STATES: TaskState[] = ['pending', 'in_progress', 'done'];
 const VALID_PRIORITIES: Priority[] = ['high', 'medium', 'low'];
 const VALID_DAYS_OF_WEEK: DayOfWeek[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+// `'HH:mm'` 24h — o mesmo formato que `<input type="time">` devolve e que
+// `sortTasksInDay` assume ao comparar Horários lexicograficamente.
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 // `ISO_DATE_PATTERN` sozinho aceita strings lexicamente válidas mas
 // calendarialmente inexistentes (ex. `'2026-13-40'`, `'2026-02-30'`) — o
@@ -86,7 +89,7 @@ function isValidTask(value: unknown): value is Task {
     typeof candidate.date === 'string' &&
     ISO_DATE_PATTERN.test(candidate.date) &&
     isCalendarValidISODate(candidate.date) &&
-    (candidate.time === null || typeof candidate.time === 'string') &&
+    (candidate.time === null || (typeof candidate.time === 'string' && TIME_PATTERN.test(candidate.time))) &&
     VALID_TASK_STATES.includes(candidate.state as TaskState) &&
     (candidate.priority === null || VALID_PRIORITIES.includes(candidate.priority as Priority)) &&
     typeof candidate.order === 'number' &&
@@ -132,13 +135,13 @@ function mapDayOfWeekToDate(day: DayOfWeek, window: string[]): string {
 // mapeia cada `day` salvo para a data real correspondente dentro da PRIMEIRA
 // janela `hoje..hoje+6` calculada no momento da migração (mesma janela para
 // todas as tarefas desta chamada — nunca uma janela por tarefa), `time`
-// sempre `null` (Epic 6 ainda não existe). Depois renumera `order`
-// sequencialmente (0..n-1) dentro de cada grupo `(date, priority)` — mesma
-// invariante que `closeOrderGap`/`reorderGroupByIndex`/`getNextOrderInGroup`
-// (`selectors.ts`, AD-7) já mantêm em toda mutação normal do app — como rede
-// de segurança defensiva contra qualquer buraco que os dados salvos em v1
-// pudessem ter, já que o mapeamento `day`->`date` sozinho é uma bijeção que
-// preserva os grupos originais.
+// sempre `null` (dados v1 nunca tiveram Horário — Epic 6). Depois renumera
+// `order` sequencialmente (0..n-1) dentro de cada grupo `(date)` — mesma
+// invariante que `closeOrderGap`/`getNextOrderInGroup`/`reassignDate`
+// (`selectors.ts`, AD-7 revisado 2026-09-18: escopo `(date)`, não mais
+// `(date, priority)` — Prioridade é puro atributo visual, Epic 7) já mantêm
+// em toda mutação normal do app — rede de segurança defensiva contra
+// qualquer buraco que os dados salvos em v1 pudessem ter.
 function migrateFromV1(tasksV1: TaskV1[]): Task[] {
   const window = getWeekWindow();
 
@@ -154,12 +157,11 @@ function migrateFromV1(tasksV1: TaskV1[]): Task[] {
 
   const groups = new Map<string, Task[]>();
   for (const task of migrated) {
-    const groupKey = `${task.date}::${task.priority ?? 'none'}`;
-    const group = groups.get(groupKey);
+    const group = groups.get(task.date);
     if (group) {
       group.push(task);
     } else {
-      groups.set(groupKey, [task]);
+      groups.set(task.date, [task]);
     }
   }
   for (const group of groups.values()) {

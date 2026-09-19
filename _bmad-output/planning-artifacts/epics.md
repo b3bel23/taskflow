@@ -415,7 +415,7 @@ Para que eu ajuste rapidamente a data sem abrir o Modal de Tarefa.
 **Then** a Data da tarefa muda para a do dia de destino, e ela entra na nova coluna já ordenada pelo seu Horário atual (`useTaskActions.moveTaskToDate`)
 **And** o Horário, a Prioridade e o Estado da tarefa **não são alterados** por essa mudança — só a Data muda [Revisado: antes também mudava Prioridade se solta numa faixa; essa faixa não existe mais]
 
-**Given** o arraste de dia usa `@dnd-kit/react`
+**Given** o arraste de dia usa `@dnd-kit/core` [Reconciliado 2026-09-19: a implementação usa `DndContext` + `useDraggable`/`useDroppable` de `@dnd-kit/core`, não `@dnd-kit/react`]
 **When** Isabel realiza a mesma mudança usando o sensor de teclado do `@dnd-kit` em vez do mouse
 **Then** o resultado é idêntico ao arraste por mouse — mesma função de ação, mesma persistência, foco visível durante toda a operação
 **And** essa é uma via adicional à já existente (Modal, Story 2.2/Epic 5) — nenhuma delas substitui a outra; toda mudança de Data possível por arraste também é possível pelo Modal, e vice-versa
@@ -450,6 +450,11 @@ Para que a evolução do TaskFlow não me custe nenhum dado.
 **Given** existe uma chave `taskflow:tasks` salva com `schemaVersion` diferente de `1` e diferente de `2`
 **When** o app inicializa
 **Then** o comportamento é o mesmo já existente para dado ilegível (estado vazio + `loadError` — AD-2), sem tentar migrar um formato desconhecido
+
+**Given** existe uma chave `taskflow:tasks` com `schemaVersion: 1` ou `2` cujo array tem um item com `time` que não seja `null` nem uma string `HH:mm` (24h), ou dois itens com o mesmo `id`
+**When** o app inicializa
+**Then** o dado é tratado como ilegível (estado vazio + `loadError`), nunca carregado parcialmente [Reconciliado 2026-09-19: restrições de dados adicionadas na implementação — `4c66d0c`, `8443c0d`]
+**And** uma `date` com ano abaixo de 100 (ex. `0099-01-01`) é uma data real e carrega normalmente
 
 ### Story 5.2: Exibir a janela dinâmica de 7 dias ancorada em hoje
 
@@ -500,6 +505,18 @@ Para que eu nunca perca uma tarefa só porque a janela avançou.
 **Then** ela persiste em uma única escrita em lote (não uma escrita por tarefa) antes de comitar ao estado React (AD-4)
 **And** se a escrita falhar, nenhuma tarefa exibida muda de data até a escrita ter sucesso
 
+**Given** a escrita do rollover falhou
+**When** a tela é exibida
+**Then** um aviso (`role="alert"`) informa que as tarefas atrasadas não puderam ser movidas para hoje, e o rollover é repetido a cada verificação do timer (~60s) até ter sucesso [Reconciliado 2026-09-19: comportamento adicionado na implementação — `c9e3cf6`]
+
+**Given** uma tarefa não concluída passa a ter `date` anterior a hoje por qualquer caminho (ex. um modal de edição aberto atravessando a meia-noite e salvo com o dia que acabou de virar passado)
+**When** o estado das tarefas muda
+**Then** o rollover roda de novo e a tarefa volta para hoje — nunca fica invisível fora da janela (`7136ae1`)
+
+**Given** tarefas rolam para hoje
+**When** o rollover é aplicado
+**Then** elas entram depois das que já estavam em hoje, na ordem original (data, depois `order`), e o `order` do grupo de hoje é renumerado sequencialmente 0..n-1, sem repetição
+
 ## Epic 6: Organização por Horário [NOVO 2026-09-18]
 
 Isabel define um horário opcional ao criar/editar uma tarefa; dentro de cada dia, as tarefas passam a ser ordenadas cronologicamente por esse horário — tarefas sem horário aparecem primeiro — substituindo por completo a ordenação por prioridade do Epic 2 original.
@@ -523,6 +540,10 @@ Para que ela apareça na posição certa dentro do meu dia.
 **Given** o Modal de Tarefa está aberto
 **When** Isabel deixa o campo Horário vazio e confirma
 **Then** a tarefa é salva sem Horário definido — o campo nunca bloqueia o salvamento (mesma regra de Prioridade, UX-DR9)
+
+**Given** uma tarefa tem Horário definido
+**When** o Card é renderizado
+**Then** o Horário aparece no Card, acima do título, em tom secundário; o `aria-label` do Card o inclui (ex. "Editar tarefa: Reunião, às 09:30") [Reconciliado 2026-09-19: adicionado na implementação — `1472d92`]
 
 ### Story 6.2: Ordenar tarefas do dia por horário
 

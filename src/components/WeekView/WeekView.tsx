@@ -70,14 +70,20 @@ export function WeekView() {
         return;
       }
 
+      // Soltar na própria coluna é um no-op (`moveTaskToDate` devolve
+      // `ok: true` sem mudar `state.tasks`) — o efeito abaixo nunca
+      // dispararia para consumir o id, que ficaria armado e roubaria o foco
+      // na próxima mudança de tarefas sem relação alguma. Só arma quando a
+      // Data realmente muda (a alça é de fato desmontada/remontada).
+      const dateChanged = state.tasks.some((task) => task.id === change.id && task.date !== change.date);
       const wasHandleFocused = isDragHandleFocused(change.id);
       const result = applyWeekDragChange(change, { moveTaskToDate });
 
-      if (wasHandleFocused && result.ok) {
+      if (wasHandleFocused && result.ok && dateChanged) {
         focusRestoreTaskIdRef.current = change.id;
       }
     },
-    [moveTaskToDate],
+    [moveTaskToDate, state.tasks],
   );
 
   useEffect(() => {

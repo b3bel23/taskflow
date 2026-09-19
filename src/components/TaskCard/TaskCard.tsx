@@ -73,7 +73,7 @@ export function TaskCard({
       type="button"
       className={cardClassNames}
       onClick={onClick}
-      aria-label={`Editar tarefa: ${task.title}`}
+      aria-label={`Editar tarefa: ${task.title}${task.time ? `, às ${task.time}` : ''}`}
     >
       <div className={styles.topRow}>
         <div className={styles.leftControls}>
@@ -105,6 +105,14 @@ export function TaskCard({
         </div>
         <PriorityTag priority={task.priority} onCycle={onCyclePriority} />
       </div>
+      {task.time && (
+        // Horário (Story 6.1) visível no Card — antes só dava para ver
+        // reabrindo o Modal. `aria-label` do próprio Card já o anuncia, então
+        // o texto visual fica fora da árvore de acessibilidade.
+        <time className={styles.time} dateTime={task.time} aria-hidden="true">
+          {task.time}
+        </time>
+      )}
       <p className={isCompleted ? `${styles.title} ${styles.titleCompleted}` : styles.title}>
         {task.title}
       </p>

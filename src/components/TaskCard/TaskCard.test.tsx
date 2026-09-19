@@ -34,6 +34,26 @@ describe('TaskCard', () => {
     expect(screen.queryByText('Baixa')).toBeNull();
   });
 
+  describe('Horário visível no Card (Story 6.1)', () => {
+    it('com Horário: mostra o valor num <time> e o inclui no aria-label do Card', () => {
+      render(<TaskCard task={makeTask({ time: '09:30' })} onClick={vi.fn()} onCycleState={vi.fn()} onCyclePriority={vi.fn()} />);
+
+      const time = screen.getByText('09:30');
+      expect(time.tagName).toBe('TIME');
+      expect(time.getAttribute('datetime')).toBe('09:30');
+      expect(screen.getByRole('button', { name: 'Editar tarefa: Escrever spec, às 09:30' })).toBeTruthy();
+    });
+
+    it('sem Horário: nenhum <time> e o aria-label continua só com o título', () => {
+      const { container } = render(
+        <TaskCard task={makeTask({ time: null })} onClick={vi.fn()} onCycleState={vi.fn()} onCyclePriority={vi.fn()} />,
+      );
+
+      expect(container.querySelector('time')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Editar tarefa: Escrever spec' })).toBeTruthy();
+    });
+  });
+
   it('é um <button> focável por teclado, com foco visível via CSS (Story 2.2)', () => {
     render(<TaskCard task={makeTask()} onClick={vi.fn()} onCycleState={vi.fn()} onCyclePriority={vi.fn()} />);
 

@@ -102,6 +102,15 @@
   border-radius: var(--radius-sm);
 }
 
+.time {
+  display: block;
+  margin-bottom: var(--spacing-1);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-meta);
+  font-weight: var(--font-weight-meta);
+  color: var(--color-ink-secondary);
+}
+
 .title {
   margin: 0;
   font-family: var(--font-family-base);

@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-10-2026 17:30
-last_updated: 09-19-2026 15:23
+last_updated: 09-19-2026 15:54
 project: TaskFlow
 project_key: NOKEY
 tracking_system: file-system
@@ -310,7 +310,7 @@ action_items:
     action: "A1 - Extrair um helper unico de reindexacao de order por data e usar
       em reassignDate, closeOrderGap, migrateFromV1 e applyRollover (F2)"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
   - id: "epic-5-retro-item-28-a2-alinhar-o-ciclo-de-vida-da-janela-pas"
     epic: 5
@@ -319,7 +319,7 @@ action_items:
       mudar; escrever antes um teste que reproduza a data passada salva a partir de
       um modal aberto na virada do dia (F3)"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
   - id: "epic-5-retro-item-29-a3-white-space-nowrap-ou-rotulo-mais-cur"
     epic: 5
@@ -327,7 +327,7 @@ action_items:
       prioridade da PriorityTag, que quebra em duas linhas em colunas estreitas; definir
       viewport de referencia para ACs visuais (F4)"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
   - id: "epic-5-retro-item-30-a4-corrigir-comentarios-obsoletos-em-con"
     epic: 5
@@ -335,7 +335,7 @@ action_items:
       e 59) e TaskModal.tsx (linha 69) que dizem que nao ha timer de recalculo da
       janela (F5)"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
   - id: "epic-5-retro-item-31-a5-limpar-deferred-work-md-marcar-obsole"
     epic: 5

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useReducer, type Dispatch, type ReactNode } from 'react';
+import { createContext, useContext, useLayoutEffect, useReducer, type Dispatch, type ReactNode } from 'react';
 import { loadTheme } from '../storage/themeStorage';
 import { themeReducer, type ThemeAction } from './themeReducer';
 import type { Theme } from '../types';
@@ -13,8 +13,8 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 // Init lazy síncrono: `loadTheme()` roda uma única vez, antes da primeira
 // renderização, e já aplica `data-theme` no elemento raiz nesse mesmo
 // instante — sem isso o app pintaria primeiro com o tema padrão do CSS e só
-// depois, num `useEffect`, corrigiria para o tema salvo (o "flash" que o
-// Design Note da spec proíbe). O `useEffect` abaixo existe só para manter
+// depois, num efeito, corrigiria para o tema salvo (o "flash" que o
+// Design Note da spec proíbe). O efeito abaixo existe só para manter
 // `data-theme` sincronizado nas trocas *depois* da montagem (toggle) — não
 // para a aplicação inicial.
 //
@@ -28,7 +28,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return initial;
   });
 
-  useEffect(() => {
+  // `useLayoutEffect` (retro Epic 1, item 22): roda antes da pintura, no
+  // mesmo commit em que o ícone do `ThemeToggle` muda — com `useEffect`, um
+  // quadro podia sair com o ícone novo e as cores (CSS tokens) antigas.
+  useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 

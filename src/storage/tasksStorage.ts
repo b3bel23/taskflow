@@ -70,6 +70,13 @@ const DAY_OF_WEEK_TO_JS_DAY: Record<DayOfWeek, number> = {
   sat: 6,
 };
 
+// Ids repetidos no array (payload corrompido mas com forma válida por item)
+// fariam `find`/`map` por `id` em `useTaskActions` agirem só na primeira
+// ocorrência e duplicariam chaves React — tratado como dado ilegível.
+function hasUniqueIds(tasks: { id: string }[]): boolean {
+  return new Set(tasks.map((task) => task.id)).size === tasks.length;
+}
+
 // Valida a forma de uma Tarefa individual no formato ATUAL (`schemaVersion:
 // 2`) — o envelope (`schemaVersion` + `Array.isArray(tasks)`) sozinho
 // deixaria passar um array de itens malformados como "válido". Um item que
@@ -198,7 +205,7 @@ export function loadTasks(): LoadTasksResult {
     const parsed = JSON.parse(raw) as Partial<TasksEnvelope> | null;
 
     if (parsed?.schemaVersion === 1) {
-      if (!Array.isArray(parsed.tasks) || !parsed.tasks.every(isValidTaskV1)) {
+      if (!Array.isArray(parsed.tasks) || !parsed.tasks.every(isValidTaskV1) || !hasUniqueIds(parsed.tasks)) {
         return { tasks: [], loadError: true };
       }
 
@@ -212,7 +219,8 @@ export function loadTasks(): LoadTasksResult {
     if (
       parsed?.schemaVersion !== CURRENT_SCHEMA_VERSION ||
       !Array.isArray(parsed.tasks) ||
-      !parsed.tasks.every(isValidTask)
+      !parsed.tasks.every(isValidTask) ||
+      !hasUniqueIds(parsed.tasks)
     ) {
       return { tasks: [], loadError: true };
     }

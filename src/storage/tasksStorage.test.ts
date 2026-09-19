@@ -135,6 +135,15 @@ describe('tasksStorage', () => {
       },
     );
 
+    it('dado corrompido: ids duplicados entre itens de um array por outro lado válido caem em loadError', () => {
+      window.localStorage.setItem(
+        TASKS_STORAGE_KEY,
+        JSON.stringify({ schemaVersion: 2, tasks: [sampleTask, { ...sampleTask, title: 'Outra', order: 1 }] }),
+      );
+
+      expect(loadTasks()).toEqual({ tasks: [], loadError: true });
+    });
+
     it('dado corrompido: getItem lança cai no estado vazio com loadError, sem propagar', () => {
       // jsdom expõe `getItem`/`setItem` via `Storage.prototype`, não como
       // propriedade própria da instância — `vi.spyOn(window.localStorage, ...)`

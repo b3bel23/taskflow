@@ -95,14 +95,18 @@ export function WeekView() {
     getDragHandle(taskId)?.focus();
   }, [state.tasks]);
 
-  // Story 5.4 (AD-11): toda vez que a janela é (re)calculada — ao montar e
-  // sempre que o timer abaixo detecta virada de dia (`today` muda) — roda
-  // uma passada de rollover. Depende só de `today`, nunca de `applyRollover`
-  // em si: a identidade desse callback muda a cada `state.tasks` novo
-  // (inclusive o que o próprio rollover acabou de produzir), e a função já é
-  // um no-op quando não há nada a rolar (compara referência, não escreve à
-  // toa) — incluí-la nas deps só causaria reexecuções redundantes sem mudar
-  // o resultado.
+  // Story 5.4 (AD-11): roda uma passada de rollover ao montar, sempre que o
+  // timer abaixo detecta virada de dia (`today` muda) e também sempre que
+  // `state.tasks` muda (retro Epics 5-7, F3/A2): qualquer caminho que deixe
+  // uma tarefa não concluída com `date` anterior a hoje — ex. um modal de
+  // edição aberto atravessando a meia-noite e salvo com o dia que acabou de
+  // virar passado — a traz de volta para hoje na hora, em vez de deixá-la
+  // invisível até o próximo reload. Não cria laço: quando nada precisa rolar,
+  // a função pura devolve a MESMA referência e nada é escrito nem despachado;
+  // depois de rolar, o `state.tasks` novo dispara mais uma passada que já não
+  // encontra nada. Depende de `today` e `state.tasks`, nunca de
+  // `applyRollover` em si (a identidade do callback muda a cada `state.tasks`
+  // — a ref abaixo dá acesso à versão atual).
   //
   // Se a escrita falhar (`saveTasks` → `{ ok: false }`, ex. cota cheia), as
   // tarefas atrasadas continuam com a `date` antiga — fora da janela, ou seja,
@@ -120,7 +124,7 @@ export function WeekView() {
 
   useEffect(() => {
     setRolloverFailed(!applyRolloverRef.current(today).ok);
-  }, [today]);
+  }, [today, state.tasks]);
 
   // Story 5.3 (AD-10): timer periódico (~60s) comparando a data corrente com
   // a usada para calcular `week` — só recomputa (e portanto só re-renderiza)

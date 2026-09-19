@@ -365,6 +365,42 @@ describe('WeekView', () => {
       expect(saved[0].date).toBe('2026-09-18');
     });
 
+    // Retro Epics 5-7, F3/A2: o `TaskModal` calcula a janela uma vez, na
+    // montagem. Aberto numa coluna que SOBREVIVE à virada do dia (a de
+    // amanhã), ele continua oferecendo o dia que acabou de virar passado —
+    // e o rollover só rodava quando `today` muda, então salvar com essa data
+    // deixava a tarefa fora da janela (invisível) até o próximo reload.
+    it('modal de edição aberto atravessando a meia-noite: escolher o dia que virou passado não faz a tarefa sumir', () => {
+      vi.setSystemTime(new Date('2026-09-18T23:59:30'));
+      seedTask({ id: 'alvo', title: 'Alvo', date: '2026-09-19', state: 'pending' });
+      renderWeekView();
+
+      const tomorrowColumn = screen.getByRole('heading', { name: formatDayHeading('2026-09-19') }).closest('section');
+      fireEvent.click(within(tomorrowColumn as HTMLElement).getByText('Alvo'));
+      expect(screen.getByRole('dialog')).toBeTruthy();
+
+      act(() => {
+        vi.setSystemTime(new Date('2026-09-19T00:00:31'));
+        vi.advanceTimersByTime(60_000);
+      });
+
+      // Pré-condição: a coluna de 19/09 sobreviveu à virada, o modal segue aberto.
+      expect(screen.getByRole('dialog')).toBeTruthy();
+
+      // Se o modal ainda oferecer 18/09 (agora no passado), a Isabel pode escolhê-lo.
+      const staleOption = screen.queryByRole('option', { name: formatDayHeading('2026-09-18') });
+      if (staleOption) {
+        fireEvent.change(screen.getByLabelText('Dia'), { target: { value: '2026-09-18' } });
+      }
+      fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+      // A tarefa nunca some: continua visível em alguma coluna da janela atual...
+      expect(screen.getByText('Alvo')).toBeTruthy();
+      // ...e nunca fica gravada com uma data anterior a hoje.
+      const saved = JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}').tasks;
+      expect(saved[0].date >= '2026-09-19').toBe(true);
+    });
+
     it('rollover com sucesso: nenhum aviso é mostrado', () => {
       seedTask({ title: 'Ficou pra trás', date: '2026-09-01', state: 'pending' });
 

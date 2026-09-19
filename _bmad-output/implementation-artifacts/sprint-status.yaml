@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-10-2026 17:30
-last_updated: 09-18-2026
+last_updated: 09-19-2026
 project: TaskFlow
 project_key: NOKEY
 tracking_system: file-system
@@ -52,11 +52,11 @@ development_status:
   3-2-diferenciar-visualmente-tarefa-concluída: done
   epic-3-retrospective: done
 
-  epic-4: backlog
+  epic-4: done
   # 4-1-reordenar-tarefas-por-arraste-dentro-do-mesmo-nível-de-prior — REMOVIDA
   # 2026-09-18: capacidade deixou de existir (sem mais reordenação manual por
   # prioridade). Ver sprint-change-proposal-2026-09-18.md e epics.md Epic 4.
-  4-2-mudar-prioridade-ou-dia-arrastando-o-card: backlog
+  4-2-mudar-prioridade-ou-dia-arrastando-o-card: done
   epic-4-retrospective: done
 
   # 2026-09-18: pivô para semana dinâmica/horário/prioridade visual — ver
@@ -65,19 +65,28 @@ development_status:
   # 4.2 volta a backlog, story renomeada para "mudar a data arrastando o
   # card") e depende de Epic 5 (datas reais) + Epic 6 (ordenação por horário)
   # antes de poder ser reimplementado.
-  epic-5: in-progress
-  5-1-migrar-dados-existentes-para-o-modelo-de-data-real: review
-  5-2-exibir-a-janela-dinamica-de-7-dias: backlog
-  5-3-avancar-a-janela-automaticamente-com-o-app-aberto: backlog
-  5-4-rollover-automatico-de-tarefas-atrasadas: backlog
+  epic-5: done
+  5-1-migrar-dados-existentes-para-o-modelo-de-data-real: done
+  5-2-exibir-a-janela-dinamica-de-7-dias: done
+  5-3-avancar-a-janela-automaticamente-com-o-app-aberto: done
+  5-4-rollover-automatico-de-tarefas-atrasadas: done
+  epic-5-retrospective: optional
 
-  epic-6: backlog
-  6-1-definir-horario-ao-criar-ou-editar-tarefa: backlog
-  6-2-ordenar-tarefas-do-dia-por-horario: backlog
+  epic-6: done
+  6-1-definir-horario-ao-criar-ou-editar-tarefa: done
+  6-2-ordenar-tarefas-do-dia-por-horario: done
+  epic-6-retrospective: optional
 
-  epic-7: backlog
-  7-1-tag-de-prioridade-sempre-visivel: backlog
-  7-2-ciclar-prioridade-por-clique-na-tag: backlog
+  epic-7: done
+  7-1-tag-de-prioridade-sempre-visivel: done
+  7-2-ciclar-prioridade-por-clique-na-tag: done
+  epic-7-retrospective: optional
+
+  # 2026-09-19: Stories 5.2-5.4, 6.1-6.2, 7.1-7.2 e a 4.2 revisada foram
+  # implementadas juntas, sem arquivo de spec individual (só a 5.1 tem). Code
+  # review (/code-review) rodado sobre o conjunto; achados de rollover
+  # (order duplicado, falha de escrita silenciosa) e de validação (time,
+  # ano < 100) corrigidos. Arraste verificado manualmente no navegador.
 action_items:
   - id: "epic-2-retro-item-1-corrigir-a-corrida-de-foco-em-closeeditm"
     epic: 2

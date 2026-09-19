@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-10-2026 17:30
-last_updated: 09-19-2026
+last_updated: 09-19-2026 15:23
 project: TaskFlow
 project_key: NOKEY
 tracking_system: file-system
@@ -70,17 +70,17 @@ development_status:
   5-2-exibir-a-janela-dinamica-de-7-dias: done
   5-3-avancar-a-janela-automaticamente-com-o-app-aberto: done
   5-4-rollover-automatico-de-tarefas-atrasadas: done
-  epic-5-retrospective: optional
+  epic-5-retrospective: done
 
   epic-6: done
   6-1-definir-horario-ao-criar-ou-editar-tarefa: done
   6-2-ordenar-tarefas-do-dia-por-horario: done
-  epic-6-retrospective: optional
+  epic-6-retrospective: done
 
   epic-7: done
   7-1-tag-de-prioridade-sempre-visivel: done
   7-2-ciclar-prioridade-por-clique-na-tag: done
-  epic-7-retrospective: optional
+  epic-7-retrospective: done
 
   # 2026-09-19: Stories 5.2-5.4, 6.1-6.2, 7.1-7.2 e a 4.2 revisada foram
   # implementadas juntas, sem arquivo de spec individual (só a 5.1 tem). Code
@@ -235,7 +235,7 @@ action_items:
       compartilham a mesma forma sem helper comum — baixo risco hoje, mas uma 4a funcao
       futura poderia esquecer uma guarda que as outras tres ja aprenderam"
     owner: "dev"
-    status: done
+    status: open
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-15.md"
   - id: "epic-4-retro-item-19-ao-extrair-uma-funcao-pura-de-decisao-de"
     epic: 4
@@ -305,3 +305,73 @@ action_items:
     owner: "process"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
+  - id: "epic-5-retro-item-27-a1-extrair-um-helper-unico-de-reindexaca"
+    epic: 5
+    action: "A1 - Extrair um helper unico de reindexacao de order por data e usar
+      em reassignDate, closeOrderGap, migrateFromV1 e applyRollover (F2)"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-5-retro-item-28-a2-alinhar-o-ciclo-de-vida-da-janela-pas"
+    epic: 5
+    action: "A2 - Alinhar o ciclo de vida da janela: passar a janela ao TaskModal
+      (ou recalcular por render) e/ou rodar applyRollover tambem quando state.tasks
+      mudar; escrever antes um teste que reproduza a data passada salva a partir de
+      um modal aberto na virada do dia (F3)"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-5-retro-item-29-a3-white-space-nowrap-ou-rotulo-mais-cur"
+    epic: 5
+    action: "A3 - white-space nowrap (ou rotulo mais curto) na variante neutra Sem
+      prioridade da PriorityTag, que quebra em duas linhas em colunas estreitas; definir
+      viewport de referencia para ACs visuais (F4)"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-5-retro-item-30-a4-corrigir-comentarios-obsoletos-em-con"
+    epic: 5
+    action: "A4 - Corrigir comentarios obsoletos em constants/week.ts (linhas 4-6
+      e 59) e TaskModal.tsx (linha 69) que dizem que nao ha timer de recalculo da
+      janela (F5)"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-5-retro-item-31-a5-limpar-deferred-work-md-marcar-obsole"
+    epic: 5
+    action: "A5 - Limpar deferred-work.md: marcar obsoletas as entradas de zonas de
+      prioridade/OptimisticSortingPlugin da Story 4.2 original e reavaliar a da largura
+      do cabecalho de coluna (F6)"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-5-retro-item-32-a6-reconciliar-epics-md-4-2-dnd-kit-core"
+    epic: 5
+    action: "A6 - Reconciliar epics.md: 4.2 (@dnd-kit/core em vez de @dnd-kit/react),
+      6.1 (horario visivel no card e no aria-label), 5.4 (aviso e retry na falha de
+      escrita) e restricoes de dados de 5.1/6.1 (time HH:mm, ids unicos, ano < 100)
+      (F9)"
+    owner: "spec"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-5-retro-item-33-a7-ao-entregar-varias-stories-no-mesmo-c"
+    epic: 5
+    action: "A7 - Ao entregar varias stories no mesmo conjunto de arquivos, fazer
+      commit por story ou micro-spec com ACs e como verifiquei (F1)"
+    owner: "process"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-5-retro-item-34-a8-ao-fechar-um-item-de-retro-como-obsol"
+    epic: 5
+    action: "A8 - Ao fechar um item de retro como obsoleto, exigir que o padrao de
+      risco descrito (nao so o codigo citado) tenha sido eliminado (F2)"
+    owner: "process"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-5-retro-item-35-a9-registrar-a-verificacao-manual-do-arr"
+    epic: 5
+    action: "A9 - Registrar a verificacao manual do arraste (data, mouse e/ou teclado,
+      o que foi testado) no sprint-status ou na spec da 4.2"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"

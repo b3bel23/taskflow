@@ -401,6 +401,30 @@ describe('WeekView', () => {
       expect(saved[0].date >= '2026-09-19').toBe(true);
     });
 
+    // Resíduo cosmético do F3/A2: mesmo com o rollover garantindo que a
+    // tarefa não some, o modal aberto atravessando a meia-noite seguia
+    // oferecendo no <select> de Dia a janela antiga (o dia que virou passado,
+    // sem o novo hoje+6).
+    it('modal de edição aberto atravessando a meia-noite: o select de Dia passa a listar a janela atual', () => {
+      vi.setSystemTime(new Date('2026-09-18T23:59:30'));
+      seedTask({ id: 'alvo', title: 'Alvo', date: '2026-09-19', state: 'pending' });
+      renderWeekView();
+
+      const tomorrowColumn = screen.getByRole('heading', { name: formatDayHeading('2026-09-19') }).closest('section');
+      fireEvent.click(within(tomorrowColumn as HTMLElement).getByText('Alvo'));
+      const optionValues = () =>
+        Array.from((screen.getByLabelText('Dia') as HTMLSelectElement).options).map((option) => option.value);
+      expect(optionValues()).toEqual(getWeekWindow(new Date('2026-09-18T12:00:00')));
+
+      act(() => {
+        vi.setSystemTime(new Date('2026-09-19T00:00:31'));
+        vi.advanceTimersByTime(60_000);
+      });
+
+      expect(screen.getByRole('dialog')).toBeTruthy();
+      expect(optionValues()).toEqual(getWeekWindow(new Date('2026-09-19T12:00:00')));
+    });
+
     it('rollover com sucesso: nenhum aviso é mostrado', () => {
       seedTask({ title: 'Ficou pra trás', date: '2026-09-01', state: 'pending' });
 

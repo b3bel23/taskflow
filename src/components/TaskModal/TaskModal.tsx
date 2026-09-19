@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react';
-import { formatDayHeading, getWeekWindow } from '../../constants/week';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
+import { formatDayHeading, getTodayISO, getWeekWindow } from '../../constants/week';
 import { useTaskActions } from '../../state/useTaskActions';
 import type { Priority, Task, TaskState } from '../../types';
 import styles from './TaskModal.module.css';
@@ -66,13 +66,13 @@ export function TaskModal({ date, task, onClose }: TaskModalProps) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Story 5.1: as 7 opções do `<select>` de Dia (modo edição) são as 7 datas
-  // da janela atual, calculadas UMA vez na montagem do modal — ele não
-  // acompanha o timer de virada de dia que `WeekView` usa (Story 5.3): um
-  // modal deixado aberto atravessando a meia-noite mantém a janela antiga.
-  // Inicializador preguiçoso do `useState` (nunca chamada direta no corpo do
-  // componente) evita recalcular (7 construções de `Date`) a cada re-render —
-  // inclusive a cada tecla digitada no campo Nome.
-  const [weekWindow] = useState(() => getWeekWindow());
+  // da janela atual. `WeekView` re-renderiza a coluna (e, com ela, este modal)
+  // quando o timer de 60s detecta a virada de dia (Story 5.3), então a janela
+  // acompanha a data de hoje: `useMemo` só a recalcula quando `todayISO`
+  // muda, em vez de construir 7 `Date` a cada re-render — inclusive a cada
+  // tecla digitada no campo Nome.
+  const todayISO = getTodayISO();
+  const weekWindow = useMemo(() => getWeekWindow(), [todayISO]);
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);

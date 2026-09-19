@@ -65,14 +65,17 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-1-reordenar-tarefas-por-arraste.md`
   summary: O plugin de acessibilidade padrão do `@dnd-kit` (`Accessibility`, parte do `defaultPreset`) anuncia o início/fim do arraste em inglês e citando o UUID cru da tarefa (ex. "Picked up draggable item {uuid}"), nunca sobrescrito por `DragDropProvider` em `DayColumn.tsx` — inconsistente com o resto do app, cuidadosamente em português (ex. "Arrastar tarefa: {título}").
   evidence: Achado do blind-hunter da Story 4.1, confirmado lendo `node_modules/@dnd-kit/dom`'s `defaultAnnouncements`/`Accessibility` options (`announcements`/`screenReaderInstructions` são configuráveis, mas corrigir corretamente exige mapear `event.operation.source.id` de volta ao título da tarefa dentro do closure de `TaskPriorityGroup` — pesquisa de API suficiente para não ser um patch seguro durante a revisão desta story; precisa de uma passada dedicada antes de expor a funcionalidade a uma usuária real de leitor de tela).
+  updated: 2026-09-19 (retro Epics 5-7, A5) — ainda vale com a lib atual: `WeekView.tsx` usa `DndContext` de `@dnd-kit/core` sem a prop `accessibility`, então valem os anúncios e instruções padrão (em inglês, citando o id da tarefa). A correção passa a ser `accessibility={{ announcements, screenReaderInstructions }}` no `DndContext`, mapeando o id ao título.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-1-reordenar-tarefas-por-arraste.md`
   summary: Falha de escrita ao reordenar por arraste (`useTaskActions.reorderTask` retornando `{ok:false}`) não tem nenhum feedback visível ao usuário — diferente do padrão `role="alert"` já usado por `createTask`/`updateTask`/`deleteTask` no `TaskModal`.
   evidence: Achado do blind-hunter da Story 4.1; ao contrário de `cycleState` (Story 3.1, cujo "Never" na spec decidiu explicitamente não mostrar erro, mesmo padrão do `ThemeToggle`), a spec da 4.1 não tomou essa decisão explicitamente — mas não há Modal aberto durante um arraste para hospedar uma mensagem `role="alert"`, então corrigir isto exige uma decisão de UX nova (ex. toast/banner) antes de virar código.
+  updated: 2026-09-19 (retro Epics 5-7, A5) — `reorderTask` não existe mais; a mesma lacuna vale para `moveTaskToDate` no drop: `WeekView.handleDragEnd` só usa `result.ok` para o foco, e em falha o card apenas volta ao dia de origem, sem mensagem. Continua dependendo de uma decisão de UX (toast/banner).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-1-reordenar-tarefas-por-arraste.md`
   summary: O placeholder tracejado que o `@dnd-kit` insere no destino do arraste (`[data-dnd-placeholder]`) não foi verificado quanto a `aria-hidden` — pode permanecer um item de lista vazio e sem rótulo na árvore de acessibilidade enquanto um arraste está em andamento.
   evidence: Achado do blind-hunter da Story 4.1; não confirmado se a própria lib já trata isso por padrão (comportamento não pesquisado a fundo) — precisa de verificação antes de decidir se há algo a corrigir.
+  resolved: 2026-09-19 (retro Epics 5-7, A5) — o app não usa mais `@dnd-kit/dom`/`DragDropProvider` (troca para `@dnd-kit/core`, `DndContext` + `useDraggable`/`useDroppable`, sem `DragOverlay`): não existe mais o elemento `[data-dnd-placeholder]`.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-1-reordenar-tarefas-por-arraste.md`
   summary: A animação de "levantado" durante o arraste (`.dragging`: sombra + rotação -2deg) e a transição de reposicionamento do próprio `@dnd-kit` não respeitam `prefers-reduced-motion`.
@@ -86,30 +89,37 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-mudar-prioridade-ou-dia-arrastando-o-card.md`
   summary: O rótulo de cada zona de Prioridade (`.zoneLabel`, ex. "Alta") só existe visualmente durante um arraste ativo e não está associado via `aria-label`/`aria-labelledby` à lista da zona; também não há anúncio do resultado (ex. "movida para Quarta-feira, Alta Prioridade") após um cruzamento de grupo por teclado.
   evidence: Achado do blind-hunter da Story 4.2; estende o item já registrado na Story 4.1 sobre os anúncios em inglês/UUID do plugin de acessibilidade padrão do `@dnd-kit` — agora mais relevante, já que cruzar Dia/Prioridade muda mais coisas para o usuário perceber do que só reposicionar dentro do mesmo grupo.
+  resolved: 2026-09-19 (retro Epics 5-7, A5) — as zonas de Prioridade foram removidas (Epic 4 revisado, commit `c9e3cf6`); só existe uma área soltável por coluna. A parte sobre anúncios de leitor de tela continua valendo pelo item da Story 4.1 acima (anúncios padrão do `@dnd-kit`).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-mudar-prioridade-ou-dia-arrastando-o-card.md`
   summary: O destaque visual das zonas durante o arraste (`.zoneActive`) muda `border-color` e `padding` (1px → `--spacing-1`), o que altera as dimensões da caixa — iniciar qualquer arraste desloca a posição de todos os Cards/zonas nas 28 zonas da semana simultaneamente (reflow), não só uma mudança de cor/sombra.
   evidence: Achado do blind-hunter da Story 4.2; um `outline`/`box-shadow` evitaria o reflow sem mudar o efeito visual pretendido — não corrigido nesta revisão por ser um ajuste de CSS não crítico, sem AC/`DESIGN.md` exigindo um comportamento específico (a decisão de destacar zonas foi confirmada com Isabel, mas não a técnica exata de destaque).
+  resolved: 2026-09-19 (retro Epics 5-7, A5) — `.zoneActive` foi removido junto com as zonas; o destaque atual (`.dropActive` em `DayColumn.module.css:26-29`) só muda `outline-color` e `background-color`, sem alterar dimensões — não há reflow.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-mudar-prioridade-ou-dia-arrastando-o-card.md`
   summary: Todas as 28 zonas (7 dias × 4 prioridades) ficam "ativas" (rótulo visível, destaque) durante qualquer arraste, mesmo um simples reposicionamento dentro do mesmo grupo que nunca vai sair dali — não há distinção visual entre "um arraste está em andamento em algum lugar" e "esta é a zona onde o Card seria solto agora".
   evidence: Achado do blind-hunter da Story 4.2; corrigir exigiria ligar o destaque ao estado de colisão/hover real do `@dnd-kit` (`isDropTarget` ou equivalente) por zona, não só a um booleano global de "há arraste em andamento" — feature maior, não um ajuste rápido de revisão.
+  resolved: 2026-09-19 (retro Epics 5-7, A5) — as 28 zonas não existem mais; cada coluna é um único alvo soltável e só a coluna sob o cursor recebe o destaque (`isOver` em `DayColumn.tsx`).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-mudar-prioridade-ou-dia-arrastando-o-card.md`
   summary: A ordem/rótulos dos 4 níveis de Prioridade são declarados de forma independente em 3 lugares — `PRIORITY_RANK` (`selectors.ts`), `PRIORITY_ZONES`/`ZONE_LABELS` (`DayColumn.tsx`, novos nesta story) e os rótulos já usados por `PriorityTag` — nenhuma fonte única compartilhada.
   evidence: Achado do blind-hunter da Story 4.2; risco baixo hoje (os 4 níveis são fixos, nunca mudaram desde o Epic 2), mas os três lugares podem divergir silenciosamente se um nível for renomeado/reordenado no futuro.
+  updated: 2026-09-19 (retro Epics 5-7, A5) — `PRIORITY_RANK` e `PRIORITY_ZONES`/`ZONE_LABELS` foram removidos, mas os níveis continuam declarados em 3 lugares: `PRIORITY_LABELS` (`PriorityTag.tsx`), `PRIORITY_OPTIONS` (`TaskModal.tsx`) e `PRIORITY_CYCLE_ORDER` (`useTaskActions.ts`).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-mudar-prioridade-ou-dia-arrastando-o-card.md`
   summary: `resolveWeekDragChange` decide "cruzou grupo" comparando `source.group` com `source.initialGroup`, campos mantidos ao vivo pelo `OptimisticSortingPlugin` do `@dnd-kit` durante o arraste — esse comportamento exato (o que `source.group` reflete no instante do drop após um gesto físico real, incluindo casos como soltar rapidamente ou cancelar no meio) não foi verificado manualmente num navegador real, só via eventos sintéticos em teste.
   evidence: Achado do blind-hunter da Story 4.2, mitigado (não eliminado) pelo guard de `target` ausente adicionado na revisão; mesma classe de limitação já aceita para todo o resto da interação de arraste (jsdom não simula gestos físicos) — recomenda-se uma checagem manual quando houver oportunidade de testar num navegador real.
+  resolved: 2026-09-19 (retro Epics 5-7, A5) — `resolveWeekDragChange` foi reescrita (`dragChange.ts`): lê só os ids de `active`/`over` (a coluna de destino é a própria `date`), sem `source.group`/`initialGroup`/`OptimisticSortingPlugin`. O arraste com gesto físico real foi verificado manualmente pela Isabel em 2026-09-19 (ver comentário do `sprint-status.yaml`, A9).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-5-1-migrar-dados-existentes-para-o-modelo-de-data-real.md`
   summary: No Modal de Tarefa (modo edição), o `<select>` de Dia pode não ter uma `<option>` correspondente à data atual da tarefa, se essa data já saiu da janela dinâmica de 7 dias (visualmente confuso, embora o estado React interno continue correto e o salvamento não corrompa nada).
   evidence: Achado do blind-hunter review da Story 5.1; consequência direta de ainda não existir rollover automático (Story 5.4) — só é alcançável para uma tarefa não concluída deixada aberta por vários dias sem edição; deve deixar de ser possível assim que a Story 5.4 (rollover) for implementada.
+  resolved: 2026-09-19 (retro Epics 5-7, A5) — o rollover da Story 5.4 traz tarefas atrasadas para hoje (`d8e10b8`, `c9e3cf6`), agora também quando as tarefas mudam (`7136ae1`), e a lista de Dia do modal acompanha a data de hoje (`9c1145a`).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-5-1-migrar-dados-existentes-para-o-modelo-de-data-real.md`
   summary: O cabeçalho de cada Coluna do Dia ficou mais longo (`"Sexta-feira, 18/09"` em vez de `"Sexta-feira"`) e nenhum `.module.css` foi revisado para confirmar que a coluna de largura fixa ainda acomoda o texto sem quebrar/cortar.
   evidence: Achado do blind-hunter review da Story 5.1; requer inspeção visual num navegador real, não verificável neste ambiente; `DayColumn.module.css` não estava no Code Map desta história.
+  resolved: 2026-09-19 (retro Epics 5-7, A5) — medido no navegador (Chrome, `localhost:5173`): a 1280px e 1440px o cabeçalho cabe em uma linha; a 1100px, 1024px e 900px quebra em duas linhas (5 de 7 a 1024px). Em nenhuma largura o texto é cortado (`scrollWidth <= clientWidth`). Quebra de linha aceita como comportamento responsivo.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-5-1-migrar-dados-existentes-para-o-modelo-de-data-real.md`
   summary: `parseISODateLocal`/`getWeekdayIndex`/`formatDayHeading` (`src/constants/week.ts`) não validam o formato da string de entrada — uma data malformada produziria `Invalid Date`/`NaN` e um rótulo de dia-da-semana `undefined`, em vez de falhar de forma previsível.

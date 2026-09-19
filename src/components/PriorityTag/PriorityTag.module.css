@@ -9,6 +9,9 @@
   display: inline-flex;
   align-items: center;
   width: fit-content;
+  /* Uma linha só: "Sem prioridade" (variante `.none`) quebrava em duas em
+     colunas estreitas, engordando o card (retro Epics 5-7, F4). */
+  white-space: nowrap;
   padding: 2px var(--spacing-2);
   border-radius: var(--radius-full);
   font-family: var(--font-family-base);

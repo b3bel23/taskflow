@@ -1,187 +1,157 @@
 # TaskFlow
 
-Um gerenciador semanal de tarefas simples e intuitivo, desenvolvido com **React** e **TypeScript**, seguindo o **BMAD Method** e **Spec-Driven Development (SDD)** desde a descoberta do problema até a implementação.
+[![Deploy to GitHub Pages](https://github.com/b3bel23/taskflow/actions/workflows/deploy.yml/badge.svg)](https://github.com/b3bel23/taskflow/actions/workflows/deploy.yml)
 
-> 🚧 **Status do projeto:** Em desenvolvimento — sendo implementado história por história de acordo com as especificações previamente definidas e validadas.
+**🔗 Acesse o app: [b3bel23.github.io/taskflow](https://b3bel23.github.io/taskflow/)**
+
+Um gerenciador semanal de tarefas simples e intuitivo, feito com **React** e **TypeScript**, desenvolvido com o **BMAD Method** e **Spec-Driven Development (SDD)** — da descoberta do problema até a implementação.
+
+<p align="center">
+  <img src="docs/screenshot-claro.jpg" alt="TaskFlow no tema claro: sete colunas de dias, a partir de hoje, com cartões de tarefas, horários e prioridades" width="100%">
+</p>
+
+<details>
+<summary>Ver também no tema escuro</summary>
+
+<p align="center">
+  <img src="docs/screenshot-escuro.jpg" alt="TaskFlow no tema escuro" width="100%">
+</p>
+
+</details>
+
+> ✅ **Status do projeto:** concluído — 7 épicos e 17 histórias entregues, publicado no GitHub Pages. Os dados ficam só no navegador de quem usa.
 
 ## 📌 Sobre o projeto
 
-O TaskFlow surgiu para resolver um problema simples: tarefas relacionadas a trabalho, estudos e vida pessoal frequentemente acabam espalhadas entre anotações, mensagens e diferentes aplicativos.
+O TaskFlow surgiu para resolver um problema simples: tarefas de trabalho, estudos e vida pessoal acabam espalhadas entre anotações, mensagens e vários aplicativos.
 
-O objetivo é oferecer uma **visão semanal simples e centralizada**, permitindo organizar tarefas por dia, prioridade e estado de progresso sem a complexidade de ferramentas tradicionais de gerenciamento de projetos.
+A ideia é oferecer uma **visão semanal única e centralizada**: você vê hoje e os próximos seis dias lado a lado e organiza tarefas por dia, horário, prioridade e estado de progresso, sem a complexidade de ferramentas de gerenciamento de projetos.
 
-Além de ser uma aplicação funcional, o projeto também serve como estudo prático de desenvolvimento de software assistido por IA utilizando **BMAD Method + Spec-Driven Development**.
+Além de ser uma aplicação funcional, o projeto é um estudo prático de desenvolvimento assistido por IA com **BMAD Method + Spec-Driven Development**: em vez de gerar a aplicação a partir de um prompt, ele passou por brief, PRD, UX, arquitetura, especificações e épicos antes de qualquer código.
 
-Em vez de gerar a aplicação diretamente a partir de um prompt, o projeto passou por um processo completo de planejamento, especificação, UX e arquitetura antes do início da implementação.
+## ✨ Funcionalidades
 
-## ✨ Funcionalidades do MVP
+* 📅 **Janela de 7 dias a partir de hoje** — a primeira coluna é sempre hoje, seguida dos 6 dias seguintes, cada um com o nome do dia e a data. A janela avança sozinha quando o dia vira, mesmo com a aba aberta.
+* ↩️ **Rollover automático** — tarefas não concluídas de dias que já passaram voltam sozinhas para hoje. Tarefas concluídas ficam onde estão.
+* ➕ **Criar, editar e excluir** tarefas (a exclusão pede confirmação).
+* 🕘 **Horário opcional** — as tarefas do dia aparecem em ordem cronológica: primeiro as sem horário, depois as com horário, do mais cedo ao mais tarde. O horário aparece no cartão.
+* 🚦 **Prioridade visual** — a tag (Alta, Média, Baixa ou Sem prioridade) fica sempre visível no cartão; clicar nela alterna o nível sem abrir o formulário. A prioridade é só um rótulo e não muda a ordem das tarefas.
+* ✅ **Estado de progresso** — Pendente, Em andamento e Concluída, alternados clicando no indicador circular do cartão. Tarefas concluídas ficam riscadas e esmaecidas.
+* 🖱️ **Arrastar e soltar entre dias** — arraste um cartão para a coluna de outro dia para mudar a data (há também um sensor de teclado, para quem não usa mouse).
+* 💾 **Persistência local** com `localStorage`, incluindo migração automática de dados salvos no formato antigo (por dia da semana) para o formato atual (por data).
+* 🌙 **Tema claro e escuro.**
+* ♿ **Acessível por teclado**, com foco visível e rótulos para leitores de tela.
 
-* 📅 Visualização semanal de segunda a domingo
-* ➕ Criação de tarefas vinculadas a um dia
-* ✏️ Edição de tarefas
-* 🗑️ Exclusão com confirmação
-* 🚦 Três estados de progresso:
-
-  * Pendente
-  * Em andamento
-  * Concluída
-* 🔴 Prioridade Alta
-* 🟠 Prioridade Média
-* 🟢 Prioridade Baixa
-* ↕️ Ordenação manual de tarefas
-* 🖱️ Drag and Drop entre dias e prioridades
-* 💾 Persistência local utilizando `localStorage`
-* 🌙 Tema claro e escuro
-* ♿ Interações acessíveis por teclado
-
-O MVP não possui cadastro ou login e funciona totalmente no navegador.
-
-## 🧠 Processo de desenvolvimento
-
-O TaskFlow segue um processo estruturado combinando **BMAD Method** e **Spec-Driven Development (SDD)**.
-
-A implementação não começou imediatamente. Primeiro foram definidos e validados o problema, requisitos, experiência do usuário, arquitetura e especificações.
-
-O fluxo seguido foi:
-
-```text
-Product Brief
-     ↓
-PRD
-     ↓
-UX Design
-     ↓
-Arquitetura
-     ↓
-SPEC
-     ↓
-Épicos e Histórias
-     ↓
-Sprint Planning
-     ↓
-Implementação
-```
-
-A implementação é realizada **história por história**, validando os critérios de aceite antes de avançar para a próxima etapa.
-
-## 📋 Planejamento
-
-O MVP foi dividido em **4 épicos e 10 histórias de usuário**.
-
-### Epic 1 — Fundação
-
-Estrutura inicial da aplicação, visão semanal vazia, infraestrutura de persistência e suporte aos temas claro e escuro.
-
-### Epic 2 — Gerenciamento de Tarefas
-
-Criação, edição e exclusão de tarefas.
-
-### Epic 3 — Progresso do Dia
-
-Acompanhamento do estado das tarefas e diferenciação visual de tarefas concluídas.
-
-### Epic 4 — Drag and Drop
-
-Reorganização manual das tarefas e movimentação entre dias e níveis de prioridade.
+O app não tem cadastro nem login e funciona 100% no navegador, sem backend.
 
 ## 🛠️ Tecnologias
 
-* React 19
-* TypeScript
-* Vite
-* CSS Custom Properties
-* React Context
-* `useReducer`
-* `localStorage`
-* `@dnd-kit/react`
-* Vitest
-* Testing Library
-
-O MVP foi projetado para funcionar **100% client-side**, sem necessidade de backend.
+| Área | Tecnologia |
+|---|---|
+| Interface | React 19, TypeScript 6 |
+| Build | Vite 8 |
+| Estado | React Context + `useReducer` |
+| Arrastar e soltar | `@dnd-kit/core` |
+| Estilo | CSS Modules + CSS Custom Properties (tokens de design) |
+| Persistência | `localStorage` |
+| Testes | Vitest 5, Testing Library, jsdom |
+| Deploy | GitHub Actions + GitHub Pages |
 
 ## 🏗️ Arquitetura
 
-A arquitetura do TaskFlow foi mantida propositalmente simples e proporcional ao escopo do MVP.
-
-As tarefas e a preferência de tema são persistidas separadamente no navegador:
+Simples e proporcional ao escopo — sem Redux, sem banco externo e sem API.
 
 ```text
-taskflow:tasks
+src/
+├── components/   Interface: WeekView, DayColumn, TaskCard, TaskModal,
+│                 PriorityTag, StateIndicator, ThemeToggle, Header…
+├── state/        Contextos, reducers e ações (useTaskActions), além de
+│                 funções puras: seletores e regra de rollover
+├── storage/      Único lugar que toca o localStorage (tarefas e tema)
+├── constants/    Datas: janela de 7 dias, formatação, conversão ISO
+├── types/        Tipos compartilhados (Task, Priority, TaskState…)
+└── styles/       Tokens de design (cores, espaçamento, tipografia)
+```
+
+Decisões principais:
+
+* **Persistência atômica:** toda mudança de tarefa é salva *antes* de ser aplicada ao estado. Se a escrita falhar, a tela não muda e o erro é tratado, sem perder consistência.
+* **Camadas verificadas por teste:** só `src/storage/` acessa `localStorage`, e só o `ThemeContext` escreve o atributo de tema — regras conferidas por `architecture.test.ts`.
+* **Funções puras** para ordenação por horário, renumeração de ordem e rollover, isoladas e cobertas por testes.
+* **Datas em horário local** (`YYYY-MM-DD`), nunca via UTC, para evitar o clássico erro de "um dia a menos" em fusos negativos.
+* Chaves de armazenamento independentes:
+
+```text
+taskflow:tasks   (envelope { schemaVersion: 2, tasks: [...] })
 taskflow:theme
 ```
 
-As alterações de estado passam por ações centralizadas, mantendo os componentes da interface separados da lógica de persistência.
-
-A arquitetura evita dependências desnecessárias para o escopo atual, como Redux, banco de dados externo, serviços de autenticação ou uma API backend.
-
 ## 🧪 Testes
 
-Cada história implementada é validada individualmente contra seus critérios de aceite.
+São mais de **300 testes automatizados** (Vitest + Testing Library) cobrindo estado, armazenamento, componentes e integração da semana: rollover, migração de dados, virada de dia com relógio simulado, ordenação por horário, persistência com falha de escrita e fluxo do arraste (o gesto físico do mouse não é simulável em jsdom, então o `onDragEnd` real é exercitado com eventos sintéticos).
 
-O projeto utiliza:
+```bash
+npm run test     # roda toda a suíte
+npm run build    # checagem de tipos (tsc) + build de produção
+```
 
-* **Vitest** para testes automatizados
-* **Testing Library** para testes de componentes e interações
-* TypeScript para verificação de tipos
-* Validação do build
-* Verificação dos critérios de aceite de cada história antes de avançar
+> Dica: em pastas sincronizadas (como OneDrive), o Vitest pode perder arquivos por timeout de worker. Use `npx vitest run --maxWorkers=1` e confira a contagem de arquivos e testes.
 
-## 🚀 Executando o projeto localmente
-
-Clone o repositório:
+## 🚀 Executando localmente
 
 ```bash
 git clone https://github.com/b3bel23/taskflow.git
-```
-
-Entre na pasta:
-
-```bash
 cd taskflow
-```
-
-Instale as dependências:
-
-```bash
 npm install
-```
-
-Inicie o servidor de desenvolvimento:
-
-```bash
 npm run dev
 ```
 
-Execute os testes:
+O app abre em `http://localhost:5173/taskflow/`.
 
-```bash
-npm run test
+## 🌐 Deploy (GitHub Pages)
+
+O site é publicado automaticamente: a cada `push` na branch `main`, o workflow [`deploy.yml`](.github/workflows/deploy.yml) instala as dependências, roda `npm run build` e publica a pasta `dist` no GitHub Pages. O `base` do Vite está configurado como `/taskflow/`, o subcaminho do repositório.
+
+Para publicar seu próprio fork: em **Settings → Pages**, escolha **Source: GitHub Actions** e faça um push na `main`.
+
+## 🧠 Processo de desenvolvimento
+
+O TaskFlow seguiu um fluxo estruturado de **BMAD Method + SDD**. A implementação só começou depois de o problema, os requisitos, a experiência do usuário e a arquitetura terem sido definidos e validados:
+
+```text
+Product Brief → PRD → UX Design → Arquitetura → Épicos e Histórias
+              → Sprint Planning → Implementação (história por história)
+              → Code review → Retrospectiva
 ```
 
-Valide o build:
+Toda a documentação está versionada em [`_bmad-output/`](_bmad-output/):
 
-```bash
-npm run build
-```
+* [Brief](_bmad-output/planning-artifacts/briefs), [PRD](_bmad-output/planning-artifacts/prds), [UX](_bmad-output/planning-artifacts/ux-designs) e [Arquitetura](_bmad-output/planning-artifacts/architecture)
+* [Épicos e histórias](_bmad-output/planning-artifacts/epics.md) com critérios de aceite
+* [Proposta de mudança de curso](_bmad-output/planning-artifacts/sprint-change-proposal-2026-09-18.md) — o pivô de "semana fixa Seg→Dom" para "janela dinâmica a partir de hoje", com horário e prioridade visual
+* [Especificações e retrospectivas](_bmad-output/implementation-artifacts/) por épico, inclusive a [retrospectiva dos Épicos 5 a 7](_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md)
+* [`sprint-status.yaml`](_bmad-output/implementation-artifacts/sprint-status.yaml) com o andamento de todas as histórias
 
-## 🎯 Objetivos do projeto
+### Épicos entregues
 
-O TaskFlow possui dois objetivos principais.
+| Épico | Tema |
+|---|---|
+| 1 | Fundação: semana, persistência e tema claro/escuro |
+| 2 | Gerenciamento de tarefas: criar, editar e excluir |
+| 3 | Progresso: estado da tarefa e destaque das concluídas |
+| 4 | Mover tarefa entre dias por arraste (mouse e teclado) |
+| 5 | Data real, janela dinâmica, migração de dados e rollover |
+| 6 | Organização por horário |
+| 7 | Prioridade como atributo visual (tag clicável) |
 
-**Objetivo de produto:** desenvolver um gerenciador de tarefas funcional que possa ser utilizado em uma rotina semanal real.
+## 🔮 Limitações e possibilidades futuras
 
-**Objetivo de aprendizado:** experimentar um fluxo completo de desenvolvimento de software assistido por IA, mantendo requisitos, UX, arquitetura, especificações, implementação e testes explicitamente documentados.
+* Os dados ficam **só no navegador e no computador** onde foram criados — não há sincronização entre dispositivos nem backup.
+* A interface é otimizada para telas de computador; em telas estreitas o quadro fica apertado.
+* Anúncios de leitor de tela do arraste ainda usam o texto padrão da biblioteca (em inglês).
+* Fora do escopo por enquanto: cadastro e login, sincronização, notificações e lembretes.
 
-## 🔮 Possibilidades futuras
-
-Algumas funcionalidades foram propositalmente deixadas fora do MVP:
-
-* Cadastro e login
-* Sincronização entre dispositivos
-* Experiência otimizada para dispositivos móveis
-* Notificações e lembretes
-
-Mesmo em versões futuras, a proposta do TaskFlow é permanecer focada em **organização pessoal**, e não se transformar em uma ferramenta de gerenciamento de equipes.
+Mesmo em versões futuras, a proposta é continuar focado em **organização pessoal**, e não virar uma ferramenta de gerenciamento de equipes.
 
 ---
 

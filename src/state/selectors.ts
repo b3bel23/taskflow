@@ -1,5 +1,15 @@
 import type { Task } from '../types';
 
+// ÚNICA definição de "tarefa concluída" (retro Epic 3, item 9): antes,
+// `task.state === 'done'` estava escrito à mão em `TaskCard` e em
+// `applyRollover`. Mesmo nome, mesma regra, um só lugar — se um dia surgir um
+// novo estado "parecido com concluído", é aqui que a regra muda. (Os mapas
+// `Record<TaskState, …>` de `StateIndicator`/`STATE_CYCLE` já são checados
+// pelo compilador: um estado novo sem entrada neles não compila.)
+export function isTaskCompleted(task: Pick<Task, 'state'>): boolean {
+  return task.state === 'done';
+}
+
 // Story 6.2 (FR-6 revisado, Epic 6): ordena por Horário — Prioridade nunca
 // mais influencia a posição (Epic 7, AD-7 obsoleto). Tarefas sem Horário
 // (`time === null`) sempre primeiro, em ordem de criação entre si; depois as

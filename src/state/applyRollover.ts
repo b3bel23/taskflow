@@ -1,5 +1,5 @@
 import type { Task } from '../types';
-import { closeOrderGap } from './selectors';
+import { closeOrderGap, isTaskCompleted } from './selectors';
 
 // Função pura de rollover (Story 5.4, AD-11): toda Tarefa com `state !==
 // 'done'` e `date` anterior a `todayISO` tem sua `date` reatribuída
@@ -27,7 +27,7 @@ import { closeOrderGap } from './selectors';
 // 60s (Story 5.3) mesmo sem nada a rolar.
 export function applyRollover(tasks: Task[], todayISO: string): Task[] {
   const overdue = tasks
-    .filter((task) => task.state !== 'done' && task.date < todayISO)
+    .filter((task) => !isTaskCompleted(task) && task.date < todayISO)
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.order - b.order));
   if (overdue.length === 0) {
     return tasks;

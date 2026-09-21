@@ -1,5 +1,6 @@
 import type { MouseEvent } from 'react';
 import type { Task } from '../../types';
+import { isTaskCompleted } from '../../state/selectors';
 import { PriorityTag } from '../PriorityTag/PriorityTag';
 import { StateIndicator } from '../StateIndicator/StateIndicator';
 import styles from './TaskCard.module.css';
@@ -58,7 +59,7 @@ export function TaskCard({
   dragHandleProps,
   isDragging = false,
 }: TaskCardProps) {
-  const isCompleted = task.state === 'done';
+  const isCompleted = isTaskCompleted(task);
 
   const cardClassNames = [styles.card, isCompleted && styles.completed, isDragging && styles.dragging]
     .filter(Boolean)

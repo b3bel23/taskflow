@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Task } from '../types';
-import { closeOrderGap, getNextOrderInGroup, reassignDate, sortTasksInDay } from './selectors';
+import { closeOrderGap, getNextOrderInGroup, isTaskCompleted, reassignDate, sortTasksInDay } from './selectors';
 
 function makeTask(overrides: Partial<Task>): Task {
   return {
@@ -205,5 +205,15 @@ describe('closeOrderGap', () => {
     const [result] = closeOrderGap(tasks, '2026-09-21');
 
     expect(result).toMatchObject({ id: 'a', title: 'Original', state: 'done', time: '10:00', order: 0 });
+  });
+});
+
+describe('isTaskCompleted', () => {
+  it.each([
+    ['done', true],
+    ['pending', false],
+    ['in_progress', false],
+  ] as const)('estado %s -> %s', (state, expected) => {
+    expect(isTaskCompleted({ state })).toBe(expected);
   });
 });

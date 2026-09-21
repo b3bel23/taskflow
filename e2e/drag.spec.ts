@@ -119,12 +119,23 @@ test.describe('arraste interrompido', () => {
   const stuckDragging = (page: Page) => page.locator('[class*="dragging"]');
 
   async function expectBackToNormal(page: Page): Promise<void> {
+    // O botão do mouse ainda está pressionado nas interrupções simuladas
+    // (pointercancel, visibilitychange, resize): solta antes de seguir, como o
+    // usuário faria.
+    await page.mouse.up();
     await expect(stuckDragging(page)).toHaveCount(0);
     await expect(card(column(page, TODAY), 'Arrastável')).toBeVisible();
     expect((await readTasks(page))?.[0]).toMatchObject({ date: TODAY });
-    // A interface segue utilizável: um clique normal abre o modal.
-    await card(column(page, TODAY), 'Arrastável').getByText('Arrastável', { exact: true }).click();
-    await expect(page.getByRole('dialog')).toBeVisible();
+    // A interface segue utilizável: um clique normal abre o modal. Repete o
+    // clique até funcionar porque, por projeto, o @dnd-kit engole cliques por
+    // ~50 ms depois que um arraste termina ou é cancelado (evita o clique que
+    // acompanha o mouseup do arraste). Uma pessoa nunca clica dentro dessa
+    // janela; um teste rápido (e o runner do CI) clica. Descoberto no primeiro
+    // run do CI: 3 destes testes falharam por isso, sem defeito no app.
+    await expect(async () => {
+      await card(column(page, TODAY), 'Arrastável').getByText('Arrastável', { exact: true }).click();
+      await expect(page.getByRole('dialog')).toBeVisible({ timeout: 1_500 });
+    }).toPass({ timeout: 15_000 });
   }
 
   test('durante o arraste o cartão fica em modo "levantado" (o teste sabe enxergar o estado)', async ({ page }) => {
@@ -141,7 +152,6 @@ test.describe('arraste interrompido', () => {
 
     await pickUpAndMoveOver(page, dragHandle(column(page, TODAY), 'Arrastável'), column(page, TOMORROW));
     await page.keyboard.press('Escape');
-    await page.mouse.up();
 
     await expectBackToNormal(page);
   });

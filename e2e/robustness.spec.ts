@@ -125,3 +125,58 @@ test.describe('modal aberto enquanto os dados mudam em outra aba', () => {
     expect(await readTasks(first)).toEqual([]);
   });
 });
+
+// Item adiado desde as Stories 2.1/2.2: "sem proteção contra duplo clique".
+// Duas chamadas antes do re-render leriam o mesmo `state.tasks` e duplicariam
+// (ou reindexariam com dado velho). Aqui o duplo clique é real, no navegador.
+test.describe('duplo clique', () => {
+  test('duplo clique em "Adicionar tarefa" cria UMA tarefa', async ({ page }) => {
+    await openApp(page);
+    await column(page, '2026-09-18').getByRole('button', { name: '+ Adicionar tarefa' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Nome').fill('Só uma');
+
+    await dialog.getByRole('button', { name: 'Adicionar tarefa', exact: true }).dblclick();
+
+    await expect(dialog).toBeHidden();
+    await expect(page.getByText('Só uma', { exact: true })).toHaveCount(1);
+    expect(await readTasks(page)).toHaveLength(1);
+  });
+
+  test('duplo clique em "Salvar" na edição não duplica nem reordena com dado velho', async ({ page }) => {
+    await openApp(page, {
+      rawTasks: envelope([
+        makeTask({ id: 'a', title: 'A', order: 0 }),
+        makeTask({ id: 'b', title: 'B', order: 1 }),
+      ]),
+    });
+    await openCard(column(page, '2026-09-18'), 'B');
+    await page.getByRole('dialog').getByLabel('Nome').fill('B editada');
+
+    await page.getByRole('dialog').getByRole('button', { name: 'Salvar' }).dblclick();
+
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    const stored = await readTasks(page);
+    expect(stored?.map((t) => t.title)).toEqual(['A', 'B editada']);
+    expect(stored?.map((t) => t.order)).toEqual([0, 1]);
+  });
+
+  test('duplo clique em "Excluir" (confirmação) exclui só essa tarefa', async ({ page }) => {
+    await openApp(page, {
+      rawTasks: envelope([
+        makeTask({ id: 'a', title: 'A', order: 0 }),
+        makeTask({ id: 'b', title: 'B', order: 1 }),
+        makeTask({ id: 'c', title: 'C', order: 2 }),
+      ]),
+    });
+    await openCard(column(page, '2026-09-18'), 'B');
+    await page.getByRole('dialog').getByRole('button', { name: 'Excluir tarefa' }).click();
+
+    await page.getByRole('dialog').getByRole('button', { name: 'Excluir', exact: true }).dblclick();
+
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    const stored = await readTasks(page);
+    expect(stored?.map((t) => t.title)).toEqual(['A', 'C']);
+    expect(stored?.map((t) => t.order)).toEqual([0, 1]);
+  });
+});

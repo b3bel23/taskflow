@@ -5,6 +5,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-1-visualizar-a-semana-vazia.md`
   summary: Projeto não tem `README.md` explicando como instalar/rodar/testar/buildar.
   evidence: Achado incidental do blind-hunter review da Story 1.1; útil para retomar o projeto depois de um tempo parado, mas não é requisito de nenhuma SPEC/AC.
+  resolved: 2026-09-21 (hardening v1.0) — README.md reescrito para o app concluído, com instalação, testes, deploy e arquitetura (commit `3e1d9b7`, revisado no hardening).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-1-visualizar-a-semana-vazia.md`
   summary: Sem Error Boundary em torno de `<App />` em `src/main.tsx` — um erro de runtime em qualquer componente derruba a tela inteira sem fallback.
@@ -33,10 +34,12 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-criar-tarefa.md`
   summary: `getNextOrderInGroup` calcula o próximo `order` por contagem (`tasks.filter(...).length`), não por `max(order)+1`. Depois que a Story 2.3 (excluir tarefa) existir, apagar uma tarefa do meio de um grupo `(day,priority)` e depois criar uma nova nesse mesmo grupo pode colidir com o `order` de uma tarefa já existente.
   evidence: Achado do blind-hunter da Story 2.1; inofensivo hoje (nenhum caminho de exclusão existe ainda), mas quem implementar a Story 2.3 precisa garantir que a exclusão reindexe o grupo (ou trocar `getNextOrderInGroup` por `max+1`) antes disso virar um bug real.
+  resolved: 2026-09-21 (hardening v1.0) — a exclusão reindexa a Data (`closeOrderGap`, hoje o único ponto de renumeração) e há teste de criar 3, excluir a do meio e criar a 4ª com `order` único e sequencial (`useTaskActions.test.ts`, commit `8a0c337`); o E2E de exclusão confere `order` [0,1] depois de apagar a do meio.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-criar-tarefa.md`
   summary: Sem proteção contra duplo-clique rápido em "Adicionar tarefa"/"Salvar"/"Excluir" — duas chamadas de `createTask`/`updateTask`/`deleteTask` antes do re-render poderiam ler o mesmo `state.tasks` (closure) e calcular o mesmo `order`/reindexar com dado desatualizado.
   evidence: Achado do blind-hunter/edge-case-hunter das Stories 2.1/2.2, confirmado ainda válido para `deleteTask` na Story 2.3 (mesma closure `state.tasks`) e para `cycleState` na Story 3.1 (mesmo padrão de guard, mesma closure); risco real baixo (clique físico de mouse único, sem AC exigindo debounce), mas uma melhoria de robustez futura (desabilitar o controle durante a operação) se algum dia se mostrar necessário.
+  resolved: 2026-09-21 (hardening v1.0) — verificado em Chrome real (`e2e/robustness.spec.ts`, "duplo clique"): duplo clique em Adicionar cria UMA tarefa; em Salvar não duplica nem reordena; em Excluir (confirmação) remove só a tarefa certa e mantém `order` sequencial. O React descarrega o modal de forma síncrona no 1º clique (evento discreto), então o 2º clique não chega ao botão.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-2-editar-tarefa-existente.md`
   summary: Ativação por teclado (Enter/Espaço) do `TaskCard` não é verificável via `fireEvent.keyDown`/`keyUp` — jsdom não sintetiza o `click` nativo que um `<button>` real dispara em resposta a essas teclas (confirmado experimentalmente: 0 chamadas de `onClick` na mesma sequência que um navegador real trata como clique). A garantia atual vem de usar o elemento semântico correto (`<button>`), testado via `tagName === 'BUTTON'`.
@@ -61,6 +64,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/epic-3-retro-2026-09-14.md`
   summary: `task.state === 'done'` é checado de forma independente em `TaskCard.tsx` (para decidir `isCompleted`/opacidade+risco) e em `StateIndicator.tsx` (para o rótulo/classe visual do Indicador) — nenhum predicado ou mapa único compartilhado entre os dois.
   evidence: Achado do adversarial na retrospectiva do Epic 3 (fronteira Story 3.1 × 3.2); risco baixo hoje (só um `TaskState` "parece concluído"), mas exigiria editar os dois arquivos em sincronia se um novo Estado "parecido com concluído" for adicionado no futuro.
+  resolved: 2026-09-21 (hardening v1.0) — regra num só lugar, `selectors.isTaskCompleted` (commit `765e312`); `TaskCard` e `applyRollover` a usam, e os mapas `Record<TaskState, …>` do `StateIndicator` já eram checados pelo compilador.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-1-reordenar-tarefas-por-arraste.md`
   summary: O plugin de acessibilidade padrão do `@dnd-kit` (`Accessibility`, parte do `defaultPreset`) anuncia o início/fim do arraste em inglês e citando o UUID cru da tarefa (ex. "Picked up draggable item {uuid}"), nunca sobrescrito por `DragDropProvider` em `DayColumn.tsx` — inconsistente com o resto do app, cuidadosamente em português (ex. "Arrastar tarefa: {título}").

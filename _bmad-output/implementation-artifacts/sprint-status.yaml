@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-10-2026 17:30
-last_updated: 09-19-2026 15:59
+last_updated: 09-21-2026 14:27
 project: TaskFlow
 project_key: NOKEY
 tracking_system: file-system
@@ -106,6 +106,26 @@ development_status:
 #   e3-9 foi fechado como "obsoleto" por engano e REABERTO em 2026-09-19: o risco
 #   (TaskCard e StateIndicator precisam ser editados juntos ao surgir um novo
 #   estado "parecido com concluído") ainda existe.
+# 2026-09-21 (hardening v1.0) — itens fechados COM evidência:
+#   e3-9  predicado único isTaskCompleted (commit 765e312).
+#   e4-16 arraste interrompido: E2E real (drag.spec.ts) cobre Esc, pointercancel,
+#         visibilitychange e resize; o código do @dnd-kit/core cancela nesses 4
+#         casos (core.esm.js, AbstractPointerSensor). Fica sem prova em hardware
+#         real só o caso "alt-tab com o botão do mouse pressionado".
+#   e4-17 registro de alças limpo entre testes (44d07bc, com mutação).
+#   e1-20 architecture.test.ts por AST + escopo documentado (c5d2fcd).
+#   e1-21 teste do tema antes da 1ª pintura, verificado por mutação (51fdbbf).
+#   e1-23 sincronização entre abas (dcf53d7) + E2E com duas abas (persistence.spec.ts).
+# Continuam ABERTOS de propósito:
+#   e4-14 limiar clique-vs-arraste em TOQUE real: exige aparelho físico. A alça de
+#         arraste é dedicada, e clicar nela sem arrastar foi verificado com mouse
+#         real (E2E), mas toque em tela real não foi testado.
+#   e1-26 item de PROCESSO: as duas práticas pedidas foram aplicadas em e1-20
+#         (escopo do teste documentado) e e1-21 (comentário pareado com teste que
+#         falha sem o mecanismo), mas fechar item de processo é decisão da Isabel.
+# ACHADO do hardening: o arraste por TECLADO nunca funcionou entre dias (o
+# sortableKeyboardCoordinates só serve a itens "sortable"). Corrigido em f28c8ef
+# com weekKeyboardCoordinates + E2E. A verificação do e4-11 valia para a lib antiga.
 action_items:
   - id: "epic-2-retro-item-1-corrigir-a-corrida-de-foco-em-closeeditm"
     epic: 2
@@ -172,7 +192,7 @@ action_items:
     action: "Extrair um predicado/mapa unico para task.state === done, hoje duplicado
       entre TaskCard.tsx e StateIndicator.tsx"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-14.md"
   - id: "epic-3-retro-item-10-antes-da-story-4-1-decidir-explicitament"
     epic: 3
@@ -229,7 +249,7 @@ action_items:
       de captura de ponteiro) pode deixar o Card preso visualmente em .dragging sem
       caminho de recuperacao no codigo"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-15.md"
   - id: "epic-4-retro-item-17-deferred-work-md-draghandleregistry-e-um"
     epic: 4
@@ -237,7 +257,7 @@ action_items:
       entre arquivos de teste — hoje inofensivo, mas pode causar falso-positivo/negativo
       se testes futuros reusarem o mesmo id padrao entre arquivos"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-15.md"
   - id: "epic-4-retro-item-18-deferred-work-md-as-3-funcoes-de-reindex"
     epic: 4
@@ -263,7 +283,7 @@ action_items:
       computado), ou no minimo documentar explicitamente no comentario do proprio
       teste que ele so pega acesso literal nao-ofuscado"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
   - id: "epic-1-retro-item-21-adicionar-um-teste-que-realmente-prove-q"
     epic: 1
@@ -271,7 +291,7 @@ action_items:
       de data-theme (dentro do inicializador lazy) importa — hoje nenhum teste distingue
       essa escrita da alternativa via useEffect de montagem"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
   - id: "epic-1-retro-item-22-trocar-useeffect-por-uselayouteffect-na"
     epic: 1
@@ -288,7 +308,7 @@ action_items:
       evento storage do navegador — uma segunda aba aberta fica com tema/tarefas obsoletos
       ate reload manual"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
   - id: "epic-1-retro-item-24-deferred-work-md-gettodaydayofweek-so-e"
     epic: 1

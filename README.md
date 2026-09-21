@@ -37,8 +37,8 @@ Além de ser uma aplicação funcional, o projeto é um estudo prático de desen
 * 🕘 **Horário opcional** — as tarefas do dia aparecem em ordem cronológica: primeiro as sem horário, depois as com horário, do mais cedo ao mais tarde. O horário aparece no cartão.
 * 🚦 **Prioridade visual** — a tag (Alta, Média, Baixa ou Sem prioridade) fica sempre visível no cartão; clicar nela alterna o nível sem abrir o formulário. A prioridade é só um rótulo e não muda a ordem das tarefas.
 * ✅ **Estado de progresso** — Pendente, Em andamento e Concluída, alternados clicando no indicador circular do cartão. Tarefas concluídas ficam riscadas e esmaecidas.
-* 🖱️ **Arrastar e soltar entre dias** — arraste um cartão para a coluna de outro dia para mudar a data (há também um sensor de teclado, para quem não usa mouse).
-* 💾 **Persistência local** com `localStorage`, incluindo migração automática de dados salvos no formato antigo (por dia da semana) para o formato atual (por data).
+* 🖱️ **Arrastar e soltar entre dias** — arraste um cartão para a coluna de outro dia para mudar a data. Pelo teclado: foco na alça de arraste, `Espaço` para pegar, setas para escolher o dia e `Espaço` para soltar (`Esc` cancela). A data também pode ser mudada pelo formulário de edição.
+* 💾 **Persistência local** com `localStorage`, incluindo migração automática de dados salvos no formato antigo (por dia da semana) para o formato atual (por data). Com duas abas abertas, as alterações de uma aparecem na outra sem recarregar.
 * 📱 **Layout responsivo** — 7 colunas em telas largas, 4 em tablets e 1 coluna no celular, com os dias empilhados (hoje primeiro) e áreas de toque maiores nos controles.
 * 🌙 **Tema claro e escuro.**
 * ♿ **Acessível por teclado**, com foco visível e rótulos para leitores de tela.
@@ -55,7 +55,7 @@ O app não tem cadastro nem login e funciona 100% no navegador, sem backend.
 | Arrastar e soltar | `@dnd-kit/core` |
 | Estilo | CSS Modules + CSS Custom Properties (tokens de design) |
 | Persistência | `localStorage` |
-| Testes | Vitest 5, Testing Library, jsdom |
+| Testes | Vitest 5, Testing Library, jsdom (unitários) · Playwright (E2E em navegador real) |
 | Deploy | GitHub Actions + GitHub Pages |
 
 ## 🏗️ Arquitetura
@@ -72,13 +72,16 @@ src/
 ├── constants/    Datas: janela de 7 dias, formatação, conversão ISO
 ├── types/        Tipos compartilhados (Task, Priority, TaskState…)
 └── styles/       Tokens de design (cores, espaçamento, tipografia)
+e2e/              Testes de ponta a ponta (Playwright)
 ```
 
 Decisões principais:
 
 * **Persistência atômica:** toda mudança de tarefa é salva *antes* de ser aplicada ao estado. Se a escrita falhar, a tela não muda e o erro é tratado, sem perder consistência.
-* **Camadas verificadas por teste:** só `src/storage/` acessa `localStorage`, e só o `ThemeContext` escreve o atributo de tema — regras conferidas por `architecture.test.ts`.
+* **Camadas verificadas por teste:** só `src/storage/` acessa `localStorage`, e só o `ThemeContext` escreve o atributo de tema — regras conferidas por `architecture.test.ts`, que lê o código como AST (comentários não contam; atalhos como `window['local' + 'Storage']` são detectados).
 * **Funções puras** para ordenação por horário, renumeração de ordem e rollover, isoladas e cobertas por testes.
+* **Várias abas:** o adaptador de storage escuta o evento `storage` do navegador, então uma aba adota o que a outra salvou (um valor corrompido escrito por outra aba nunca apaga o que já está na tela). Edição simultânea do **mesmo** item em duas abas: vale a última gravação.
+* **Só grava o que consegue ler de volta:** horário fora de `HH:mm` é recusado na escrita, porque a leitura rejeitaria o dado no próximo carregamento.
 * **Datas em horário local** (`YYYY-MM-DD`), nunca via UTC, para evitar o clássico erro de "um dia a menos" em fusos negativos.
 * Chaves de armazenamento independentes:
 
@@ -89,16 +92,25 @@ taskflow:theme
 
 ## 🧪 Testes
 
-São mais de **300 testes automatizados** (Vitest + Testing Library) cobrindo estado, armazenamento, componentes e integração da semana: rollover, migração de dados, virada de dia com relógio simulado, ordenação por horário, persistência com falha de escrita e fluxo do arraste (o gesto físico do mouse não é simulável em jsdom, então o `onDragEnd` real é exercitado com eventos sintéticos).
+**Unitários e de componentes** — cerca de 400 testes (Vitest + Testing Library) cobrindo estado, armazenamento, componentes e a integração da semana: rollover, migração de dados, virada de dia com relógio simulado, ordenação por horário, persistência com falha de escrita, sincronização entre abas e as regras de arquitetura (checadas por análise da AST do código).
+
+**Ponta a ponta (E2E)** — 60 testes em Chrome real (Playwright) contra o app buildado, com fuso e relógio fixos: janela de 7 dias e sua virada de dia, rollover, migração v1→v2, dados corrompidos, criar/editar/excluir, estado e prioridade, foco do modal, falha de escrita, persistência, duas abas, arraste com mouse e por teclado (inclusive interrompido por `Esc`, `pointercancel` e troca de aba), fusos e horário de verão, e o layout responsivo.
 
 ```bash
-npm run test     # roda toda a suíte
-npm run build    # checagem de tipos (tsc) + build de produção
+npm run test        # unitários (Vitest)
+npm run test:e2e    # E2E (Playwright): faz o build e sobe o app sozinho
+npm run build       # checagem de tipos (tsc, inclui os testes E2E) + build de produção
 ```
+
+Na primeira vez, o E2E precisa de um navegador: `npx playwright install chromium`. Se você já tem o Google Chrome, dá para usá-lo sem baixar nada com `PW_CHANNEL=chrome npm run test:e2e` (PowerShell: `$env:PW_CHANNEL='chrome'; npm run test:e2e`).
 
 > Dica: em pastas sincronizadas (como OneDrive), o Vitest pode perder arquivos por timeout de worker. Use `npx vitest run --maxWorkers=1` e confira a contagem de arquivos e testes.
 
+**Não coberto por teste automatizado:** o gesto de arrastar com o **dedo** numa tela de toque real e o uso com leitor de tela — só verificação manual em aparelho.
+
 ## 🚀 Executando localmente
+
+Requer **Node.js 22.12 ou superior** (exigência do Vite 8 e do Vitest 5).
 
 ```bash
 git clone https://github.com/b3bel23/taskflow.git
@@ -111,7 +123,7 @@ O app abre em `http://localhost:5173/taskflow/`.
 
 ## 🌐 Deploy (GitHub Pages)
 
-O site é publicado automaticamente: a cada `push` na branch `main`, o workflow [`deploy.yml`](.github/workflows/deploy.yml) instala as dependências, roda `npm run build` e publica a pasta `dist` no GitHub Pages. O `base` do Vite está configurado como `/taskflow/`, o subcaminho do repositório.
+O site é publicado automaticamente: a cada `push` na branch `main`, o workflow [`deploy.yml`](.github/workflows/deploy.yml) roda os testes unitários (`npm run test`), o build (`npm run build`) e os testes E2E; **só se tudo passar** a pasta `dist` é publicada no GitHub Pages. Se qualquer etapa falhar, nada é publicado. O `base` do Vite está configurado como `/taskflow/`, o subcaminho do repositório.
 
 Para publicar seu próprio fork: em **Settings → Pages**, escolha **Source: GitHub Actions** e faça um push na `main`.
 
@@ -125,7 +137,7 @@ Product Brief → PRD → UX Design → Arquitetura → Épicos e Histórias
               → Code review → Retrospectiva
 ```
 
-Toda a documentação está versionada em [`_bmad-output/`](_bmad-output/):
+Um resumo curto do que o app deve fazer está em [`REQUIREMENTS.md`](REQUIREMENTS.md). Toda a documentação está versionada em [`_bmad-output/`](_bmad-output/):
 
 * [Brief](_bmad-output/planning-artifacts/briefs), [PRD](_bmad-output/planning-artifacts/prds), [UX](_bmad-output/planning-artifacts/ux-designs) e [Arquitetura](_bmad-output/planning-artifacts/architecture)
 * [Épicos e histórias](_bmad-output/planning-artifacts/epics.md) com critérios de aceite
@@ -149,6 +161,7 @@ Toda a documentação está versionada em [`_bmad-output/`](_bmad-output/):
 
 * Os dados ficam **só no navegador e no computador** onde foram criados — não há sincronização entre dispositivos nem backup.
 * O layout responsivo foi verificado em larguras emuladas no navegador (360 a 1280px), mas **ainda não em aparelhos reais**; em especial, o arraste por toque não foi testado num celular de verdade.
+* Não há desfazer nem exportação/backup dos dados (decisão de produto: o aviso na tela é a mitigação).
 * Anúncios de leitor de tela do arraste ainda usam o texto padrão da biblioteca (em inglês).
 * Fora do escopo por enquanto: cadastro e login, sincronização, notificações e lembretes.
 

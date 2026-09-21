@@ -1,6 +1,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-1-visualizar-a-semana-vazia.md`
   summary: Projeto não tem ferramentas de lint/format (ESLint/Prettier) nem script `lint` no `package.json`.
   evidence: `ARCHITECTURE-SPINE.md` fixa configurações rígidas de TypeScript (`strict`, `noUnusedLocals`, etc.) mas não define lint/format; achado incidental do blind-hunter review da Story 1.1, não bloqueia nenhuma AC desta história.
+  decision: 2026-09-21 (fechamento das decisões da v1.0) — mantido como MELHORIA FUTURA, sem implementar agora. Não bloqueia a v1.0. O `tsc` estrito e os testes cobrem o essencial hoje.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-1-visualizar-a-semana-vazia.md`
   summary: Projeto não tem `README.md` explicando como instalar/rodar/testar/buildar.
@@ -10,6 +11,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-1-visualizar-a-semana-vazia.md`
   summary: Sem Error Boundary em torno de `<App />` em `src/main.tsx` — um erro de runtime em qualquer componente derruba a tela inteira sem fallback.
   evidence: Achado incidental do blind-hunter review da Story 1.1; nenhuma AC ou documento de arquitetura/UX exige tratamento de erro de render nesta história.
+  decision: 2026-09-21 (fechamento das decisões da v1.0) — mantido como MELHORIA FUTURA, sem implementar agora. Não bloqueia a v1.0. Hoje um erro de render deixa a tela em branco; o candidato natural é um Error Boundary com uma mensagem neutra e um botão de recarregar.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-2-persistir-dados-de-tarefas-entre-sessoes.md`
   summary: `role="status"` no aviso de erro de carga (`PersistenceNotice`) pode não ser anunciado por leitores de tela, pois `loadError` já está resolvido antes da primeira renderização (não é uma atualização "ao vivo" de uma live region).
@@ -18,6 +20,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3-alternar-entre-tema-claro-e-escuro.md`
   summary: Falha ao salvar o tema (`saveTheme` retornando `{ok:false}`) não tem nenhum feedback visual — o clique no `ThemeToggle` simplesmente não muda nada, sem aviso, diferente do padrão já usado para tarefas (`PersistenceNotice`).
   evidence: Achado do blind-hunter/edge-case-hunter da Story 1.3; a AC atual só exige "tema não muda, nenhuma exceção lançada" (satisfeito), mas adicionar um aviso visível é uma decisão de UX nova, não coberta pela spec aprovada — requer decisão de Isabel antes de implementar.
+  decision: 2026-09-21 (fechamento das decisões da v1.0) — mantido como MELHORIA FUTURA, sem implementar agora. Não bloqueia a v1.0. Segue exigindo decisão de UX sobre como avisar.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3-alternar-entre-tema-claro-e-escuro.md`
   summary: `TaskContextValue`/`ThemeContextValue` expõem o `dispatch` cru do reducer no valor público do Context — nada impede hoje um componente futuro de despachar uma mutação direto, contornando `useTaskActions`/`useThemeActions` e o guard de persistência atômica (AD-4).
@@ -56,6 +59,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-2-diferenciar-visualmente-tarefa-concluida.md`
   summary: `completed-opacity` (0.55, valor fixo de `DESIGN.md`, aplicado ao Card inteiro) reduz o contraste do nome (`--color-ink-primary`) e das cores da `PriorityTag`/`StateIndicator` — no tema claro, o cálculo de contraste do texto cai abaixo de WCAG AA 4.5:1 para texto normal, mesmo o texto sem opacidade passando facilmente.
   evidence: Achado do blind-hunter da Story 3.2; o valor 0.55 é uma decisão de design já aprovada (Party Mode, `DESIGN.md`) e a própria AC da Story 3.2 exige literalmente essa opacidade no Card inteiro — não é algo que esta história possa mudar unilateralmente; requer decisão de Isabel/UX se o valor do token deve ser revisto.
+  decision: 2026-09-21 (fechamento das decisões da v1.0) — mantido como MELHORIA FUTURA, sem implementar agora. Não bloqueia a v1.0. Revisão do valor do token depende de decisão de design.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-2-diferenciar-visualmente-tarefa-concluida.md`
   summary: Nenhuma consideração para `forced-colors`/Windows High Contrast (ou `prefers-contrast`) — nesses modos o navegador tipicamente ignora `opacity`, deixando o `text-decoration: line-through` como único sinal de diferenciação de "Concluída".
@@ -128,3 +132,14 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-5-1-migrar-dados-existentes-para-o-modelo-de-data-real.md`
   summary: `parseISODateLocal`/`getWeekdayIndex`/`formatDayHeading` (`src/constants/week.ts`) não validam o formato da string de entrada — uma data malformada produziria `Invalid Date`/`NaN` e um rótulo de dia-da-semana `undefined`, em vez de falhar de forma previsível.
   evidence: Achado do blind-hunter/edge-case-hunter review da Story 5.1; risco baixo hoje porque todo chamador atual passa strings ISO já bem-formadas (via `toISODate` ou dados validados na carga do storage); vale um guard se um novo chamador for adicionado depois.
+
+
+- source_spec: `_bmad-output/implementation-artifacts/sprint-status.yaml` (retro Epic 4, item e4-14; hardening da v1.0)
+  summary: Casos raros de arraste sem prova: soltar o mouse fora da janela ou trocar de janela (alt-tab) com o botão pressionado, situações em que o navegador pode não entregar `pointerup`/`visibilitychange`, deixando o Card em modo de arraste até o próximo clique ou Esc.
+  evidence: O E2E (`e2e/drag.spec.ts`) cobre Esc, `pointercancel`, `visibilitychange` e `resize`, e o `@dnd-kit/core` cancela nesses casos (`core.esm.js`); alt-tab com o botão pressionado não é reproduzível de forma confiável por automação.
+  decision: 2026-09-21 — melhoria futura, sem implementar agora. Recuperação hoje: Esc ou um novo clique.
+
+- source_spec: `_bmad-output/implementation-artifacts/sprint-status.yaml` (retro Epic 4, item e4-14; hardening da v1.0)
+  summary: Validação em aparelho físico (celular/tablet) ainda não feita: arraste por toque, limiar entre toque e arraste (`PointerSensor` sem `activationConstraint`), alvos de toque, zoom do iOS ao focar campos e uso com leitor de tela.
+  evidence: O layout responsivo foi verificado em larguras emuladas de 360 a 1280 px e o E2E cobre o teclado e o mouse reais; toque real não é simulável de forma fiel. A alça de arraste é dedicada e tem `touch-action: none`.
+  decision: 2026-09-21 — melhoria futura; `epic-4-retro-item-14` fica ABERTO até um teste em aparelho físico.

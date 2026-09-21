@@ -1,6 +1,6 @@
 # TaskFlow — Requisitos (consolidado)
 
-Resumo do que o TaskFlow **deve** fazer, extraído dos artefatos BMAD aprovados. Não cria requisitos novos: cada item aponta para a fonte. Em caso de divergência, vale o artefato — a fonte de verdade é o [PRD](_bmad-output/planning-artifacts/prds/prd-teste%20bmad-2026-09-09/prd.md) (atualizado em 2026-09-18).
+Resumo do que o TaskFlow **deve** fazer, extraído dos artefatos BMAD aprovados. Não cria requisitos novos: cada item aponta para a fonte. Em caso de divergência, vale o artefato (já reconciliado com o produto entregue, ver §6) — a fonte de verdade é o [PRD](_bmad-output/planning-artifacts/prds/prd-teste%20bmad-2026-09-09/prd.md) (atualizado em 2026-09-18).
 
 *Projeto Node/npm: as dependências ficam em `package.json`/`package-lock.json`, por isso não existe `requirements.txt`.*
 
@@ -53,16 +53,16 @@ Um organizador semanal de tarefas pessoais: uma pessoa, uma janela de 7 dias a p
 - A Prioridade é sinalizada só por cor — limitação conhecida e aceita. *(`EXPERIENCE.md`)*
 - Desfazer não existe. *(PRD FR-3)*
 
-## 6. Divergências entre os artefatos e o app atual
+## 6. Decisões posteriores aos artefatos originais
 
-Não são requisitos novos: são pontos em que o produto entregue vai **além ou ao lado** dos artefatos aprovados, à espera de uma decisão para reconciliar (mudar o artefato ou o código).
+Quatro pontos em que o produto entregue foi além do que os artefatos diziam no início. Em 2026-09-21 os artefatos foram **reconciliados**: cada passagem obsoleta foi mantida **riscada** e seguida de uma nota "decisão original alterada em …", sem apagar o histórico.
 
-| Onde | O artefato diz | O app faz |
-|---|---|---|
-| Plataforma | PRD §5/§7.2 e `EXPERIENCE.md`: só desktop, sem layout mobile no MVP. | Layout responsivo (7 colunas → 4 → 1) com áreas de toque maiores, a pedido da usuária. |
-| Deploy | Spine: "só dev local, sem CI/CD, sem hospedagem" (AD-1, Deferred). | Publicado no GitHub Pages por GitHub Actions; o workflow está configurado para rodar testes unitários e E2E antes do deploy. |
-| Arraste | AD-6: `@dnd-kit/react`. | `@dnd-kit/core` (sensor de teclado próprio: `weekKeyboardCoordinates`). |
-| Várias abas | Não especificado. | Duas abas abertas se mantêm sincronizadas (evento `storage`). |
+| Tema | Decisão original | Situação atual | Reconciliado em |
+|---|---|---|---|
+| Plataforma | Só desktop, sem layout mobile no MVP. | Layout responsivo (7 colunas → 4 → 1), verificado em larguras emuladas; **não** testado em aparelho físico. | PRD §5/§7.2, EXPERIENCE (Foundation, Responsive & Platform), DESIGN, SPEC, epics (NFR-2) |
+| Deploy | Só dev local; sem CI/CD nem hospedagem. | GitHub Pages por GitHub Actions; o deploy só roda depois dos testes unitários, do build e do E2E. | Spine (AD-1, Deploy & ambiente, Deferred) |
+| Arraste | AD-6: `@dnd-kit/react`. | `@dnd-kit/core`, com coordenadas de teclado próprias (`weekKeyboardCoordinates`). | Spine (AD-6, Stack, mapa), SPEC, epics (AD-6, UX-DR12), EXPERIENCE (feedback de arraste) |
+| Várias abas / escrita | Não especificado. | Abas sincronizadas pelo evento `storage`; só se grava Horário em `HH:mm`. | Spine (AD-4, exceção de hidratação e validação de escrita) |
 
 ## 7. Documentos de origem
 

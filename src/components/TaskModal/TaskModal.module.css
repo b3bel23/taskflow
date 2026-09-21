@@ -14,6 +14,10 @@
 .modal {
   position: relative;
   width: min(420px, calc(100% - var(--spacing-5) * 2));
+  /* Em tela baixa (celular na horizontal) o formulário rola dentro do modal
+     em vez de estourar a tela. */
+  max-height: calc(100dvh - var(--spacing-5) * 2);
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-4);
@@ -212,4 +216,41 @@
   border-radius: var(--radius-sm);
   padding: var(--spacing-2) var(--spacing-4);
   cursor: pointer;
+}
+
+@media (max-width: 699px), (pointer: coarse) {
+  .modal {
+    width: calc(100% - var(--spacing-4) * 2);
+    padding: var(--spacing-4);
+  }
+
+  .closeButton {
+    width: 44px;
+    height: 44px;
+    top: var(--spacing-2);
+    right: var(--spacing-2);
+  }
+
+  /* 16px evita o zoom automático do iOS ao focar um campo; 44px é o alvo de
+     toque recomendado. */
+  .input,
+  .select {
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  .submitButton,
+  .cancelButton,
+  .destructiveButton {
+    min-height: 44px;
+  }
+
+  /* Linha própria (o <form> é um bloco: em inline, o link ficava colado no
+     botão Salvar, e dois alvos de toque de 44px encostados se confundem). */
+  .deleteLink {
+    display: flex;
+    width: fit-content;
+    min-height: 44px;
+    align-items: center;
+  }
 }

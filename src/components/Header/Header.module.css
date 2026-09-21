@@ -13,3 +13,9 @@
   font-weight: var(--font-weight-heading);
   color: var(--color-ink-primary);
 }
+
+@media (max-width: 699px) {
+  .header {
+    padding: var(--spacing-3);
+  }
+}

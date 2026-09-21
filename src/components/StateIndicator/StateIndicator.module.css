@@ -31,3 +31,17 @@
 .done {
   background-color: var(--color-ink-secondary);
 }
+
+/* Área de toque maior sem mudar o visual (o círculo continua com 18px): um
+   pseudo-elemento invisível estende a região clicável. */
+@media (max-width: 699px), (pointer: coarse) {
+  .indicator {
+    position: relative;
+  }
+
+  .indicator::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+  }
+}

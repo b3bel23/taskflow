@@ -16,3 +16,24 @@
   padding: var(--spacing-5);
   background-color: var(--color-surface-base);
 }
+
+/* Layout responsivo (pós-MVP): 7 colunas em telas largas; 4 em tablet (7 =
+   4 + 3, sem coluna órfã); 1 no celular, com os dias empilhados (hoje
+   primeiro). `minmax(0, 1fr)` impede que uma palavra longa force a coluna a
+   passar da tela e gerar rolagem horizontal. */
+@media (max-width: 1099px) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 699px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--spacing-3);
+  }
+
+  .rolloverError {
+    padding: var(--spacing-2) var(--spacing-3);
+  }
+}

@@ -39,6 +39,7 @@ Além de ser uma aplicação funcional, o projeto é um estudo prático de desen
 * ✅ **Estado de progresso** — Pendente, Em andamento e Concluída, alternados clicando no indicador circular do cartão. Tarefas concluídas ficam riscadas e esmaecidas.
 * 🖱️ **Arrastar e soltar entre dias** — arraste um cartão para a coluna de outro dia para mudar a data (há também um sensor de teclado, para quem não usa mouse).
 * 💾 **Persistência local** com `localStorage`, incluindo migração automática de dados salvos no formato antigo (por dia da semana) para o formato atual (por data).
+* 📱 **Layout responsivo** — 7 colunas em telas largas, 4 em tablets e 1 coluna no celular, com os dias empilhados (hoje primeiro) e áreas de toque maiores nos controles.
 * 🌙 **Tema claro e escuro.**
 * ♿ **Acessível por teclado**, com foco visível e rótulos para leitores de tela.
 
@@ -147,7 +148,7 @@ Toda a documentação está versionada em [`_bmad-output/`](_bmad-output/):
 ## 🔮 Limitações e possibilidades futuras
 
 * Os dados ficam **só no navegador e no computador** onde foram criados — não há sincronização entre dispositivos nem backup.
-* A interface é otimizada para telas de computador; em telas estreitas o quadro fica apertado.
+* O layout responsivo foi verificado em larguras emuladas no navegador (360 a 1280px), mas **ainda não em aparelhos reais**; em especial, o arraste por toque não foi testado num celular de verdade.
 * Anúncios de leitor de tela do arraste ainda usam o texto padrão da biblioteca (em inglês).
 * Fora do escopo por enquanto: cadastro e login, sincronização, notificações e lembretes.
 

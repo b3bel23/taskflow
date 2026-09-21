@@ -124,3 +124,25 @@
 .titleCompleted {
   text-decoration: line-through;
 }
+
+/* Alça de arraste com área de toque maior (o ícone segue com 12px). O
+   `touch-action: none` da própria alça continua valendo para o pseudo-
+   elemento, então o gesto de arrastar não vira rolagem da página. O espaço
+   entre a alça e o Indicador sobe para 12px e cada um estende 6px para o
+   lado do outro: as duas áreas se encontram sem se sobrepor, então um toque
+   perto do meio nunca cicla o Estado quando a intenção era arrastar. */
+@media (max-width: 699px), (pointer: coarse) {
+  .leftControls {
+    gap: var(--spacing-3);
+  }
+
+  .dragHandle {
+    position: relative;
+  }
+
+  .dragHandle::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+  }
+}

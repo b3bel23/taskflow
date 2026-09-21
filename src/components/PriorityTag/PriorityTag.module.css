@@ -46,3 +46,16 @@
   background-color: var(--color-border-hairline);
   color: var(--color-ink-secondary);
 }
+
+/* Área de toque maior sem mudar o visual da pílula. */
+@media (max-width: 699px), (pointer: coarse) {
+  .tag {
+    position: relative;
+  }
+
+  .tag::after {
+    content: '';
+    position: absolute;
+    inset: -4px -6px;
+  }
+}

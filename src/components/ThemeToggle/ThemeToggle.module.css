@@ -27,3 +27,11 @@
 .iconInactive {
   color: var(--color-ink-secondary);
 }
+
+/* Alvo de toque maior (>= 44px de altura) no celular/tela de toque. */
+@media (max-width: 699px), (pointer: coarse) {
+  .toggle {
+    min-height: 44px;
+    padding: var(--spacing-2) var(--spacing-3);
+  }
+}

@@ -31,11 +31,19 @@ playwright-report
 test-results
 *.tsbuildinfo
 
+# Local AI/BMAD working files that are useful during development but do not
+# belong in the public portfolio repository.
+/CLAUDE.md
+/_bmad-output/party-mode/
+**/.memlog.md
+**/.working/
+/_bmad-output/implementation-artifacts/*investigation*.md
+
 # BMAD Method tooling/installation (framework engine, skill definitions,
 # workflow render cache) — not TaskFlow app code or SDD artifacts.
 # `_bmad-output/` (specs, epics, planning docs) IS versioned — see above.
-# `.github/workflows/` é exceção: CI/deploy de verdade do TaskFlow (GitHub
-# Pages), precisa estar versionado pro GitHub Actions rodar.
+# `.github/workflows/` is the TaskFlow CI/deploy configuration and must stay
+# versioned for GitHub Actions.
 /.agents/
 /.claude/
 /.github/*

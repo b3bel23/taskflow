@@ -24,6 +24,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Testes ANTES do build: se falharem (ou se o build falhar), este job
+      # falha e o job `deploy` (que depende dele) nem chega a rodar — nada é
+      # publicado no GitHub Pages.
+      - run: npm run test
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:

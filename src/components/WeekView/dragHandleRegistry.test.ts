@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { getDragHandle, isDragHandleFocused, registerDragHandle } from './dragHandleRegistry';
+import { clearDragHandles, getDragHandle, isDragHandleFocused, registerDragHandle } from './dragHandleRegistry';
 
 // Story 4.2 (Epic 4), boundary "Foco": este registro é o que permite
 // `WeekView` reencontrar, depois de um cruzamento de grupo (a alça antiga
@@ -65,5 +65,34 @@ describe('dragHandleRegistry', () => {
     it('false para uma tarefa nunca registrada', () => {
       expect(isDragHandleFocused('nunca-registrada')).toBe(false);
     });
+  });
+});
+
+// Retro Epic 4, item 17: o registro é module-scope; `src/test/setup.ts` o
+// esvazia após cada teste. Os dois testes abaixo formam um par DEPENDENTE DA
+// ORDEM de propósito — o primeiro registra um id, o segundo (mesmo arquivo,
+// mesmo módulo) exige que ele já não exista. Se o `afterEach` do setup
+// deixar de limpar o registro, o segundo falha.
+describe('isolamento do registro entre testes (setup global)', () => {
+  it('1/2 — registra um id e o deixa "esquecido" no registro', () => {
+    registerDragHandle('id-reaproveitado', document.createElement('span'));
+
+    expect(getDragHandle('id-reaproveitado')).not.toBeNull();
+  });
+
+  it('2/2 — o id do teste anterior NÃO vazou para este', () => {
+    expect(getDragHandle('id-reaproveitado')).toBeNull();
+  });
+});
+
+describe('clearDragHandles', () => {
+  it('remove todas as entradas de uma vez', () => {
+    registerDragHandle('a', document.createElement('span'));
+    registerDragHandle('b', document.createElement('span'));
+
+    clearDragHandles();
+
+    expect(getDragHandle('a')).toBeNull();
+    expect(getDragHandle('b')).toBeNull();
   });
 });

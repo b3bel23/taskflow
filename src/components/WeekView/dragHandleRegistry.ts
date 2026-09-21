@@ -48,3 +48,14 @@ export function isDragHandleFocused(taskId: string): boolean {
   const handle = dragHandles.get(taskId);
   return handle != null && handle === document.activeElement;
 }
+
+// Esvazia o registro inteiro. Existe para os TESTES (retro Epic 4, item 17):
+// o `Map` acima é module-scope, então dentro de um mesmo arquivo de teste
+// as entradas de um teste sobreviviam ao próximo — com ids reaproveitados
+// (`'a'`, `'t1'`), um nó DOM desmontado de um teste anterior podia ser lido
+// como se fosse o do teste atual. `src/test/setup.ts` chama isto em todo
+// `afterEach`. Entre ARQUIVOS de teste não há vazamento (o Vitest isola o
+// registro de módulos por arquivo). Nada em código de produção chama isto.
+export function clearDragHandles(): void {
+  dragHandles.clear();
+}

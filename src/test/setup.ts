@@ -1,5 +1,6 @@
 import { afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import { clearDragHandles } from '../components/WeekView/dragHandleRegistry';
 
 // Sem `test.globals` habilitado (preferimos imports explícitos de 'vitest'
 // nos arquivos de teste), então o auto-cleanup do Testing Library não é
@@ -7,6 +8,9 @@ import { cleanup } from '@testing-library/react';
 // arquivos de teste.
 afterEach(() => {
   cleanup();
+  // `dragHandleRegistry` é um `Map` module-scope: sem isto, entradas de um
+  // teste vazam para o próximo dentro do mesmo arquivo (retro Epic 4, item 17).
+  clearDragHandles();
 });
 
 // Story 4.1 (Epic 4, AD-6): `@dnd-kit` referencia `ResizeObserver` do

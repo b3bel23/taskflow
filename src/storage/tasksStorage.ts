@@ -1,4 +1,4 @@
-import { getWeekWindow, getWeekdayIndex, parseISODateLocal, toISODate } from '../constants/week';
+import { getWeekWindow, getWeekdayIndex, isValidTime, parseISODateLocal, toISODate } from '../constants/week';
 import { closeOrderGap } from '../state/selectors';
 import type { DayOfWeek, Priority, Task, TaskState } from '../types';
 
@@ -42,9 +42,6 @@ const VALID_TASK_STATES: TaskState[] = ['pending', 'in_progress', 'done'];
 const VALID_PRIORITIES: Priority[] = ['high', 'medium', 'low'];
 const VALID_DAYS_OF_WEEK: DayOfWeek[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-// `'HH:mm'` 24h — o mesmo formato que `<input type="time">` devolve e que
-// `sortTasksInDay` assume ao comparar Horários lexicograficamente.
-const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 // `ISO_DATE_PATTERN` sozinho aceita strings lexicamente válidas mas
 // calendarialmente inexistentes (ex. `'2026-13-40'`, `'2026-02-30'`) — o
@@ -97,7 +94,7 @@ function isValidTask(value: unknown): value is Task {
     typeof candidate.date === 'string' &&
     ISO_DATE_PATTERN.test(candidate.date) &&
     isCalendarValidISODate(candidate.date) &&
-    (candidate.time === null || (typeof candidate.time === 'string' && TIME_PATTERN.test(candidate.time))) &&
+    (candidate.time === null || isValidTime(candidate.time)) &&
     VALID_TASK_STATES.includes(candidate.state as TaskState) &&
     (candidate.priority === null || VALID_PRIORITIES.includes(candidate.priority as Priority)) &&
     typeof candidate.order === 'number' &&

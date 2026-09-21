@@ -91,3 +91,16 @@ export function formatDayHeading(dateISO: string): string {
   const date = parseISODateLocal(dateISO);
   return `${getWeekdayLabel(dateISO)}, ${pad2(date.getDate())}/${pad2(date.getMonth() + 1)}`;
 }
+
+// `'HH:mm'` 24h — o formato que `<input type="time">` devolve e que
+// `sortTasksInDay` assume ao comparar Horários lexicograficamente. Uma única
+// definição, usada tanto na leitura (`isValidTask` em `tasksStorage.ts`) quanto
+// na escrita (`useTaskActions`): o que o app grava é exatamente o que ele
+// aceita ler de volta. Se as duas pontas divergissem, um horário gravado que
+// a leitura rejeita faria o app descartar TODAS as tarefas no próximo
+// carregamento.
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+export function isValidTime(value: unknown): value is string {
+  return typeof value === 'string' && TIME_PATTERN.test(value);
+}

@@ -68,6 +68,30 @@ function getSavedTasks(): Task[] {
   return JSON.parse(window.localStorage.getItem(TASKS_STORAGE_KEY) ?? '{}').tasks ?? [];
 }
 
+// Hardening v1.0: num navegador antigo `<input type="time">` vira caixa de
+// texto e aceita qualquer coisa — o jsdom não deixa digitar lixo num campo
+// `time`, então o teste degrada o tipo para `text`, como esse navegador faria.
+describe('TaskModal — horário digitado fora de HH:mm', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it('não salva, mostra um erro claro e mantém o modal aberto com o que foi digitado', () => {
+    const onClose = renderModal();
+    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Reunião' } });
+    const timeInput = screen.getByLabelText('Horário') as HTMLInputElement;
+    timeInput.type = 'text';
+    fireEvent.change(timeInput, { target: { value: '9h30' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar tarefa' }));
+
+    expect(screen.getByRole('alert').textContent).toBe('Horário inválido. Use o formato HH:mm (ex. 09:30).');
+    expect(onClose).not.toHaveBeenCalled();
+    expect((screen.getByLabelText('Nome') as HTMLInputElement).value).toBe('Reunião');
+    expect(window.localStorage.getItem(TASKS_STORAGE_KEY)).toBeNull();
+  });
+});
+
 describe('TaskModal', () => {
   beforeEach(() => {
     window.localStorage.clear();

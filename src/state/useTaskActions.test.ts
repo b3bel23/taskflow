@@ -821,3 +821,92 @@ describe('applyRollover (Story 5.4)', () => {
     expect(result.current.state.tasks[0]).toEqual(created);
   });
 });
+
+// Hardening v1.0: só se grava o que a leitura aceitaria de volta. Um Horário
+// fora de HH:mm (campo degradado para texto num navegador antigo) faria o
+// próximo carregamento descartar TODAS as tarefas.
+describe('Horário inválido é rejeitado na escrita', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it.each(['9h30', '9:30', '24:00', '', 'abc'])(
+    'createTask com horário "%s": {ok:false}, nada salvo nem despachado',
+    (time) => {
+      const { result } = renderHook(() => useProbe(), { wrapper });
+      let actionResult: ReturnType<typeof result.current.createTask> | undefined;
+
+      act(() => {
+        actionResult = result.current.createTask({ title: 'X', date: '2026-09-21', time, priority: null });
+      });
+
+      expect(actionResult).toEqual({ ok: false, error: { message: 'Horário inválido.' } });
+      expect(result.current.state.tasks).toHaveLength(0);
+      expect(window.localStorage.getItem(TASKS_STORAGE_KEY)).toBeNull();
+    },
+  );
+
+  it('updateTask com horário inválido: {ok:false}, a tarefa e os dados salvos ficam como estavam', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+    act(() => {
+      result.current.createTask({ title: 'Boa', date: '2026-09-21', time: '10:00', priority: null });
+    });
+    const created = result.current.state.tasks[0];
+    const savedBefore = window.localStorage.getItem(TASKS_STORAGE_KEY);
+    let actionResult: ReturnType<typeof result.current.updateTask> | undefined;
+
+    act(() => {
+      actionResult = result.current.updateTask({
+        id: created.id,
+        title: 'Boa',
+        date: '2026-09-21',
+        time: '10h00',
+        priority: null,
+        state: 'pending',
+      });
+    });
+
+    expect(actionResult).toEqual({ ok: false, error: { message: 'Horário inválido.' } });
+    expect(result.current.state.tasks[0].time).toBe('10:00');
+    expect(window.localStorage.getItem(TASKS_STORAGE_KEY)).toBe(savedBefore);
+  });
+
+  it('horário válido e ausente (null) continuam funcionando', () => {
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'Com hora', date: '2026-09-21', time: '08:05', priority: null });
+    });
+    act(() => {
+      result.current.createTask({ title: 'Sem hora', date: '2026-09-21', time: null, priority: null });
+    });
+
+    expect(result.current.state.tasks.map((t) => t.time)).toEqual(['08:05', null]);
+  });
+});
+
+describe('createTask sem crypto.randomUUID (contexto não seguro)', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('ainda cria a tarefa, com id único, em vez de lançar', () => {
+    vi.stubGlobal('crypto', {});
+    const { result } = renderHook(() => useProbe(), { wrapper });
+
+    act(() => {
+      result.current.createTask({ title: 'A', date: '2026-09-21', time: null, priority: null });
+    });
+    act(() => {
+      result.current.createTask({ title: 'B', date: '2026-09-21', time: null, priority: null });
+    });
+
+    const ids = result.current.state.tasks.map((t) => t.id);
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+  });
+});

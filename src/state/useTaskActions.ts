@@ -1,5 +1,7 @@
 import { useCallback } from 'react';
+import { isValidTime } from '../constants/week';
 import { saveTasks } from '../storage/tasksStorage';
+import { newTaskId } from './newTaskId';
 import { applyRollover as applyRolloverPure } from './applyRollover';
 import { closeOrderGap, getNextOrderInGroup, reassignDate } from './selectors';
 import { useTaskContext } from './TaskContext';
@@ -7,6 +9,10 @@ import { unregisterDragHandle } from '../components/WeekView/dragHandleRegistry'
 import type { Priority, Task, TaskState } from '../types';
 
 export type TaskActionResult = { ok: true; task: Task } | { ok: false; error: { message: string } };
+
+// Mensagem de erro de Horário fora de `HH:mm` — o Modal a reconhece e mostra
+// um texto próprio (ver `TaskModal`).
+export const INVALID_TIME_MESSAGE = 'Horário inválido.';
 
 // `deleteTask`/`applyRollover` não devolvem uma tarefa específica (a
 // primeira deixou de existir; o segundo pode afetar zero, uma ou várias) —
@@ -71,8 +77,16 @@ export function useTaskActions(): TaskActions {
 
   const createTask = useCallback(
     ({ title, date, time, priority }: CreateTaskInput): TaskActionResult => {
+      // Só grava o que a leitura (`loadTasks`) aceitaria de volta: um Horário
+      // fora de `HH:mm` (ex. `<input type="time">` degradado para texto num
+      // navegador antigo) faria o próximo carregamento descartar TODAS as
+      // tarefas. Nada é salvo nem despachado.
+      if (time !== null && !isValidTime(time)) {
+        return { ok: false, error: { message: INVALID_TIME_MESSAGE } };
+      }
+
       const task: Task = {
-        id: crypto.randomUUID(),
+        id: newTaskId(),
         title,
         date,
         time,
@@ -104,6 +118,9 @@ export function useTaskActions(): TaskActions {
       const exists = state.tasks.some((t) => t.id === id);
       if (!exists) {
         return { ok: false, error: { message: 'Tarefa não encontrada.' } };
+      }
+      if (time !== null && !isValidTime(time)) {
+        return { ok: false, error: { message: INVALID_TIME_MESSAGE } };
       }
 
       const withEdits = state.tasks.map((t) =>

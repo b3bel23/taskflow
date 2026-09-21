@@ -5,6 +5,7 @@ import {
   getWeekWindow,
   getWeekdayIndex,
   getWeekdayLabel,
+  isValidTime,
   parseISODateLocal,
   toISODate,
 } from './week';
@@ -145,5 +146,19 @@ describe('parseISODateLocal / toISODate', () => {
 
   it('data inexistente continua não fazendo round-trip ("2026-02-30" rola para março)', () => {
     expect(toISODate(parseISODateLocal('2026-02-30'))).toBe('2026-03-02');
+  });
+});
+
+describe('isValidTime', () => {
+  it.each(['00:00', '09:30', '12:00', '23:59'])('aceita "%s"', (value) => {
+    expect(isValidTime(value)).toBe(true);
+  });
+
+  it.each(['', '9:30', '24:00', '12:60', '09:30:15', '09h30', ' 09:30', '09:30 ', 'abc'])('rejeita "%s"', (value) => {
+    expect(isValidTime(value)).toBe(false);
+  });
+
+  it.each([null, undefined, 930, {}])('rejeita valor que não é string (%s)', (value) => {
+    expect(isValidTime(value)).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
 import { formatDayHeading, getTodayISO, getWeekWindow } from '../../constants/week';
-import { useTaskActions } from '../../state/useTaskActions';
+import { INVALID_TIME_MESSAGE, useTaskActions } from '../../state/useTaskActions';
 import type { Priority, Task, TaskState } from '../../types';
 import styles from './TaskModal.module.css';
 
@@ -217,7 +217,9 @@ export function TaskModal({ date, task, onClose }: TaskModalProps) {
         setSaveError(
           result.error.message === 'Tarefa não encontrada.'
             ? 'Esta tarefa não existe mais — ela pode ter sido removida em outra sessão. Feche o modal.'
-            : 'Não foi possível salvar a tarefa. Tente novamente.',
+            : result.error.message === INVALID_TIME_MESSAGE
+              ? 'Horário inválido. Use o formato HH:mm (ex. 09:30).'
+              : 'Não foi possível salvar a tarefa. Tente novamente.',
         );
         return;
       }

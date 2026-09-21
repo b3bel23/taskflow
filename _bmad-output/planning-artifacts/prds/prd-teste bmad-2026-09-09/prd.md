@@ -2,9 +2,10 @@
 title: TaskFlow
 status: final
 created: 2026-09-09
-updated: 2026-09-18
+updated: 2026-09-21
 changelog:
   - "2026-09-18: pivô pós-MVP para semana dinâmica ancorada em hoje, ordenação por horário e prioridade como atributo visual. Ver _bmad-output/planning-artifacts/sprint-change-proposal-2026-09-18.md."
+  - "2026-09-21: reconciliação com o produto entregue — layout responsivo (§5 Plataforma e §7.2), sem alterar nenhum requisito funcional. A decisão original (só desktop) foi alterada depois da implementação, a pedido da Isabel; o texto anterior foi mantido riscado. Ver REQUIREMENTS.md §6."
 ---
 
 # PRD: TaskFlow
@@ -167,7 +168,7 @@ Toda Tarefa não concluída cuja Data já saiu da janela de 7 dias (ficou no pas
 
 - **Persistência:** os dados das Tarefas devem sobreviver ao fechar e reabrir o navegador, mesmo sem login — o MVP não pode depender apenas de estado em memória. O mecanismo exato (armazenamento local do navegador, backend com identificador implícito, etc.) é decisão da etapa de arquitetura, não deste PRD.
   - **Risco conhecido:** dependendo do mecanismo escolhido, limpar os dados do navegador ou trocar de navegador/perfil pode apagar as tarefas sem aviso. Avaliar explicitamente na etapa de arquitetura, com mitigação (aviso à usuária, exportação/backup manual) se necessário. [Ver Questão em Aberto 5.]
-- **Plataforma:** uso previsto apenas em navegador desktop. Não há requisito de responsividade mobile nem de sincronização entre dispositivos no MVP — esse cenário é adiado para quando houver login (ver Visão de produto no brief).
+- **Plataforma:** ~~uso previsto apenas em navegador desktop. Não há requisito de responsividade mobile nem de sincronização entre dispositivos no MVP — esse cenário é adiado para quando houver login (ver Visão de produto no brief).~~ **[Decisão original alterada em 2026-09-21]** O app passou a ter layout responsivo (7 colunas a partir de 1100 px; 4 entre 700 e 1099 px; 1 coluna com os dias empilhados abaixo de 700 px), verificado em larguras emuladas de 360 a 1280 px, com alvos de toque maiores em telas estreitas ou de toque. **Não** foi testado em aparelho físico (o arraste por toque segue em aberto — `deferred-work.md`). **Sincronização entre dispositivos continua fora do escopo** (depende de login); o que existe é a sincronização entre abas do mesmo navegador.
 - **Sem autenticação:** o MVP é single-user, sem cadastro nem login. Todas as Tarefas pertencem implicitamente ao único usuário do navegador/instalação.
 
 ## 6. Non-Goals (Explicit)
@@ -197,7 +198,7 @@ Toda Tarefa não concluída cuja Data já saiu da janela de 7 dias (ficou no pas
 
 ### 7.2 Out of Scope for MVP
 - **Cadastro e login** — adiado para v2, condicionado a acesso multi-dispositivo (ver Visão do brief). *[NOTE FOR PM]* Revisitar se o uso real mostrar necessidade de acessar de mais de um lugar.
-- **Acesso multi-dispositivo / responsividade mobile** — adiado para v2, depende de login.
+- ~~**Acesso multi-dispositivo / responsividade mobile** — adiado para v2, depende de login.~~ **Acesso multi-dispositivo** — adiado para v2, depende de login. *(A parte de **responsividade mobile** foi entregue em 2026-09-21 — ver §5 Plataforma.)*
 - **Notificações e lembretes** — adiado para v3+.
 - **Projetos, categorias, tags, subtarefas** — descartado para o MVP, não apenas adiado (ver Non-Goals).
 - **Colaboração entre usuários** — descartada, inclusive no longo prazo (ver Non-Goals).

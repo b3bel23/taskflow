@@ -25,15 +25,15 @@ Este documento decompõe a especificação validada do TaskFlow (`SPEC.md`, CAP-
 
 *(Fonte: PRD §4, confirmados finais; cada FR corresponde 1:1 a uma capacidade da SPEC — CAP-x entre colchetes.)*
 
-FR-1: Isabel pode criar uma Tarefa vinculada a um Dia da Semana específico, com Título obrigatório, Dia obrigatório e Prioridade opcional. Estado inicial sempre Pendente. A tarefa aparece imediatamente no dia certo, já ordenada por prioridade. Salvar sem título ou dia falha e mantém o formulário aberto sinalizando os campos pendentes. [CAP-1]
+FR-1: Isabel pode criar uma Tarefa vinculada a um Dia da Semana específico, com Título obrigatório, Dia obrigatório e Prioridade opcional. Estado inicial sempre Pendente. A tarefa aparece imediatamente no dia certo, já ordenada por prioridade. Salvar sem título ou dia falha e mantém o formulário aberto sinalizando os campos pendentes. **[Revisado 2026-09-18 — ver PRD FR-1: a tarefa é vinculada a uma Data real (não a um Dia da Semana), com Horário opcional, e entra ordenada por Horário, não por prioridade.]** [CAP-1]
 
-FR-2: Isabel pode editar Título, Dia da Semana e Prioridade de uma Tarefa existente. Mudar o Dia move a tarefa para a coluna nova. Título e Dia continuam obrigatórios para salvar. O Estado não é alterado por esta ação (ação separada, FR-4). [CAP-2]
+FR-2: Isabel pode editar Título, Dia da Semana e Prioridade de uma Tarefa existente. Mudar o Dia move a tarefa para a coluna nova. Título e Dia continuam obrigatórios para salvar. O Estado não é alterado por esta ação (ação separada, FR-4). **[Revisado 2026-09-18 — ver PRD FR-2: edita Título, Data, Horário e Prioridade.]** [CAP-2]
 
 FR-3: Isabel pode excluir uma Tarefa existente, com confirmação explícita antes da remoção definitiva. Cancelar mantém a tarefa intacta. Sem desfazer nem lixeira no MVP. [CAP-3]
 
 FR-4: Isabel pode alternar o Estado de uma Tarefa entre Pendente, Em andamento e Concluída, a qualquer momento e em qualquer ordem, inclusive voltar de Concluída para um estado anterior. Mudança refletida imediatamente na tela. [CAP-4]
 
-FR-5: Isabel vê, numa única tela, os 7 dias da semana e as tarefas de cada um, sem navegar entre telas. Um dia sem tarefas exibe claramente que está vazio, nunca parece erro de carregamento. [CAP-5]
+FR-5: Isabel vê, numa única tela, os 7 dias da semana e as tarefas de cada um, sem navegar entre telas. Um dia sem tarefas exibe claramente que está vazio, nunca parece erro de carregamento. **[Revisado 2026-09-18 — ver PRD FR-5: janela de 7 dias hoje..hoje+6, não a semana Segunda–Domingo.]** [CAP-5]
 
 FR-6: Dentro de cada dia, as tarefas são ordenadas automaticamente por Horário (sem horário primeiro, depois ordem crescente); Prioridade é sinalizada visualmente mas não afeta a ordem. Isabel pode mudar a Data de uma tarefa arrastando o card para outra coluna (preserva Horário/Prioridade), com equivalente completo pelo Modal de Tarefa (nenhuma ação depende exclusivamente de mouse). **[Revisado 2026-09-18 — substitui a ordenação por Prioridade e remove a reordenação manual dentro do dia, ambas do FR-6 original.]** [CAP-6]
 
@@ -51,7 +51,7 @@ FR-9 (novo, 2026-09-18): Toda tarefa não concluída cuja Data saiu da janela de
 
 NFR-1 (Persistência): Os dados das Tarefas sobrevivem a fechar e reabrir o navegador, sem login. Falha ao salvar mantém o Modal aberto com erro inline e o que foi digitado preservado (nunca retry silencioso); falha ao carregar cai num estado vazio com aviso único, nunca crash. [CAP-8; AD-2, AD-3, AD-4]
 
-NFR-2 (Plataforma): Uso previsto só em navegador desktop; sem responsividade mobile nem sincronização entre dispositivos no MVP. [Constraint — orienta o que NÃO construir]
+NFR-2 (Plataforma): ~~Uso previsto só em navegador desktop; sem responsividade mobile nem sincronização entre dispositivos no MVP.~~ **[Decisão original alterada em 2026-09-21]** Layout responsivo (7 → 4 → 1 coluna), verificado em larguras emuladas, não em aparelho físico; **sem sincronização entre dispositivos** (só entre abas do mesmo navegador). [Constraint — orienta o que NÃO construir]
 
 NFR-3 (Sem autenticação): MVP single-user, sem cadastro/login; todas as tarefas pertencem implicitamente à única usuária da instalação. [Constraint — orienta o que NÃO construir]
 
@@ -64,7 +64,7 @@ NFR-3 (Sem autenticação): MVP single-user, sem cadastro/login; todas as tarefa
 - AD-3 — Mitigação do risco de perda de dados é um aviso estático e discreto na interface; sem backup/exportação no MVP. [CAP-8]
 - AD-4 — Persistência e commit de estado são atômicos: toda função de ação (`useTaskActions`/`useThemeActions`) tenta salvar em `localStorage` (síncrono, `try/catch`) antes de despachar ao reducer; falha não muda o estado React e retorna `{ok:false, error:{message}}`; sucesso retorna `{ok:true, ...}`; nenhum caminho de mutação (incluindo o drop handler do drag-and-drop) contorna esse guard ou chama `dispatch` diretamente. [CAP-1, CAP-2, CAP-3, CAP-4, CAP-6, CAP-8]
 - AD-5 — Estado gerenciado via `useReducer` + `Context` nativo do React (`tasksReducer`/`TaskContext`, `themeReducer`/`ThemeContext`); sem lib de state management externa. [transversal, todas as CAPs]
-- AD-6 — Arraste via `@dnd-kit/react` (+ `@dnd-kit/dom`, `@dnd-kit/helpers`), cujo sensor de teclado é a mesma lógica usada pelo mouse — sem reimplementação paralela. **Escopo reduzido 2026-09-18: só move a tarefa entre colunas de dia, sem zonas de prioridade.** [CAP-6]
+- AD-6 — Arraste via ~~`@dnd-kit/react` (+ `@dnd-kit/dom`, `@dnd-kit/helpers`)~~ `@dnd-kit/core` [trocado em 2026-09-16], com `KeyboardSensor` e coordenadas próprias (`weekKeyboardCoordinates`, 2026-09-21); mouse e teclado alimentam o mesmo `onDragEnd` — sem reimplementação paralela. **Escopo reduzido 2026-09-18: só move a tarefa entre colunas de dia, sem zonas de prioridade.** [CAP-6]
 - AD-7 — **[OBSOLETO 2026-09-18]** Ordem manual por `(day, priorityGroup)`/`reorderWithinGroup` — não existe mais reordenação manual; `order` agora só desempata tarefas com o mesmo Horário dentro da mesma Data. Ver AD-10/AD-11 na Architecture Spine.
 - AD-8 — Só o storage adapter (`src/storage/`) toca `localStorage`; `src/components/` e `src/state/` nunca importam `window.localStorage` diretamente. [CAP-8; transversal]
 - AD-9 — Tokens de `DESIGN.md` como CSS custom properties em `src/styles/tokens.css`, valores `-dark` redefinidos sob `:root[data-theme="dark"]`; `ThemeContext` só seta `document.documentElement.dataset.theme`; troca de tema é 100% CSS, sem re-render de estilos via JS; CSS Modules colocalizados por componente, sem CSS-in-JS/Tailwind. [CAP-9; estilo visual de todas as CAPs]
@@ -98,7 +98,7 @@ UX-DR10: Confirmação de Exclusão — passo interno do próprio Modal de Taref
 
 UX-DR11: Alternador de Tema (`ThemeToggle`) — ícone sol/lua no Cabeçalho, `icon-color-active` (`accent`) indica o tema atualmente ativo; alterna claro/escuro instantaneamente, sem recarregar a página; preferência salva e usada em toda sessão futura; nunca segue `prefers-color-scheme`. [CAP-9]
 
-UX-DR12: Interações de arraste — arrastar um Card para a coluna de outro dia muda a Data (entra na nova coluna já ordenada pelo Horário atual; Horário e Prioridade não mudam); durante o arraste o Card ganha sombra + leve rotação (único uso de sombra decorativa do produto) e um placeholder tracejado marca onde vai encaixar. **[Revisado 2026-09-18 — remove a mudança de Prioridade por arraste; não existem mais faixas de prioridade como alvo de drop.]** [CAP-6]
+UX-DR12: Interações de arraste — arrastar um Card para a coluna de outro dia muda a Data (entra na nova coluna já ordenada pelo Horário atual; Horário e Prioridade não mudam); durante o arraste o Card ganha sombra + leve rotação (único uso de sombra decorativa do produto) ~~e um placeholder tracejado marca onde vai encaixar~~ **[Alterado em 2026-09-16]** e a coluna de destino recebe um contorno e um fundo suaves (não há placeholder tracejado). **[Revisado 2026-09-18 — remove a mudança de Prioridade por arraste; não existem mais faixas de prioridade como alvo de drop.]** [CAP-6]
 
 UX-DR17 (novo, 2026-09-18): Campo Horário no Modal de Tarefa (`HH:MM`, opcional, criação e edição) e rótulo `task-time` no Card quando definido. [CAP-1, CAP-2, CAP-6]
 

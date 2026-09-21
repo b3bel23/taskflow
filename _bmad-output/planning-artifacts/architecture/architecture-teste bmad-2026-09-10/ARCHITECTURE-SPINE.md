@@ -4,10 +4,10 @@ type: architecture-spine
 purpose: build-substrate
 altitude: feature
 paradigm: 'SPA client-only, fluxo unidirecional estilo Flux com camada de comandos guardada por persistência (persistence-guarded command layer)'
-scope: 'Arquitetura técnica do MVP do TaskFlow — organizador semanal de tarefas pessoais, usuária única, web desktop, sem login, sem backend'
+scope: 'Arquitetura técnica do MVP do TaskFlow — organizador semanal de tarefas pessoais, usuária única, web (desktop e, desde 2026-09-21, layout responsivo para tablet e celular), sem login, sem backend'
 status: final
 created: '2026-09-10'
-updated: '2026-09-18'
+updated: '2026-09-21'
 binds: ['FR-1', 'FR-2', 'FR-3', 'FR-4', 'FR-5', 'FR-6', 'FR-7', 'FR-8', 'FR-9']
 sources:
   - '_bmad-output/planning-artifacts/prds/prd-teste bmad-2026-09-09/prd.md'
@@ -17,6 +17,7 @@ sources:
 companions: []
 changelog:
   - "2026-09-18: modelo de dados migra de DayOfWeek+order(priorityGroup) para date+time real; AD-2 ganha caminho de migração de schema; AD-7 (ordem por prioridade) obsoleto, substituído por AD-10 (janela dinâmica) e AD-11 (rollover). Ver sprint-change-proposal-2026-09-18.md."
+  - "2026-09-21: reconciliação com o produto entregue, sem apagar as decisões originais (mantidas riscadas ou marcadas como alteradas): CI/CD e hospedagem no GitHub Pages (AD-1, Deploy & ambiente, Deferred); AD-6 passa de @dnd-kit/react para @dnd-kit/core com coordenadas de teclado próprias; exceção de hidratação por evento storage e validação de escrita de Horário (AD-4); layout responsivo (Deferred); E2E com Playwright (Testes, Stack); nota sobre o Structural Seed."
 ---
 
 # Architecture Spine — TaskFlow
@@ -47,7 +48,7 @@ flowchart LR
 ### AD-1 — Sem backend, sem infraestrutura própria [ADOPTED]
 
 - **Binds:** all
-- **Prevents:** introduzir servidor, API própria, banco de dados remoto, CI/CD ou provedor de nuvem sem necessidade concreta do MVP.
+- **Prevents:** introduzir servidor, API própria, banco de dados remoto, CI/CD ou provedor de nuvem sem necessidade concreta do MVP. **[Decisão original alterada em 2026-09-16, reconciliada em 2026-09-21]** CI/CD (GitHub Actions) e hospedagem estática (GitHub Pages) foram adicionados a pedido de Isabel: o workflow `deploy.yml` roda os testes unitários, o build e os testes E2E e só então publica. A regra central permanece — continua sem servidor, API ou banco próprios; o que se publica é um site estático.
 - **Rule:** todo o comportamento do MVP é implementado no cliente (navegador). Nenhum FR do MVP exige um servidor — se uma história futura parecer exigir um, isso é um sinal de escopo saindo do MVP definido no PRD, e deve ser discutido antes de implementado, não decidido silenciosamente na hora de codar.
 
 ### AD-2 — Persistência via `localStorage`, duas chaves independentes
@@ -73,6 +74,8 @@ flowchart LR
 - **Binds:** FR-1, FR-2, FR-3, FR-4, FR-6, FR-8, FR-9 (**toda** mutação de tarefa — criar, editar, excluir, mudar estado, ciclar prioridade, mudar dia por arraste **ou** pelo Modal, rollover automático (AD-11) e migração de schema (AD-2) — sem exceção de caminho, inclusive as duas últimas que não nascem de um clique de Isabel); tema
 - **Prevents:** estado em memória e dados salvos divergirem; retry silencioso escondendo falhas; perda do que a usuária digitou quando salvar falha; um caminho de mutação (ex. arraste) contornando o guard porque só CRUD-via-modal foi lembrado.
 - **Rule:** uma função de ação (`useTaskActions`/`useThemeActions`) primeiro tenta a escrita síncrona em `localStorage` (`try/catch`). Só em caso de sucesso ela despacha a mudança para o reducer/Context. Em caso de falha, o estado React **não muda**, e a função de ação retorna um resultado de erro para quem a chamou. No Modal de Tarefa, isso significa: o modal continua aberto, mostra uma mensagem de erro inline, preserva os campos já preenchidos, e oferece tentar novamente ou cancelar — nunca uma nova tentativa automática e silenciosa. **Nenhum outro caminho de mutação chama o reducer diretamente** — o drop handler do drag-and-drop chama a mesma `useTaskActions.moveTaskToDate` que o Modal chamaria (nunca um `dispatch` próprio), e o efeito de rollover automático (AD-11) chama `useTaskActions.applyRollover` (escrita em lote, uma única chamada de `saveTasks` para todas as tarefas afetadas, nunca N chamadas individuais).
+  - **Exceção reconciliada em 2026-09-21 — hidratação por evento `storage`:** quando OUTRA aba grava no `localStorage`, o `TaskProvider` despacha `{ type: 'sync', tasks }` (e o `ThemeProvider`, `{ type: 'set' }`) sem passar por `useTaskActions`. Isso não fere o propósito do AD-4: não há nada a persistir (o dado já está no storage e foi lido e validado por `loadTasks`/`loadTheme`, inclusive a migração v1) e um valor ilegível nunca substitui o estado em memória. A assinatura vive no storage adapter (`subscribeToTasksStorage`/`subscribeToThemeStorage`), respeitando o AD-8.
+  - **Validação de escrita (2026-09-21):** `createTask`/`updateTask` recusam um Horário fora de `HH:mm` (`{ ok: false, error: { message: 'Horário inválido.' } }`, nada salvo nem despachado) — o app só grava o que `loadTasks` aceitaria de volta; um horário rejeitado na leitura faria o próximo carregamento descartar todas as tarefas. Os ids vêm de `newTaskId`, que cai em `getRandomValues` fora de contexto seguro (`crypto.randomUUID` só existe em https/localhost), para a ação nunca lançar.
   - **Formato de retorno único, sem exceções para a UI:** toda função de `useTaskActions`/`useThemeActions` retorna sempre `{ ok: true, task }` (ou `{ ok: true }`) em sucesso, ou `{ ok: false, error: { message: string } }` em falha — nunca lança (`throw`) para quem chamou. O `try/catch` da escrita fica interno à função de ação/ao storage adapter. Toda UI trata o resultado por essa forma (`if (!result.ok) ...`), nunca por `try/catch` ao redor da chamada.
 
 ### AD-5 — Gerenciamento de estado: React nativo, sem biblioteca externa
@@ -85,8 +88,8 @@ flowchart LR
 
 - **Binds:** FR-6 (mudar dia), EXPERIENCE.md Accessibility Floor
 - **Prevents:** duas implementações de interação divergentes (uma lógica para mouse via arraste, outra hand-rolled para teclado) que podem dessincronizar.
-- **Rule (revisada 2026-09-18 — escopo reduzido):** o arraste passa a fazer **uma única coisa**: mover a Tarefa para outra coluna de dia (`date`), preservando Horário e Prioridade. Usa `@dnd-kit/react` (+ `@dnd-kit/dom`, `@dnd-kit/helpers`), cujo sensor de teclado embutido é a *mesma* lógica de interação usada pelo mouse — não uma reimplementação paralela. Como não há mais zonas de prioridade como alvo de drop (AD-7 obsoleto — ver abaixo), o drop target é sempre uma coluna de dia inteira, não uma sub-região dela; isso simplifica a superfície de drop em relação ao desenho original. O Modal de Tarefa continua sendo a via alternativa completa a qualquer mudança de Dia (EXPERIENCE.md Interaction Primitives), como caminho totalmente independente do drag-and-drop, mas ambos terminam na mesma função de ação `useTaskActions.moveTaskToDate` (AD-4).
-- **Risco aceito:** `@dnd-kit/react` está em `0.5.0`, pré-1.0, com API ainda sujeita a mudanças segundo os próprios mantenedores. Aceito porque é a opção acessível (teclado nativo) mais madura disponível hoje; se uma quebra de API bloquear a implementação, fixar a versão exata (sem `^`) no `package.json` e reavaliar aqui antes de atualizar.
+- **Rule (revisada 2026-09-18 — escopo reduzido):** o arraste passa a fazer **uma única coisa**: mover a Tarefa para outra coluna de dia (`date`), preservando Horário e Prioridade. Usa ~~`@dnd-kit/react` (+ `@dnd-kit/dom`, `@dnd-kit/helpers`), cujo sensor de teclado embutido é a *mesma* lógica de interação usada pelo mouse~~ **[Decisão original alterada em 2026-09-16]** `@dnd-kit/core` (`DndContext`, `useDraggable` nos Cards, `useDroppable` em cada coluna; sensores `PointerSensor` e `KeyboardSensor`): mouse e teclado alimentam o **mesmo** `onDragEnd`, então continua não havendo uma implementação paralela. Como não há mais zonas de prioridade como alvo de drop (AD-7 obsoleto — ver abaixo), o drop target é sempre uma coluna de dia inteira, não uma sub-região dela; isso simplifica a superfície de drop em relação ao desenho original. O Modal de Tarefa continua sendo a via alternativa completa a qualquer mudança de Dia (EXPERIENCE.md Interaction Primitives), como caminho totalmente independente do drag-and-drop, mas ambos terminam na mesma função de ação `useTaskActions.moveTaskToDate` (AD-4). **Teclado (2026-09-21):** o `KeyboardSensor` usa `weekKeyboardCoordinates` (`src/components/WeekView/keyboardCoordinates.ts`), próprio, que escolhe a coluna vizinha pela geometria (direita/esquerda numa linha, cima/baixo entre linhas — 7, 4 ou 1 coluna por linha, conforme o layout). O `sortableKeyboardCoordinates` do `@dnd-kit/sortable` não serve: só calcula destino para itens "sortable" e, com `useDraggable` puro, as setas nunca moviam o Card (achado em navegador real durante o hardening da v1.0).
+- ~~**Risco aceito:** `@dnd-kit/react` está em `0.5.0`, pré-1.0, com API ainda sujeita a mudanças segundo os próprios mantenedores. Aceito porque é a opção acessível (teclado nativo) mais madura disponível hoje; se uma quebra de API bloquear a implementação, fixar a versão exata (sem `^`) no `package.json` e reavaliar aqui antes de atualizar.~~ **[Superado em 2026-09-16]** A troca para `@dnd-kit/core` 6.3.1 (API estável, versão exata sem `^`) eliminou o risco de API pré-1.0 do `@dnd-kit/react`.
 
 ### AD-7 — [OBSOLETO 2026-09-18] Ordem manual dentro do mesmo nível de prioridade
 
@@ -137,7 +140,7 @@ flowchart TD
 | Naming (entidades, arquivos, tipos) | `Task`, `date` (`string`, ISO `YYYY-MM-DD`; substitui `DayOfWeek` — **[OBSOLETO 2026-09-18]** `DayOfWeek`/`'mon'..'sun'` só sobrevive dentro de `migrateFromV1`, nunca no formato corrente), `time` (`string | null`, `HH:mm`, novo em 2026-09-18), `TaskState` (`'pending' \| 'in_progress' \| 'done'`), `Priority` (`'high' \| 'medium' \| 'low'`, ausência = `null`, nunca string vazia — agora puramente visual, AD-7 obsoleto). Componentes em PascalCase (`TaskCard.tsx`); hooks/funções de ação em camelCase com prefixo `use` quando expõem estado/comportamento (`useTaskActions`). |
 | Dados & formatos | IDs de tarefa via `crypto.randomUUID()` (API nativa do navegador — sem lib de UUID). Envelope persistido de tarefas inclui `schemaVersion` (número; `CURRENT_SCHEMA_VERSION = 2` desde 2026-09-18, com caminho de migração de `1` — ver AD-2). Data de "hoje" e a janela de 7 dias calculadas via `Date` local do navegador, sem fuso horário explícito (usuária única, uso local) — recalculadas por timer periódico, não só ao carregar (AD-10). Erro de persistência representado como `{ message: string }` simples — não há API remota que justifique um formato de erro mais estruturado. |
 | Estado & cross-cutting | Toda mutação de tarefa/tema passa pelas funções de ação (`useTaskActions`/`useThemeActions`) — nunca `dispatch` cru a partir de um componente, inclusive as mutações disparadas pelo próprio sistema (rollover AD-11, migração AD-2). Persistência é síncrona e antecede o commit ao estado React (AD-4). Sem autenticação/autorização — todas as tarefas pertencem implicitamente à única usuária da instalação (PRD §5). |
-| Testes | Colocalizados com o arquivo testado (`TaskCard.test.tsx` ao lado de `TaskCard.tsx`), rodados via Vitest configurado em `vite.config.ts` (campo `test`). Prioridade de cobertura no MVP: `src/state/` (reducers, `sortTasksInDay` por horário, `applyRollover`, seletores) e `src/storage/` (load/save, migração `migrateFromV1`, incluindo os caminhos de falha do AD-2/AD-4) — a lógica sem UI é a mais barata de testar e a que este spine mais depende para estar certa. `reorderWithinGroup`/`reorderGroupByIndex` saem do escopo de testes junto com o código que removem (AD-7 obsoleto). |
+| Testes | Colocalizados com o arquivo testado (`TaskCard.test.tsx` ao lado de `TaskCard.tsx`), rodados via Vitest configurado em `vite.config.ts` (campo `test`). Prioridade de cobertura no MVP: `src/state/` (reducers, `sortTasksInDay` por horário, `applyRollover`, seletores) e `src/storage/` (load/save, migração `migrateFromV1`, incluindo os caminhos de falha do AD-2/AD-4) — a lógica sem UI é a mais barata de testar e a que este spine mais depende para estar certa. `reorderWithinGroup`/`reorderGroupByIndex` saem do escopo de testes junto com o código que removem (AD-7 obsoleto). **E2E (2026-09-21):** testes de ponta a ponta em navegador real com Playwright, em `e2e/` (relógio e fuso fixos): janela e rollover, migração, CRUD, arraste por mouse e teclado, duas abas, fusos/horário de verão e layout responsivo. |
 
 ## Stack
 
@@ -148,7 +151,9 @@ flowchart TD
 | Vite | 8.2.2 |
 | @vitejs/plugin-react | 6.1.1 |
 | TypeScript | **6.0.x** — não a 7.0 (ver decisão abaixo) |
-| @dnd-kit/react + @dnd-kit/dom + @dnd-kit/helpers | 0.5.0 (sucessor moderno recomendado; `@dnd-kit/core` é considerado legado, sem atualização há ~2 anos; ver risco aceito em AD-6) |
+| ~~@dnd-kit/react + @dnd-kit/dom + @dnd-kit/helpers~~ | ~~0.5.0 (sucessor moderno recomendado; `@dnd-kit/core` é considerado legado, sem atualização há ~2 anos; ver risco aceito em AD-6)~~ — **substituído em 2026-09-16 (ver AD-6)** |
+| @dnd-kit/core + @dnd-kit/utilities | 6.3.1 / 3.2.2 (API estável, versões exatas) |
+| @playwright/test | 1.63.0 — testes E2E em navegador real (2026-09-21) |
 | Vitest | 5.0.0 |
 | @testing-library/react | 16.3.3 |
 | @testing-library/dom | 10.4.1 (peer dependency obrigatória de `@testing-library/react`; **correção pós-Story 1.1** — a linha original desta tabela citava `16.3.3` para os dois pacotes, mas `@testing-library/dom` nunca teve uma série 16.x publicada e `@testing-library/react@16.3.3` declara `^10.0.0` como peer — números de dois pacotes distintos haviam sido conflados) |
@@ -186,6 +191,8 @@ taskflow/
   package.json
 ```
 
+> **Nota de reconciliação (2026-09-21):** o seed acima é o desenho inicial; o entregue difere em: as ações vivem em `src/state/useTaskActions.ts` (não em `state/actions/`); o timer de janela/rollover está em `components/WeekView/WeekView.tsx` (não em `App.tsx`); além de `selectors.ts` e `applyRollover.ts`, `state/` tem `newTaskId.ts`; `components/WeekView/` tem `dragChange.ts`, `dragHandleRegistry.ts` e `keyboardCoordinates.ts`; e há `e2e/` (Playwright), `playwright.config.ts` e `.github/workflows/deploy.yml`.
+
 ```mermaid
 classDiagram
   class Task {
@@ -215,7 +222,7 @@ classDiagram
 
 `date` é sempre uma string ISO (`YYYY-MM-DD`); `time` é `string | null` (`HH:mm`) — ambos representados como `string` simples no diagrama por não serem enumerações. `DayOfWeek` como enumeração desaparece do modelo corrente (AD-10) — sobrevive só como tipo de entrada de `migrateFromV1` (AD-2).
 
-**Deploy & ambiente:** só desenvolvimento local, via `npm run dev` (Vite) em `localhost`. Sem build de produção fixado, sem hospedagem, sem CI/CD — decisão explícita de Isabel, proporcional a um app de uso pessoal num único computador (ver Deferred se isso mudar).
+**Deploy & ambiente:** ~~só desenvolvimento local, via `npm run dev` (Vite) em `localhost`. Sem build de produção fixado, sem hospedagem, sem CI/CD — decisão explícita de Isabel, proporcional a um app de uso pessoal num único computador (ver Deferred se isso mudar).~~ **[Decisão original alterada em 2026-09-16, reconciliada em 2026-09-21]** O desenvolvimento local continua via `npm run dev`, mas há **build de produção** (`npm run build`: `tsc -b` + `vite build`, com `base: '/taskflow/'`) publicado como site estático no **GitHub Pages** por **GitHub Actions** (`.github/workflows/deploy.yml`): a cada push na `main` rodam os testes unitários e o build (job `build`) e os testes E2E (job `e2e`), e o job `deploy` só executa se ambos passarem. Continua sem servidor próprio (AD-1).
 
 **Operação/observabilidade:** nenhuma — sem telemetria, sem logging remoto, sem monitoramento. Não há usuário além de Isabel nem serviço rodando para operar; erros de persistência são tratados na própria UI (AD-4), não reportados a lugar nenhum externo.
 
@@ -230,7 +237,7 @@ classDiagram
 | FR-3 Excluir tarefa | `TaskModal` (confirmação) → `useTaskActions.deleteTask` → `storage` | AD-4, AD-5, AD-8 |
 | FR-4 Alterar estado | `TaskCard`/`StateIndicator` (clique cicla estado) → `useTaskActions.cycleState` → `storage` | AD-4, AD-5, AD-8 |
 | FR-5 Visualizar janela dinâmica de 7 dias | `WeekView`, `DayColumn` (leem `TaskContext`; janela calculada por `constants/week.ts`) | AD-5, AD-10 |
-| FR-6 Ordenar por horário / sinalizar prioridade | `selectors.sortTasksInDay` (horário), `PriorityTag`, arraste via `@dnd-kit/react` → `useTaskActions.moveTaskToDate` → `storage` | AD-4, AD-6, AD-8 |
+| FR-6 Ordenar por horário / sinalizar prioridade | `selectors.sortTasksInDay` (horário), `PriorityTag`, arraste via `@dnd-kit/core` → `useTaskActions.moveTaskToDate` → `storage` | AD-4, AD-6, AD-8 |
 | FR-7 Diferenciar tarefa concluída (dentro da janela) | `TaskCard` (estilo visual — ver `DESIGN.md`/`task-card.completed-opacity`) | AD-9, AD-10; consequência de FR-4 + `DESIGN.md` |
 | FR-8 Ciclar prioridade por clique na tag | `PriorityTag` (clique cicla) → `useTaskActions.cyclePriority` → `storage` | AD-4, AD-8 |
 | FR-9 Rollover automático | `App.tsx` (timer, AD-10) → `applyRollover` → `useTaskActions.applyRollover` → `storage` | AD-4, AD-10, AD-11 |
@@ -241,8 +248,8 @@ classDiagram
 ## Deferred
 
 - **Exportar/Importar dados (backup manual).** Avaliado como mitigação possível ao risco de perda de dados (PRD Open Question 5) e descartado para o MVP por decisão explícita de Isabel — o aviso na interface (AD-3) é a mitigação escolhida. Revisitar se o uso real mostrar perda de dados recorrente, não hipotética.
-- **Build de produção / hospedagem.** MVP roda só via servidor de dev local (ver Structural Seed). Revisitar somente se Isabel quiser acessar o TaskFlow de outro lugar — nesse ponto o Brief já aponta que isso vem junto com login/multi-dispositivo (v2), não antes.
-- **Largura mínima de janela / comportamento abaixo do limiar.** EXPERIENCE.md (Responsive & Platform) deixa em aberto se a grade de 7 colunas deve fazer scroll horizontal ou colunas mais estreitas abaixo de uma largura "razoável". É uma decisão de CSS/implementação, não estrutural — não bloqueia esta spine; resolver na etapa de build/histórias.
+- **Build de produção / hospedagem.** MVP roda só via servidor de dev local (ver Structural Seed). Revisitar somente se Isabel quiser acessar o TaskFlow de outro lugar — nesse ponto o Brief já aponta que isso vem junto com login/multi-dispositivo (v2), não antes. **[Resolvido em 2026-09-16]** Build de produção e hospedagem estática (GitHub Pages) implementados — ver "Deploy & ambiente". Acessar de outro lugar não exigiu login porque os dados continuam locais a cada navegador.
+- **Largura mínima de janela / comportamento abaixo do limiar.** EXPERIENCE.md (Responsive & Platform) deixa em aberto se a grade de 7 colunas deve fazer scroll horizontal ou colunas mais estreitas abaixo de uma largura "razoável". É uma decisão de CSS/implementação, não estrutural — não bloqueia esta spine; resolver na etapa de build/histórias. **[Resolvido em 2026-09-21]** Breakpoints em `WeekView.module.css`: a partir de 1100 px, 7 colunas; de 700 a 1099 px, 4; abaixo de 700 px, 1 coluna empilhada; sem rolagem horizontal (ver EXPERIENCE.md, Responsive & Platform).
 - **Cadastro/login, multi-dispositivo, notificações/lembretes.** Fora do MVP por decisão do PRD (§6 Non-Goals, §7.2), não desta arquitetura — mantidos aqui só para registrar que, se algum dia entrarem, provavelmente invalidam AD-1 (sem backend) e precisam de uma nova spine, não uma extensão desta.
 - **Tela/superfície de Histórico** (ver tarefas concluídas cuja data já saiu da janela de 7 dias). Avaliado em 2026-09-18 (`sprint-change-proposal-2026-09-18.md`, decisão D3) e descartado para este pivô por decisão explícita de Isabel — os dados continuam salvos (nunca apagados por rollover ou pela janela avançar), só não há UI para revê-los. Revisitar se o uso real mostrar necessidade real de consultar tarefas concluídas antigas.
 - **Grade com eixo de horas (estilo Google Calendar).** Avaliado em 2026-09-18 (decisão D1) e descartado em favor de lista ordenada cronologicamente — menor risco de reescrita, reaproveita `DayColumn`/`TaskCard`. Revisitar só se o volume de tarefas com horário por dia crescer a ponto de a lista deixar de comunicar bem a distribuição ao longo do dia.

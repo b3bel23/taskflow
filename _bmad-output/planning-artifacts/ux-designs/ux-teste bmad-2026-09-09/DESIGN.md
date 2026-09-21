@@ -1,6 +1,6 @@
 ---
 name: TaskFlow
-description: Organizador semanal de tarefas pessoais, usuária única, navegador desktop. Clean, calmo, minimalista — sem carga corporativa.
+description: Organizador semanal de tarefas pessoais, usuária única, navegador (desktop; layout responsivo desde 2026-09-21). Clean, calmo, minimalista — sem carga corporativa.
 status: final
 sources:
   - "{planning_artifacts}/prds/prd-teste bmad-2026-09-09/prd.md"
@@ -113,7 +113,7 @@ components:
 
 # TaskFlow — Design Spine
 
-> Organizador semanal de tarefas pessoais de uma única usuária. Web app desktop, superfície única, sem UI system herdado — componentes próprios e simples. Paleta "Neutro Calmo" escolhida entre 5 variações renderizadas em `.working/color-themes-1.html`. Paired with `EXPERIENCE.md`.
+> Organizador semanal de tarefas pessoais de uma única usuária. Web app (desktop e, desde 2026-09-21, layout responsivo), superfície única, sem UI system herdado — componentes próprios e simples. Paleta "Neutro Calmo" escolhida entre 5 variações renderizadas em `.working/color-themes-1.html`. Paired with `EXPERIENCE.md`.
 
 ## Brand & Style
 

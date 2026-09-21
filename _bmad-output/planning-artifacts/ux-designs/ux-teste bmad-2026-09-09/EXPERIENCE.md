@@ -4,18 +4,19 @@ status: final
 sources:
   - "{planning_artifacts}/prds/prd-teste bmad-2026-09-09/prd.md"
   - "{planning_artifacts}/briefs/brief-teste bmad-2026-09-09/brief.md"
-updated: 2026-09-18
+updated: 2026-09-21
 changelog:
   - "2026-09-18: janela dinâmica ancorada em hoje (substitui semana fixa), ordenação por horário (substitui ordenação por prioridade), Tag de Prioridade sempre visível com clique-ciclo. Ver sprint-change-proposal-2026-09-18.md. Mockups em mockups/ ainda refletem o desenho anterior — pendente de regeneração."
+  - "2026-09-21: reconciliação com o produto entregue — layout responsivo (Foundation e Responsive & Platform) e feedback de arraste sem placeholder tracejado (State Patterns). Decisões originais alteradas depois da implementação; o texto anterior foi mantido riscado."
 ---
 
 # TaskFlow — Experience Spine
 
-> Superfície única, web desktop. Usuária única (Isabel), sem login. Paired with `DESIGN.md` (paleta "Neutro Calmo"). Demonstra: resolução de uma premissa do PRD via decisão de UX (mudança de Estado), uma decisão delegada explicitamente pelo PRD à UX (ordem dentro da prioridade, resolvida como drag-and-drop), e Inspiration & Anti-patterns como disciplina de escopo (contrapondo a contramétrica SM-C1 do PRD).
+> Superfície única, ~~web desktop~~ web (desktop e, desde 2026-09-21, layout responsivo para tablet e celular). Usuária única (Isabel), sem login. Paired with `DESIGN.md` (paleta "Neutro Calmo"). Demonstra: resolução de uma premissa do PRD via decisão de UX (mudança de Estado), uma decisão delegada explicitamente pelo PRD à UX (ordem dentro da prioridade, resolvida como drag-and-drop), e Inspiration & Anti-patterns como disciplina de escopo (contrapondo a contramétrica SM-C1 do PRD).
 
 ## Foundation
 
-Superfície única em navegador desktop — sem app nativo, sem versão mobile, sem responsividade no MVP (não-objetivo explícito do PRD §6/§7.2). Nenhum UI system herdado: componentes próprios, simples, definidos em `DESIGN.md`. Sem autenticação — todas as Tarefas pertencem implicitamente à única usuária da instalação. `DESIGN.md` é a referência de identidade visual; esta spine é a experiência.
+Superfície única em navegador — sem app nativo. ~~Em navegador desktop, sem versão mobile, sem responsividade no MVP (não-objetivo explícito do PRD §6/§7.2).~~ **[Decisão original alterada em 2026-09-21]** Passou a ter layout responsivo (ver *Responsive & Platform*); continua sem app nativo. Nenhum UI system herdado: componentes próprios, simples, definidos em `DESIGN.md`. Sem autenticação — todas as Tarefas pertencem implicitamente à única usuária da instalação. `DESIGN.md` é a referência de identidade visual; esta spine é a experiência.
 
 Tema claro e escuro, ambos suportados desde o MVP, com alternância manual (não segue o SO) e preferência persistida entre sessões.
 
@@ -66,7 +67,7 @@ Behavioral. Visual specs live in `DESIGN.md.Components`.
 | Tarefa Concluída | Card de Tarefa | Nome riscado + opacidade reduzida do Card inteiro (`{components.task-card.completed-opacity}` em `DESIGN.md`). Continua na posição da coluna, nunca ocultada ou removida **enquanto sua Data estiver na janela de 7 dias visível** (FR-7) — ao sair da janela, some da tela (dados preservados, sem tela de Histórico no MVP). |
 | Tarefa sem prioridade | Card de Tarefa | Tag de Prioridade em estado neutro/discreto, sempre visível (clicável — FR-8). Não afeta a posição da Tarefa na coluna (ordenação é por Horário, não por Prioridade). |
 | Tarefa sem Horário | Card de Tarefa | Nenhum rótulo de horário exibido. Ordenada **antes** de todas as Tarefas com Horário dentro da mesma coluna — tratada como compromisso flexível/"dia inteiro". |
-| Arrastando | Card de Tarefa | Card levanta (sombra + leve rotação — único uso de sombra decorativa do produto); placeholder tracejado marca a coluna de dia onde vai encaixar. Preserva Horário e Prioridade — arraste só muda a Data. |
+| Arrastando | Card de Tarefa | Card levanta (sombra + leve rotação — único uso de sombra decorativa do produto); ~~placeholder tracejado marca a coluna de dia onde vai encaixar.~~ **[Alterado em 2026-09-16, com a migração para `@dnd-kit/core`]** o próprio Card acompanha o ponteiro ou o teclado e a coluna de destino recebe um contorno e um fundo suaves; não há placeholder tracejado. Preserva Horário e Prioridade — arraste só muda a Data. |
 | Janela avançando | Visão Semanal | Quando o dia vira com o app aberto, a janela de 7 dias e os rótulos de Data/dia-da-semana de cada coluna se atualizam automaticamente, sem recarregar a página (checagem periódica em segundo plano). |
 | Rollover | Coluna do Dia (Hoje) | Tarefas não concluídas cuja Data ficou para trás aparecem automaticamente na coluna de Hoje, preservando Horário/Prioridade/Estado — sem nenhuma ação de Isabel, sem indicação visual especial de "foi movida" (comportamento silencioso e transparente, FR-9). |
 | Carregamento inicial | Visão Semanal | As 7 colunas e suas Tarefas aparecem já preenchidas na abertura — sem estado de carregamento visível esperado, dado que os dados são locais à instalação. [NOTE FOR ARCHITECTURE] se o mecanismo de persistência escolhido introduzir latência perceptível, definir um estado de carregamento breve não coberto aqui. |
@@ -107,7 +108,9 @@ Behavioral. Visual contrast lives in `DESIGN.md`.
 
 ## Responsive & Platform
 
-Sem breakpoints responsivos nem layout mobile no MVP (ver `Foundation`) — adiado para v2, condicionado a login (Visão do brief, §7.2 do PRD). [NOTE FOR ARCHITECTURE/DEV] o PRD não define uma largura mínima de janela; esta spine assume uma janela desktop "razoável" para caber 7 colunas confortavelmente, mas o comportamento abaixo desse limiar (scroll horizontal? colunas mais estreitas?) não está especificado — decisão pendente na arquitetura/implementação, não bloqueia esta spine.
+~~Sem breakpoints responsivos nem layout mobile no MVP (ver `Foundation`) — adiado para v2, condicionado a login (Visão do brief, §7.2 do PRD). [NOTE FOR ARCHITECTURE/DEV] o PRD não define uma largura mínima de janela; esta spine assume uma janela desktop "razoável" para caber 7 colunas confortavelmente, mas o comportamento abaixo desse limiar (scroll horizontal? colunas mais estreitas?) não está especificado — decisão pendente na arquitetura/implementação, não bloqueia esta spine.~~
+
+**[Decisão original alterada em 2026-09-21]** O layout é responsivo, com estes pontos de quebra: **a partir de 1100 px**, 7 colunas (desktop); **de 700 a 1099 px**, 4 colunas (7 = 4 + 3, sem coluna órfã); **abaixo de 700 px**, 1 coluna com os dias empilhados (hoje primeiro). Isso responde à questão em aberto acima: abaixo do limiar o quadro se reorganiza em vez de encolher, e não há rolagem horizontal. Em telas estreitas ou de toque (largura menor que 700 px ou ponteiro impreciso) os alvos interativos chegam a 44 px, os campos do modal usam 16 px (sem zoom automático do iOS) e o modal rola por dentro em telas baixas. Verificado em larguras emuladas de 360 a 1280 px; **não** testado em aparelho físico (arraste por toque em aberto, ver `deferred-work.md`). Acesso multi-dispositivo continua adiado para v2 (depende de login).
 
 ## Key Flows
 

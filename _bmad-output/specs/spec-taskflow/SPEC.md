@@ -68,10 +68,10 @@ Isabel concilia tarefas de estudo, trabalho e vida pessoal espalhadas entre anot
 
 - Single-user, sem cadastro/login/autenticação no MVP — todas as tarefas pertencem implicitamente à única usuária da instalação.
 - 100% client-side, sem backend/servidor próprio — nenhuma capacidade do MVP exige servidor (ver `ARCHITECTURE-SPINE.md` AD-1).
-- Uso previsto só em navegador desktop; sem responsividade mobile nem sincronização entre dispositivos no MVP.
+- ~~Uso previsto só em navegador desktop; sem responsividade mobile nem sincronização entre dispositivos no MVP.~~ **[Decisão original alterada em 2026-09-21]** Layout responsivo (7 → 4 → 1 coluna); sem sincronização entre dispositivos (só entre abas do mesmo navegador).
 - Janela de 7 dias sempre ancorada em hoje (hoje + 6 seguintes), nunca uma semana de calendário fixa; sem limite artificial de tarefas por dia.
 - Sem mecanismo de backup/exportação de dados no MVP — mitigação do risco de perda de dados é um aviso estático na interface (`ARCHITECTURE-SPINE.md` AD-3), decisão explícita revisitável se o uso real mostrar perda recorrente.
-- Stack e regras estruturais definidos em `ARCHITECTURE-SPINE.md` (companion, AD-1..AD-9) — Vite+React+TypeScript client-only, `useReducer`+`Context` nativo, `@dnd-kit/react` para arraste acessível, `localStorage` via duas chaves independentes. Downstream lê o companion, não reimplementa essas escolhas.
+- Stack e regras estruturais definidos em `ARCHITECTURE-SPINE.md` (companion, AD-1..AD-9) — Vite+React+TypeScript client-only, `useReducer`+`Context` nativo, `@dnd-kit/core` para arraste acessível (~~`@dnd-kit/react`~~, trocado em 2026-09-16), `localStorage` via duas chaves independentes. Downstream lê o companion, não reimplementa essas escolhas.
 
 ## Non-goals
 
@@ -80,7 +80,7 @@ Isabel concilia tarefas de estudo, trabalho e vida pessoal espalhadas entre anot
 - Dashboard complexo ou relatórios de progresso.
 - Inteligência artificial.
 - Notificações ou lembretes.
-- Cadastro, login e acesso multi-dispositivo/mobile no MVP — adiado para v2, não descartado.
+- Cadastro, login e acesso multi-dispositivo~~/mobile~~ no MVP — adiado para v2, não descartado. *(A parte mobile/responsiva foi entregue em 2026-09-21.)*
 - Exportar/importar dados no MVP — decidido na arquitetura, revisitável se o uso real mostrar necessidade.
 - Tela/superfície de Histórico de tarefas concluídas fora da janela de 7 dias visível — decisão de 2026-09-18, revisitável se o uso real mostrar necessidade real, não hipotética.
 - Grade/visualização com eixo de horas (estilo Google Calendar) — a "experiência de agenda" é resolvida como lista ordenada cronologicamente por horário, decisão de 2026-09-18.

@@ -8,13 +8,13 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { getTodayISO, getWeekWindow } from '../../constants/week';
 import { sortTasksInDay } from '../../state/selectors';
 import { useTaskContext } from '../../state/TaskContext';
 import { useTaskActions } from '../../state/useTaskActions';
 import { DayColumn } from '../DayColumn/DayColumn';
 import { applyWeekDragChange, resolveWeekDragChange } from './dragChange';
+import { weekKeyboardCoordinates } from './keyboardCoordinates';
 import { getDragHandle, isDragHandleFocused } from './dragHandleRegistry';
 import styles from './WeekView.module.css';
 
@@ -32,12 +32,12 @@ const WINDOW_RECHECK_INTERVAL_MS = 60_000;
 // cada `DayColumn` é agora o único alvo soltável (coluna inteira, não mais
 // zonas de Prioridade por dia — AD-7 obsoleto). Arrastar um Card para
 // qualquer lugar de outra coluna muda só a Data (`moveTaskToDate`), nunca
-// Horário/Prioridade/Estado. `sortableKeyboardCoordinates`
-// (`@dnd-kit/sortable`) continua sendo o `coordinateGetter` do sensor de
-// teclado mesmo sem `useSortable`/`SortableContext`: ele já opera de forma
-// genérica sobre TODOS os alvos soltáveis registrados no `DndContext`
-// (`droppableContainers`), filtrados por direção — não é exclusivo de listas
-// sortable, é o que permite a seta do teclado alcançar a coluna vizinha.
+// Horário/Prioridade/Estado. O sensor de teclado usa
+// `weekKeyboardCoordinates` (`./keyboardCoordinates.ts`), próprio: o
+// `sortableKeyboardCoordinates` de `@dnd-kit/sortable` só funciona para itens
+// "sortable" e, com `useDraggable` puro, nunca movia o Card (comprovado em
+// navegador real — retro do hardening v1.0). O nosso decide o destino pela
+// geometria das colunas (7, 4 ou 1 por linha, conforme o layout).
 export function WeekView() {
   const { state } = useTaskContext();
   const { moveTaskToDate, applyRollover } = useTaskActions();
@@ -60,7 +60,7 @@ export function WeekView() {
 
   const sensors = useSensors(
     useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(KeyboardSensor, { coordinateGetter: weekKeyboardCoordinates }),
   );
 
   const handleDragEnd = useCallback(

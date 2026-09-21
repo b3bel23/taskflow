@@ -13,15 +13,15 @@ const PORT = 4173;
 
 export default defineConfig({
   testDir: './e2e',
-  // 60s: os testes com duas abas abrem 2 páginas e chegam perto de 30s numa
+  // 90s: os testes com duas abas abrem 2 páginas e chegam perto de 30s numa
   // máquina lenta (pasta no OneDrive) sob carga.
-  timeout: 60_000,
+  timeout: 90_000,
   expect: { timeout: 10_000 },
   fullyParallel: true,
   // Poucos workers: cada teste sobe um Chrome e os de duas abas sobem dois;
   // com muitos em paralelo a máquina (ou o runner) fica sem CPU e testes
   // corretos estouram o tempo.
-  workers: process.env.CI ? 2 : 3,
+  workers: 2,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',

@@ -167,6 +167,10 @@ Um resumo curto do que o app deve fazer está em [`REQUIREMENTS.md`](REQUIREMENT
 
 Mesmo em versões futuras, a proposta é continuar focado em **organização pessoal**, e não virar uma ferramenta de gerenciamento de equipes.
 
+## 📄 Licença
+
+Distribuído sob a licença **MIT** — veja o arquivo [`LICENSE`](LICENSE).
+
 ---
 
 Desenvolvido como um projeto prático utilizando **BMAD Method + Spec-Driven Development (SDD)**.

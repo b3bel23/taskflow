@@ -1,8 +1,8 @@
 # TaskFlow v1.0.0 — notas de release
 
-> **RASCUNHO.** Preparado para revisão. Nenhuma tag nem release foi criada.
+> **RASCUNHO.** Preparado para revisão. A tag e o release só serão criados depois que o CI passar no GitHub.
 
-**App:** https://b3bel23.github.io/taskflow/ · **Requisitos:** [`REQUIREMENTS.md`](../REQUIREMENTS.md)
+**App:** https://b3bel23.github.io/taskflow/ · **Requisitos:** [`REQUIREMENTS.md`](../REQUIREMENTS.md) · **Licença:** MIT
 
 TaskFlow é um organizador semanal de tarefas pessoais que roda 100% no navegador: hoje e os 6 dias seguintes lado a lado, com horário, prioridade e estado por tarefa. Sem cadastro, sem servidor.
 

@@ -1,5 +1,5 @@
-import { createContext, useContext, useLayoutEffect, useReducer, type Dispatch, type ReactNode } from 'react';
-import { loadTheme } from '../storage/themeStorage';
+import { createContext, useContext, useEffect, useLayoutEffect, useReducer, type Dispatch, type ReactNode } from 'react';
+import { loadTheme, subscribeToThemeStorage } from '../storage/themeStorage';
 import { themeReducer, type ThemeAction } from './themeReducer';
 import type { Theme } from '../types';
 
@@ -34,6 +34,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+
+  // Outra aba trocou o tema (evento `storage`): esta acompanha sem reload
+  // (retro Epic 1, item 23). O `dataset.theme` continua sendo escrito só pelo
+  // efeito acima, ao reagir à mudança de `theme`.
+  useEffect(() => subscribeToThemeStorage((next) => dispatch({ type: 'set', theme: next })), []);
 
   return <ThemeContext.Provider value={{ theme, dispatch }}>{children}</ThemeContext.Provider>;
 }

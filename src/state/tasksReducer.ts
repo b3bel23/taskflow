@@ -33,7 +33,11 @@ export interface TaskStoreState {
 export type TaskAction =
   | { type: 'create'; task: Task }
   | { type: 'update'; tasks: Task[] }
-  | { type: 'delete'; tasks: Task[] };
+  | { type: 'delete'; tasks: Task[] }
+  // Estado que veio de FORA desta aba (outra aba gravou no localStorage, evento
+  // `storage`): já está persistido e já foi validado por `loadTasks` — não passa
+  // pelo guard de persistência do AD-4 porque não há nada a gravar.
+  | { type: 'sync'; tasks: Task[] };
 
 export function tasksReducer(state: TaskStoreState, action: TaskAction): TaskStoreState {
   switch (action.type) {
@@ -42,6 +46,8 @@ export function tasksReducer(state: TaskStoreState, action: TaskAction): TaskSto
     case 'update':
       return { ...state, tasks: action.tasks };
     case 'delete':
+      return { ...state, tasks: action.tasks };
+    case 'sync':
       return { ...state, tasks: action.tasks };
     default:
       return state;

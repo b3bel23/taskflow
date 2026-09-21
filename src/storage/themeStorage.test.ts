@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { loadTheme, saveTheme, THEME_STORAGE_KEY } from './themeStorage';
+import { loadTheme, saveTheme, subscribeToThemeStorage, THEME_STORAGE_KEY } from './themeStorage';
 
 describe('themeStorage', () => {
   beforeEach(() => {
@@ -71,5 +71,59 @@ describe('themeStorage', () => {
       }).not.toThrow();
       expect(result).toEqual({ ok: false, error: { message: 'quota exceeded' } });
     });
+  });
+});
+
+// Retro Epic 1, item 23: sincronização entre abas via evento `storage`.
+describe('subscribeToThemeStorage', () => {
+  const otherTab = (key: string | null = THEME_STORAGE_KEY) =>
+    window.dispatchEvent(new StorageEvent('storage', { key }));
+
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it('outra aba trocou o tema: relê e entrega o tema ao callback', () => {
+    const onChange = vi.fn();
+    const unsubscribe = subscribeToThemeStorage(onChange);
+    window.localStorage.setItem(THEME_STORAGE_KEY, 'dark');
+
+    otherTab();
+
+    expect(onChange).toHaveBeenCalledWith('dark');
+    unsubscribe();
+  });
+
+  it('ignora eventos de outras chaves (ex. as tarefas)', () => {
+    const onChange = vi.fn();
+    const unsubscribe = subscribeToThemeStorage(onChange);
+
+    otherTab('taskflow:tasks');
+
+    expect(onChange).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  it('valor ilegível ou armazenamento limpo cai em "light", nunca em prefers-color-scheme', () => {
+    const onChange = vi.fn();
+    const unsubscribe = subscribeToThemeStorage(onChange);
+    window.localStorage.setItem(THEME_STORAGE_KEY, 'sepia');
+
+    otherTab();
+    window.localStorage.clear();
+    otherTab(null);
+
+    expect(onChange.mock.calls).toEqual([['light'], ['light']]);
+    unsubscribe();
+  });
+
+  it('cancelar a assinatura para de notificar', () => {
+    const onChange = vi.fn();
+    subscribeToThemeStorage(onChange)();
+    window.localStorage.setItem(THEME_STORAGE_KEY, 'dark');
+
+    otherTab();
+
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

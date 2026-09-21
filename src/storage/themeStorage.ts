@@ -40,3 +40,20 @@ export function saveTheme(theme: Theme): SaveThemeResult {
     return { ok: false, error: { message } };
   }
 }
+
+// Sincronização entre abas (retro Epic 1, item 23): quando outra aba troca o
+// tema, esta acompanha sem reload. Mesma ideia de `subscribeToTasksStorage`:
+// reage só à chave do tema (ou `key === null`, `clear()`), relê por
+// `loadTheme` (valor ilegível cai em 'light', como sempre) e devolve a função
+// que cancela a assinatura.
+export function subscribeToThemeStorage(onChange: (theme: Theme) => void): () => void {
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key !== null && event.key !== THEME_STORAGE_KEY) {
+      return;
+    }
+    onChange(loadTheme());
+  };
+
+  window.addEventListener('storage', handleStorage);
+  return () => window.removeEventListener('storage', handleStorage);
+}

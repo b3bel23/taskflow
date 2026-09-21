@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getWeekWindow, getWeekdayIndex } from '../constants/week';
 import type { Task } from '../types';
-import { loadTasks, saveTasks, TASKS_STORAGE_KEY, type LoadTasksResult } from './tasksStorage';
+import {
+  loadTasks,
+  saveTasks,
+  subscribeToTasksStorage,
+  TASKS_STORAGE_KEY,
+  type LoadTasksResult,
+} from './tasksStorage';
 
 const sampleTask: Task = {
   id: 'task-1',
@@ -385,5 +391,91 @@ describe('tasksStorage', () => {
       }).not.toThrow();
       expect(result).toEqual({ ok: false, error: { message: 'quota exceeded' } });
     });
+  });
+});
+
+// Retro Epic 1, item 23: sincronização entre abas via evento `storage`.
+describe('subscribeToTasksStorage', () => {
+  const otherTab = (key: string | null = TASKS_STORAGE_KEY) =>
+    window.dispatchEvent(new StorageEvent('storage', { key }));
+
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it('outra aba gravou tarefas: relê e entrega as tarefas ao callback', () => {
+    const onChange = vi.fn();
+    const unsubscribe = subscribeToTasksStorage(onChange);
+    window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify({ schemaVersion: 2, tasks: [sampleTask] }));
+
+    otherTab();
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith([sampleTask]);
+    unsubscribe();
+  });
+
+  it('ignora eventos de outras chaves (ex. o tema)', () => {
+    const onChange = vi.fn();
+    const unsubscribe = subscribeToTasksStorage(onChange);
+
+    otherTab('taskflow:theme');
+    otherTab('qualquer-outra-chave');
+
+    expect(onChange).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  it('armazenamento limpo em outra aba (key === null): entrega a lista vazia', () => {
+    const onChange = vi.fn();
+    const unsubscribe = subscribeToTasksStorage(onChange);
+
+    otherTab(null);
+
+    expect(onChange).toHaveBeenCalledWith([]);
+    unsubscribe();
+  });
+
+  it('dado corrompido escrito por outra aba: NÃO notifica (não apaga o que esta aba tem em memória)', () => {
+    const onChange = vi.fn();
+    const unsubscribe = subscribeToTasksStorage(onChange);
+    window.localStorage.setItem(TASKS_STORAGE_KEY, '{isto não é json');
+
+    otherTab();
+
+    expect(onChange).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  it('payload no formato antigo (v1) vindo de outra aba é migrado, como no carregamento inicial', () => {
+    const onChange = vi.fn();
+    const unsubscribe = subscribeToTasksStorage(onChange);
+    window.localStorage.setItem(
+      TASKS_STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 1,
+        tasks: [{ id: 'v1', title: 'Antiga', day: 'wed', state: 'pending', priority: null, order: 0 }],
+      }),
+    );
+
+    otherTab();
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    const [tasks] = onChange.mock.calls[0] as [Task[]];
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]).toMatchObject({ id: 'v1', title: 'Antiga', time: null });
+    expect(tasks[0].date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    unsubscribe();
+  });
+
+  it('cancelar a assinatura para de notificar', () => {
+    const onChange = vi.fn();
+    const unsubscribe = subscribeToTasksStorage(onChange);
+    unsubscribe();
+    window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify({ schemaVersion: 2, tasks: [sampleTask] }));
+
+    otherTab();
+
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

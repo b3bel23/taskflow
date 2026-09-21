@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { THEME_STORAGE_KEY } from '../storage/themeStorage';
 import { ThemeProvider, useThemeContext } from './ThemeContext';
 
@@ -89,5 +89,50 @@ describe('ThemeContext', () => {
     expect(() => render(<ThemeProbe />)).toThrow(
       'useThemeContext deve ser usado dentro de um ThemeProvider',
     );
+  });
+});
+
+// Retro Epic 1, item 23: o provider acompanha o tema trocado em outra aba.
+describe('ThemeContext — sincronização entre abas', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    cleanRootTheme();
+  });
+
+  afterEach(() => {
+    cleanRootTheme();
+  });
+
+  it('outra aba trocou o tema: o contexto e o data-theme do elemento raiz acompanham, sem reload', () => {
+    render(
+      <ThemeProvider>
+        <ThemeProbe />
+      </ThemeProvider>,
+    );
+    expect(screen.getByTestId('probe').textContent).toBe('light');
+
+    window.localStorage.setItem(THEME_STORAGE_KEY, 'dark');
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: THEME_STORAGE_KEY }));
+    });
+
+    expect(screen.getByTestId('probe').textContent).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('dark');
+  });
+
+  it('evento de outra chave não mexe no tema', () => {
+    window.localStorage.setItem(THEME_STORAGE_KEY, 'dark');
+    render(
+      <ThemeProvider>
+        <ThemeProbe />
+      </ThemeProvider>,
+    );
+
+    window.localStorage.setItem(THEME_STORAGE_KEY, 'light');
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: 'taskflow:tasks' }));
+    });
+
+    expect(screen.getByTestId('probe').textContent).toBe('dark');
   });
 });

@@ -234,3 +234,30 @@ export function saveTasks(tasks: Task[]): SaveTasksResult {
     return { ok: false, error: { message } };
   }
 }
+
+// Sincronização entre abas (retro Epic 1, item 23). O navegador dispara o
+// evento `storage` nas OUTRAS abas do mesmo site quando uma aba grava no
+// `localStorage` (nunca na própria aba que gravou). Sem ouvi-lo, uma segunda
+// aba ficava com as tarefas velhas — e pior, ao gravar, sobrescrevia sem
+// aviso o que a primeira aba tinha salvo. Este é o único módulo que lida com
+// o armazenamento de tarefas (AD-8), então a assinatura mora aqui.
+//
+// Reage só à chave de tarefas (ou a `key === null`, que é o `clear()` do
+// armazenamento). Relê pelo próprio `loadTasks` (mesma validação/migração) e
+// só notifica quando o dado é legível: um valor corrompido escrito por outra
+// aba NÃO apaga o que esta aba tem em memória. Devolve a função que cancela
+// a assinatura.
+export function subscribeToTasksStorage(onChange: (tasks: Task[]) => void): () => void {
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key !== null && event.key !== TASKS_STORAGE_KEY) {
+      return;
+    }
+    const result = loadTasks();
+    if (!result.loadError) {
+      onChange(result.tasks);
+    }
+  };
+
+  window.addEventListener('storage', handleStorage);
+  return () => window.removeEventListener('storage', handleStorage);
+}

@@ -1,5 +1,5 @@
-import { createContext, useContext, useReducer, type Dispatch, type ReactNode } from 'react';
-import { loadTasks } from '../storage/tasksStorage';
+import { createContext, useContext, useEffect, useReducer, type Dispatch, type ReactNode } from 'react';
+import { loadTasks, subscribeToTasksStorage } from '../storage/tasksStorage';
 import { tasksReducer, type TaskAction, type TaskStoreState } from './tasksReducer';
 
 export interface TaskContextValue {
@@ -14,6 +14,12 @@ const TaskContext = createContext<TaskContextValue | undefined>(undefined);
 // Carregamento inicial da ARCHITECTURE-SPINE.md).
 export function TaskProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(tasksReducer, undefined, () => loadTasks());
+
+  // Outra aba gravou tarefas (evento `storage`): adota o que ela salvou em vez
+  // de seguir com dados velhos e, ao gravar, sobrescrevê-los (retro Epic 1,
+  // item 23). O `dispatch` aqui vive na própria camada de estado, não num
+  // componente de UI — e não há o que persistir (o dado já está no storage).
+  useEffect(() => subscribeToTasksStorage((tasks) => dispatch({ type: 'sync', tasks })), []);
 
   return <TaskContext.Provider value={{ state, dispatch }}>{children}</TaskContext.Provider>;
 }
